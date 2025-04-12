@@ -51,7 +51,8 @@ type BarType =
 	| "bar_thick_thin"
 	| "bar_right_repeat"
 	| "bar_left_repeat"
-	| "bar_double_repeat";
+	| "bar_dbl_repeat";
+
 type ClefType = "treble" | "bass";
 type KeySigDir = "sharp" | "flat";
 type MeterType = "" | "common_time" | "cut_time" | "specified";
@@ -82,6 +83,7 @@ interface NoteElement extends ElementBase {
 interface BarElement extends ElementBase {
 	el_type: "bar";
 	type: BarType;
+	number: number;
 	start_first_ending?: boolean;
 	start_second_ending?: boolean;
 	end_first_ending?: boolean;

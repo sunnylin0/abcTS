@@ -258,7 +258,7 @@ class ABCPrinter {
 		const elem = this.getElem();
 		if (elem === null) return "spacer";
 
-		if (elem.el_type !== "note" || getDuration(elem) >= 1 / 4)
+		if (elem.el_type === "note" && (getDuration(elem) >= 1 / 4 || elem.end_beam))
 			return "spacer";
 
 		const nextElem = this.getNextElem();
@@ -293,9 +293,11 @@ class ABCPrinter {
 		this.x = 0;
 		if (abcline.staff) {
 			this.abcline = abcline.staff;
-			if (this.partstartx) this.partstartx = this.x;
-			let elem: any;
+			var elem;
+			var start = (this.partstartx) ? true : false;
 			for (this.pos = 0; this.pos < this.abcline.length; this.pos++) {
+				var type = this.getElem().el_type;
+				this.partstartx && start && type != "key" && type != "meter" && type != "clef" && (this.partstartx = this.x) && (start = false);
 				elem = this.printABCElement();
 				if (elem) this.x += elem.getSpace(this.space);
 			}
@@ -445,43 +447,79 @@ class ABCPrinter {
 		return new ABCGraphElem(elemset, notehead, 0, Math.sqrt(getDuration(elem) * 8), bbox);
 	}
 
-	printBarLine(elem: Elem): ABCGraphElem {
+	printBarLine(elem: BarElement): ABCGraphElem {
 	// bar_thin, bar_thin_thick, bar_thin_thin, bar_thick_thin, bar_right_repeat, bar_left_repeat, bar_double_repeat
-		const bar_types: BarTypes = {
-			"bar_thin": ['thin'],
-			"bar_thin_thick": ['thin', 'thick'],
-			"bar_thin_thin": ['thin', 'thin'],
-			"bar_thick_thin": ['thick', 'thin'],
-			"bar_left_repeat": ['thick', 'dot'],
-			"bar_right_repeat": ['dot', 'thick'],
-			"bar_double_repeat": ['dot', 'thick', 'thick', 'dot']
-		};
+		
+// bar_thin, bar_thin_thick, bar_thin_thin, bar_thick_thin, bar_right_repeat, bar_left_repeat, bar_double_repeat
 
-		const arr = bar_types[elem.type];
-		arr.forEach((el: string) => {
-			switch (el) {
-				case "thin":
-					this.glyphs.printSymbol(this.x, this.calcY(3), "\\");
-					break;
-				case "thick":
-					this.glyphs.printSymbol(this.x, this.calcY(3), "\\");
-					break;
-				case "dot":
-					this.glyphs.printSymbol(this.x, 1 + this.calcY(9 - 1), ".");
-					this.glyphs.printSymbol(this.x, 1 + this.calcY(7 - 1), ".");
-					break;
-			}
-		});
-		if (elem.start_first_ending !== undefined)
-			this.debugMsg("start_first_ending");
-		if (elem.start_second_ending !== undefined)
-			this.debugMsg("start_second_ending");
-		if (elem.end_first_ending !== undefined)
-			this.debugMsg("end_first_ending");
-		if (elem.end_second_ending !== undefined)
-			this.debugMsg("end_second_ending");
-		return new ABCGraphElem(null, null, 0, .5, null);
-	}
+  var elemset = this.paper.set();
+  var symb; // symbol which sets the spacing
+  var symbscale = 1; //width of that symbol
+
+  var firstdots = (elem.type==="bar_right_repeat" || elem.type==="bar_dbl_repeat");
+  var firstthin = (elem.type!="bar_left_repeat" && elem.type!="bar_thick_thin");
+  var thick = (elem.type==="bar_right_repeat" || elem.type==="bar_dbl_repeat" || elem.type==="bar_left_repeat" ||
+	       elem.type==="bar_thin_thick" || elem.type==="bar_thick_thin");
+  var secondthin = (elem.type==="bar_left_repeat" || elem.type==="bar_thick_thin" || elem.type==="bar_thin_thin");
+  var seconddots = (elem.type==="bar_left_repeat" || elem.type==="bar_dbl_repeat");
+
+  if (firstdots) {
+    elemset.push(this.glyphs.printSymbol(this.x, 1+this.calcY(7+1), "."));
+    elemset.push(this.glyphs.printSymbol(this.x, 1+this.calcY(5+1), "."));
+    this.x+=5; //2 hardcoded, twice;
+  }
+
+  if (firstthin) {
+    symb = this.glyphs.printSymbol(this.x, this.calcY(3), "\\"); // 3 is hardcoded
+    symbscale = 1;
+  }
+
+
+  if (thick) { // also means end of nth part
+    this.x+=3; //3 hardcoded;
+    
+    if (this.partstartx) {
+      this.paper.path(sprintf("M %f %f L %f %f L %f %f", 
+			      this.x, this.y+10, this.x, this.y, this.partstartx, this.y)).attr({stroke:"#000000"});
+      this.partstartx = null;
+    }     
+    symb = this.glyphs.printSymbol(this.x, this.calcY(3), "\\"); // 3 is hardcoded
+    symb.scale(10,1,this.x);
+    symbscale = 10;
+    elemset.push(symb);
+    this.x+=6;
+  }
+  
+  if (this.partstartx && (elem.type==="bar_thin_thin")) { // means end of nth part but at different place
+    this.paper.path(sprintf("M %f %f L %f %f L %f %f", 
+			      this.x, this.y+10, this.x, this.y, this.partstartx, this.y)).attr({stroke:"#000000"});
+    this.partstartx = null;
+  }
+
+
+  if (secondthin) {
+    this.x+=3; //3 hardcoded;
+    symb = this.glyphs.printSymbol(this.x, this.calcY(3), "\\"); // 3 is hardcoded
+    symbscale = 1;
+    elemset.push(symb);
+  }
+
+  if (seconddots) {
+    this.x+=2; //3 hardcoded;
+    elemset.push(this.glyphs.printSymbol(this.x, 1+this.calcY(7+1), "."));
+    elemset.push(this.glyphs.printSymbol(this.x, 1+this.calcY(5+1), "."));
+  } // 2 is hardcoded
+
+  if (elem.number) {
+    this.partstartx = this.x;
+    this.paper.path(sprintf("M %f %f L %f %f", 
+			    this.x, this.y, this.x, this.y+10)).attr({stroke:"#000000"});
+    this.paper.text(this.x+5,this.y+7,elem.number);
+  } 
+
+  return new ABCGraphElem(elemset, null, this.glyphs.getSymbolWidth("\\",symb)*symbscale, 0.5,null);	
+
+};
 
 	printStave(width: number): void {
 		const staff = this.glyphs.printSymbol(0, this.calcY(3), "="); // 3 is hardcoded

@@ -159,7 +159,7 @@ let bReentry = false;
 function abc_keystroke(): void {
 	if (bReentry) return;
 	bReentry = true;
-
+	let canvas;
 	try {
 	//	parseABC();
 	//	var draw = new DrawNotation('music', 'main_title', 'author');
@@ -170,7 +170,7 @@ function abc_keystroke(): void {
 		abcParser.parse(t);
 		//	  var scratch = $('scratch2');
 		const tune = abcParser.getTune();
-		const canvas = document.getElementById("canvas");
+		canvas = document.getElementById("canvas");
 		//canvas.down().update();
 		canvas.innerHTML = "";
 		//paper.remove();
@@ -187,8 +187,9 @@ function abc_keystroke(): void {
 		//	draw.draw(abcParser.getTune());
 		
 	} catch (e) {
-		console.log("error: " + e);
-		//canvas.update("error: " + e)
+		if (canvas)
+			canvas.update("error: " + e);
+		else throw (e);
 	}
 	bReentry = false;
 }
