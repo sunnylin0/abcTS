@@ -23,6 +23,5 @@
       "node"
     ]
   },
-  "include": [ "src/**/*", "types", "abcjs" ],
-  "exclude": [ "abc" ]
+  "include": [ "src", "types", "abcjs" ],
 }

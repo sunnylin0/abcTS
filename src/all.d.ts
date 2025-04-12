@@ -115,16 +115,16 @@ interface MeterElement extends ElementBase {
 type AbcElement = RestElement | NoteElement | BarElement | ClefElement | KeySigElement | MeterElement;
 
 interface StaffLine {
-	staff: AbcElement[];
+	staff?: AbcElement[];
+	subtitle?: string;
 }
 
 
 interface SubtitleLine {
-	subtitle: string;
 }
 
-type Line = StaffLine | SubtitleLine;
-
+//type Line = StaffLine | SubtitleLine;
+type Line = StaffLine;
 
 // Parse
 
@@ -145,17 +145,24 @@ type BarInfo = [number, string]; // [charactersConsumed, barType]
 type BarEndingInfo = [number, string[]]; // [charactersConsumed, endingAttributes]
 type PitchInfo = [number, number]; // [charactersConsumed, pitch]
 
+interface MetaTextInfo {
+	[key: string]: string;
+	tempo?: TempoInfo
+}
+
+interface TempoInfo {
+	multiplier?: number;
+	bpm?: number;
+	duration?: number;
+}
+
 interface MultilineVars {
 	iChar: number;
 	key: KeySignature;
 	meter: MeterElement;
 	hasMainTitle: boolean;
-	copyright: string;
-	transcription: string;
-	notes: string;
-	rhythm: string;
-	book: string,
-	default_length: number,
+	default_length: number;
+	tempo?: TempoInfo;
 	reset(): void;
 }
 
@@ -207,7 +214,7 @@ interface PlayTune {
 	 * @param frequency 頻率
 	 * @param seconds 持續時間（秒）
 	 */
-	 _playFreq(frequency: number, seconds: number): void;
+	_playFreq(frequency: number, seconds: number): void;
 
 	/**
 	 * 播放樂曲
@@ -225,7 +232,7 @@ interface PlayTune {
 	 * 逐行播放樂曲
 	 * @param This PlayTune 實例
 	 */
-	 _consumeLine(This: PlayTune): void;
+	_consumeLine(This: PlayTune): void;
 
 }
 
@@ -240,6 +247,6 @@ declare function pack(format: string, value: number): string;
 
 
 // 假設 editArea 的型別定義（根據實際情況調整）
-interface  EditArea {
+interface EditArea {
 }
 

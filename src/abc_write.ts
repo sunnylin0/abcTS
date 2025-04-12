@@ -60,11 +60,11 @@ class AbcGlyphs {
 		return path;
 	}
 
-	getSymbolWidth(symbol: string, path: any): number {
+	getSymbolWidth(symbol: string): number {
 		return this.glyphs[symbol].w;
 	}
 
-	getSymbolHeight(symbol: string, path: any): number {
+	getSymbolHeight(symbol: string): number {
 		return this.glyphs[symbol].h;
 	}
 }
@@ -278,41 +278,50 @@ class ABCPrinter {
 	printABC(abctune: any): void {
 		//this.currenttune = abctune;
 		//ABCNote.duration = eval(this.currenttune.header.fields["L"]);
-		this.y = 0;
-		this.paper.text(100, 5, abctune.title);
-		this.paper.text(100, 20, abctune.author);
+		this.y = 15;
+		this.paper.text(300, this.y, abctune.title).attr({ "font-size": 20 });
+		this.y += 20;
+		this.paper.text(100, this.y, abctune.author);
+		this.y += 15;
 		if (abctune.origin && abctune.origin.length > 0)
-			this.paper.text(100, 35, "(" + abctune.origin + ")");
+			this.paper.text(100, this.y, "(" + abctune.origin + ")");
 
-		for (let line = 0; line < abctune.lines.length; line++) {
-			this.printABCLine(abctune.lines[line]);
-			this.y += AbcSpacing.STAVEHEIGHT;
+		for (var line = 0; line < abctune.lines.length; line++) {
+			var abcline = abctune.lines[line];
+			if (abcline.staff) {
+				this.printABCLine(abcline);
+				this.y += AbcSpacing.STAVEHEIGHT;
+			} else if (abcline.subtitle) {
+				this.printSubtitleLine(abcline);
+				this.y += 20; //hardcoded
+			}
 		}
 		this.paper.text(100, this.y, abctune.extraText);
 	}
 
+	printSubtitleLine(abcline) {
+		this.paper.text(100, this.y, abcline.subtitle);
+	}
+
 	printABCLine(abcline: any): void {
 		this.x = 0;
-		if (abcline.staff) {
-			this.abcline = abcline.staff;
-			var elem;
-			var start = (this.partstartx) ? true : false;
-			for (this.pos = 0; this.pos < this.abcline.length; this.pos++) {
-				var type = this.getElem().el_type;
-				this.partstartx && start && type != "key" && type != "meter" && type != "clef" && (this.partstartx = this.x) && (start = false);
-				elem = this.printABCElement();
-				if (elem) this.x += elem.getSpace(this.space);
-			}
-			if (this.abcline[this.abcline.length - 1].el_type === "bar") {
-				this.x -= elem.getSpace(this.space);
-			}
-			this.printStave(this.x - 1); // don't use the last pixel over the barline
-			if (this.partstartx) {
-				this.paper.path(sprintf("M %f %f L %f %f", this.x, this.y, this.partstartx, this.y)).attr({ stroke: "#000000" });
-			}
-		} else if (abcline.subtitle) {
-			this.paper.text(100, this.y, abcline.subtitle);
+		this.abcline = abcline.staff;
+		var elem;
+		var start = (this.partstartx) ? true : false;
+		for (this.pos = 0; this.pos < this.abcline.length; this.pos++) {
+			var type = this.getElem().el_type;
+			this.partstartx && start && type != "key" && type != "meter" && type != "clef" && (this.partstartx = this.x) && (start = false);
+			elem = this.printABCElement();
+			if (elem) this.x += elem.getSpace(this.space);
 		}
+		if (this.abcline[this.abcline.length - 1].el_type === "bar") {
+			this.x -= elem.getSpace(this.space);
+		}
+		this.printStave(this.x - 1); // don't use the last pixel over the barline
+		if (this.partstartx) {
+			this.paper.path(sprintf("M %f %f L %f %f", this.x, this.y, this.partstartx, this.y)).attr({ stroke: "#000000" });
+		}
+
 	}
 
 	printABCElement(): any | null {
@@ -334,7 +343,7 @@ class ABCPrinter {
 				this.printKeySignature(elem);
 				break;
 			case "rest":
-				this.debugMsg("rest(" + elem.duration + ")");
+				graphelem = this.printRest(elem);
 				break;
 		}
 		return graphelem;
@@ -363,17 +372,35 @@ class ABCPrinter {
 	private calcY(ofs: number): number {
 		return this.y + ((AbcSpacing.TOPNOTE - ofs) * AbcSpacing.STEP);
 	}
+
+	printRest(elem) {
+		elem.pitch = 7;
+		return this.printNote(elem);
+	}
+
 	printNote(elem: any, stem?: boolean): ABCGraphElem {
-		const elemset = this.paper.set();
+		let elemset = this.paper.set();
 		let notehead: any = null;
 
 		if (elem.decoration) {
-			var decs = elem.decoration.join(',');
-			this.debugMsg(decs);
+			var dec;
+			var unknowndecs = [];
+			for (var i = 0; i < elem.decoration.length; i++) {
+				switch (elem.decoration[i]) {
+					case "trill": dec = "T"; break;
+					case "staccato": dec = "k"; break;
+					default:
+						unknowndecs[unknowndecs.length] = elem.decoration[i];
+						continue;
+				}
+				var deltax = (this.glyphs.getSymbolWidth("\u0153") - this.glyphs.getSymbolWidth(dec)) / 2;
+				elemset.push(this.glyphs.printSymbol(this.x + deltax, this.y + 20, dec));
+			}
+			(unknowndecs.length > 0) && this.debugMsg(unknowndecs.join(','));
 		}
 		// 打印和弦標記
 		if (elem.chord !== undefined) {
-			this.paper.text(this.x, this.y + 20, elem.chord);
+			this.paper.text(this.x, this.y + 15, elem.chord);
 		}
 
 		// 處理升降記號
@@ -395,7 +422,7 @@ class ABCPrinter {
 					symb = "";
 			}
 			const acc = this.glyphs.printSymbol(this.x, this.calcY(elem.pitch + 1), symb); // 1 是硬編碼
-			acc.translate(-(this.glyphs.getSymbolWidth(symb, acc) + 2), 0); // 硬編碼
+			acc.translate(-(this.glyphs.getSymbolWidth(symb) + 2), 0); // hardcoded
 			elemset.push(acc);
 		}
 
@@ -405,7 +432,8 @@ class ABCPrinter {
 		// 音符頭符號對應表
 		const chartable: { [key: string]: { [key: number]: string } } = {
 			up: { 0: "w", 1: "h", 2: "q", 3: "e", 4: "x" },
-			down: { 0: "w", 1: "H", 2: "Q", 3: "E", 4: "X" }
+			down: { 0: "w", 1: "H", 2: "Q", 3: "E", 4: "X" },
+			rest: { 0: "\u2211", 1: "\u00d3", 2: "\u0152", 3: "\u2030", 4: "\u2248" }
 		};
 
 		let xcorr = 0;
@@ -413,32 +441,45 @@ class ABCPrinter {
 		const durlog = Math.floor(Math.log(dur) / Math.log(2));
 		const dot = (Math.pow(2, durlog) !== dur);
 		let c = "";
-
+		let dir = "";
+		let bbox = {
+			x: 0, y: 0, width: 0, height: 0
+		};
 		// 根據音符方向和時值選擇符號
 		if (!stem) {
-			const dir = (elem.pitch >= 6) ? "down" : "up";
+			dir = (elem.pitch >= 6) ? "down" : "up";
+			(elem.el_type === "rest") && (dir = "rest");
 			c = chartable[dir][-durlog];
 		} else {
 			c = "\u0153"; // 1 是硬編碼
 			xcorr = 1;
 		}
 
-		// 打印音符頭
-		notehead = this.glyphs.printSymbol(this.x, this.calcY(elem.pitch + xcorr), c);
-		elemset.push(notehead);
+		if (elem.grace_start)
+			this.debugMsg("grace_start");
+		if (elem.grace_end)
+			this.debugMsg("grace_end");
+		if (c === undefined)
+			this.debugMsg("chartable[" + dir + "][" + (-durlog) + '] is undefined');
+		else {
 
-		// 計算音符的邊界框
-		const bbox = {
-			x: this.x,
-			y: this.calcY(elem.pitch + xcorr),
-			width: this.glyphs.getSymbolWidth(c, notehead),
-			height: this.glyphs.getSymbolHeight(c, notehead)
-		};
 
-		// 處理附點
-		if (dot) {
-			const dotadjust = (1 - elem.pitch % 2);
-			elemset.push(this.glyphs.printSymbol(this.x + 12, 1 + this.calcY(elem.pitch + 2 - 1 + dotadjust), ".")); // 12 和 1 是硬編碼
+			// 打印音符頭
+			notehead = this.glyphs.printSymbol(this.x, this.calcY(elem.pitch + xcorr), c);
+			elemset.push(notehead);
+			// 計算音符的邊界框
+			bbox = {
+				"x": this.x,
+				"y": this.calcY(elem.pitch + xcorr),
+				"width": this.glyphs.getSymbolWidth(c),
+				height: this.glyphs.getSymbolHeight(c)
+			};
+
+			// 處理附點
+			if (dot) {
+				const dotadjust = (1 - elem.pitch % 2);
+				elemset.push(this.glyphs.printSymbol(this.x + 12, 1 + this.calcY(elem.pitch + 2 - 1 + dotadjust), ".")); // 12 和 1 是硬編碼
+			}
 		}
 
 		// 打印上方加線
@@ -460,88 +501,88 @@ class ABCPrinter {
 	}
 
 	printBarLine(elem: BarElement): ABCGraphElem {
-	// bar_thin, bar_thin_thick, bar_thin_thin, bar_thick_thin, bar_right_repeat, bar_left_repeat, bar_double_repeat
-		
-// bar_thin, bar_thin_thick, bar_thin_thin, bar_thick_thin, bar_right_repeat, bar_left_repeat, bar_double_repeat
+		// bar_thin, bar_thin_thick, bar_thin_thin, bar_thick_thin, bar_right_repeat, bar_left_repeat, bar_double_repeat
 
-  var elemset = this.paper.set();
-  var symb; // symbol which sets the spacing
-  var symbscale = 1; //width of that symbol
+		// bar_thin, bar_thin_thick, bar_thin_thin, bar_thick_thin, bar_right_repeat, bar_left_repeat, bar_double_repeat
 
-  var firstdots = (elem.type==="bar_right_repeat" || elem.type==="bar_dbl_repeat");
-  var firstthin = (elem.type!="bar_left_repeat" && elem.type!="bar_thick_thin");
-  var thick = (elem.type==="bar_right_repeat" || elem.type==="bar_dbl_repeat" || elem.type==="bar_left_repeat" ||
-	       elem.type==="bar_thin_thick" || elem.type==="bar_thick_thin");
-  var secondthin = (elem.type==="bar_left_repeat" || elem.type==="bar_thick_thin" || elem.type==="bar_thin_thin");
-  var seconddots = (elem.type==="bar_left_repeat" || elem.type==="bar_dbl_repeat");
+		var elemset = this.paper.set();
+		var symb; // symbol which sets the spacing
+		var symbscale = 1; //width of that symbol
 
-  if (firstdots) {
-    elemset.push(this.glyphs.printSymbol(this.x, 1+this.calcY(7+1), "."));
-    elemset.push(this.glyphs.printSymbol(this.x, 1+this.calcY(5+1), "."));
-    this.x+=5; //2 hardcoded, twice;
-  }
+		var firstdots = (elem.type === "bar_right_repeat" || elem.type === "bar_dbl_repeat");
+		var firstthin = (elem.type != "bar_left_repeat" && elem.type != "bar_thick_thin");
+		var thick = (elem.type === "bar_right_repeat" || elem.type === "bar_dbl_repeat" || elem.type === "bar_left_repeat" ||
+			elem.type === "bar_thin_thick" || elem.type === "bar_thick_thin");
+		var secondthin = (elem.type === "bar_left_repeat" || elem.type === "bar_thick_thin" || elem.type === "bar_thin_thin");
+		var seconddots = (elem.type === "bar_left_repeat" || elem.type === "bar_dbl_repeat");
 
-  if (firstthin) {
-    symb = this.glyphs.printSymbol(this.x, this.calcY(3), "\\"); // 3 is hardcoded
-    symbscale = 1;
-  }
+		if (firstdots) {
+			elemset.push(this.glyphs.printSymbol(this.x, 1 + this.calcY(7 + 1), "."));
+			elemset.push(this.glyphs.printSymbol(this.x, 1 + this.calcY(5 + 1), "."));
+			this.x += 5; //2 hardcoded, twice;
+		}
 
-
-  if (thick) { // also means end of nth part
-    this.x+=3; //3 hardcoded;
-    
-    if (this.partstartx) {
-      this.paper.path(sprintf("M %f %f L %f %f L %f %f", 
-			      this.x, this.y+10, this.x, this.y, this.partstartx, this.y)).attr({stroke:"#000000"});
-      this.partstartx = null;
-    }     
-    symb = this.glyphs.printSymbol(this.x, this.calcY(3), "\\"); // 3 is hardcoded
-    symb.scale(10,1,this.x);
-    symbscale = 10;
-    elemset.push(symb);
-    this.x+=6;
-  }
-  
-  if (this.partstartx && (elem.type==="bar_thin_thin")) { // means end of nth part but at different place
-    this.paper.path(sprintf("M %f %f L %f %f L %f %f", 
-			      this.x, this.y+10, this.x, this.y, this.partstartx, this.y)).attr({stroke:"#000000"});
-    this.partstartx = null;
-  }
+		if (firstthin) {
+			symb = this.glyphs.printSymbol(this.x, this.calcY(3), "\\"); // 3 is hardcoded
+			symbscale = 1;
+		}
 
 
-  if (secondthin) {
-    this.x+=3; //3 hardcoded;
-    symb = this.glyphs.printSymbol(this.x, this.calcY(3), "\\"); // 3 is hardcoded
-    symbscale = 1;
-    elemset.push(symb);
-  }
+		if (thick) { // also means end of nth part
+			this.x += 3; //3 hardcoded;
 
-  if (seconddots) {
-    this.x+=2; //3 hardcoded;
-    elemset.push(this.glyphs.printSymbol(this.x, 1+this.calcY(7+1), "."));
-    elemset.push(this.glyphs.printSymbol(this.x, 1+this.calcY(5+1), "."));
-  } // 2 is hardcoded
+			if (this.partstartx) {
+				this.paper.path(sprintf("M %f %f L %f %f L %f %f",
+					this.x, this.y + 10, this.x, this.y, this.partstartx, this.y)).attr({ stroke: "#000000" });
+				this.partstartx = null;
+			}
+			symb = this.glyphs.printSymbol(this.x, this.calcY(3), "\\"); // 3 is hardcoded
+			symb.scale(10, 1, this.x);
+			symbscale = 10;
+			elemset.push(symb);
+			this.x += 6;
+		}
 
-  if (elem.number) {
-    this.partstartx = this.x;
-    this.paper.path(sprintf("M %f %f L %f %f", 
-			    this.x, this.y, this.x, this.y+10)).attr({stroke:"#000000"});
-    this.paper.text(this.x+5,this.y+7,elem.number);
-  } 
+		if (this.partstartx && (elem.type === "bar_thin_thin")) { // means end of nth part but at different place
+			this.paper.path(sprintf("M %f %f L %f %f L %f %f",
+				this.x, this.y + 10, this.x, this.y, this.partstartx, this.y)).attr({ stroke: "#000000" });
+			this.partstartx = null;
+		}
 
-  return new ABCGraphElem(elemset, null, this.glyphs.getSymbolWidth("\\",symb)*symbscale, 0.5,null);	
 
-};
+		if (secondthin) {
+			this.x += 3; //3 hardcoded;
+			symb = this.glyphs.printSymbol(this.x, this.calcY(3), "\\"); // 3 is hardcoded
+			symbscale = 1;
+			elemset.push(symb);
+		}
+
+		if (seconddots) {
+			this.x += 2; //3 hardcoded;
+			elemset.push(this.glyphs.printSymbol(this.x, 1 + this.calcY(7 + 1), "."));
+			elemset.push(this.glyphs.printSymbol(this.x, 1 + this.calcY(5 + 1), "."));
+		} // 2 is hardcoded
+
+		if (elem.number) {
+			this.partstartx = this.x;
+			this.paper.path(sprintf("M %f %f L %f %f",
+				this.x, this.y, this.x, this.y + 10)).attr({ stroke: "#000000" });
+			this.paper.text(this.x + 5, this.y + 7, elem.number);
+		}
+
+		return new ABCGraphElem(elemset, null, this.glyphs.getSymbolWidth("\\") * symbscale, 0.5, null);
+
+	};
 
 	printStave(width: number): void {
 		const staff = this.glyphs.printSymbol(0, this.calcY(3), "="); // 3 is hardcoded
-		width = width / this.glyphs.getSymbolWidth("=", staff);
+		width = width / this.glyphs.getSymbolWidth("=");
 		staff.scale(width, 1, 0);
 	}
 
 	printKeySignature(elem: { acc: string; num: number }): void {
 		const clef = this.glyphs.printSymbol(this.x, this.calcY(5), "&"); // 5 is hardcoded
-		this.x += this.glyphs.getSymbolWidth("&", clef) + 10; // hardcoded
+		this.x += this.glyphs.getSymbolWidth("&") + 10; // hardcoded
 		const FLATS: number[] = [6, 9, 5, 8, 4, 7];
 		const SHARPS: number[] = [10, 7, 11, 8, 5, 9];
 		const accidentals = (elem.acc !== "sharp") ? FLATS : SHARPS;
@@ -549,7 +590,7 @@ class ABCPrinter {
 		const symbol = (elem.acc !== "sharp") ? "b" : "#";
 		for (let i = 0; i < number; i++) {
 			const path = this.glyphs.printSymbol(this.x, this.calcY(accidentals[i] + 1), symbol); // 1 is hardcoded
-			this.x += this.glyphs.getSymbolWidth(symbol, path);
+			this.x += this.glyphs.getSymbolWidth(symbol);
 		}
 		this.x += 10; // hardcoded
 	}

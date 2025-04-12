@@ -48,38 +48,6 @@ function redrawCurrent(): void {
 }
 
 function pickTuneAndPdf(pdf_id: string, abc_file: string, value: string): void {
-	let pdf_file = abc_file.substring(0, abc_file.lastIndexOf('.'));
-	pdf_file = `/testdata/${pdf_file}.pdf`;
-	if (value === '') {
-		// TODO
-		alert("implement NEXT");
-	}
-	editArea.set(value.replace(/`n/g, '\n').replace(/`a/g, "'"));
-	abc_keystroke();
-	const pdf = document.getElementById(pdf_id);
-	if (pdf) {
-		pdf.innerHTML = `<embed src='${pdf_file}' height='100%' width='100%'>`;
-	}
-}
-
-function pickTuneAndPdf(pdf_id, abc_file, value) {
-	$("persistent_url").update("http://" + window.location.host + "/comparison?tune=" + abc_file);
-	var filename = abc_file.substring(0, abc_file.lastIndexOf('.'));
-	var pdf_file = "/testdata/" + filename.gsub('\\+', '%2B') + '.ps';
-	var err_file = filename + '.txt';
-	if (value == '') {
-		// TODO
-		alert("implement NEXT");
-	}
-	editArea.set(value.gsub('`n', '\n').gsub('`a', "'"));
-	abc_keystroke();
-	var pdf = $(pdf_id);
-	//pdf.src = '/testdata/Ach_below.pdf';
-	pdf.innerHTML = "<embed src='" + pdf_file + "' height='100%' width='100%'>";
-	new Ajax.Updater("abcm2ps_output", "/tunes/get_file", { parameters: { file: err_file, authenticity_token: window.authenticity_token } });
-}
-
-function pickTuneAndPdf(pdf_id: string, abc_file: string, value: string): void {
 	// 處理 persistent_url 元素更新
 	const persistentUrlElement = document.getElementById("persistent_url") as HTMLSpanElement;
 	if (persistentUrlElement) {
@@ -241,28 +209,28 @@ function abc_keystroke(): void {
 		i++;
 	}
 
-	let canvas;
-	try {
-		var t = editArea.get();
-		var tunebook = new AbcTuneBook(t);
-		if (abcParser === null)
-			abcParser = new ParseAbc();
+	//try {
+	var t = editArea.get();
+	var tunebook = new AbcTuneBook(t);
+	if (abcParser === null)
+		abcParser = new ParseAbc();
 
-		for (i = 0; i < tunebook.tunes.length; i++) {
-			try {
-				abcParser.parse(tunebook.tunes[i]);
-				var tune = abcParser.getTune();
-				canvas = document.getElementById("canvas" + i);
-				paper = Raphael(canvas, 1000, 600);
-				printer = new ABCPrinter(paper);
-				printer.printABC(tune);
-			} catch (e) {
-				console.log("error: " + e);
-			}
-		}
-	} catch (e) {
-		console.log("error: " + e);
+	for (i = 0; i < tunebook.tunes.length; i++) {
+		//try {
+		abcParser.parse(tunebook.tunes[i].abc);
+		var tune = abcParser.getTune();
+		let canvas = document.getElementById("canvas" + i);
+		paper = Raphael(canvas, 1024, 600);
+		printer = new ABCPrinter(paper);
+		printer.printABC(tune);
+		//} catch (e) {
+		//	console.log(`asdfwer ${2223}`)
+		//	console.log(`error: ${e}`);
+		//}
 	}
+	//} catch (e) {
+	//	console.log(`error: ${e}`);
+	//}
 	bReentry = false;
 }
 
