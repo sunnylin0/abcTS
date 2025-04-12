@@ -1,0 +1,75 @@
+﻿const { buildSync, transformSync } = require("esbuild");
+const fs = require("fs-extra");
+const { build } = require("./node_modules/esbuild/lib/main");
+
+
+var config = {
+	entryPoints: [
+		"./src/abc_parse.ts",
+		"./src/abc_write.ts",
+		"./src/application.ts",
+		"./src/Maestro_500.js",
+		"./src/play_embedded.ts",
+		"./src/raphael-patched.js",
+		"./src/scalefont.ts",
+		"./src/sprintf.ts",
+		"./src/wav_generator.ts",
+	],
+	bundle: false,
+	outdir: './dist'
+};
+
+
+
+const obj = { dereference: true }
+//src是需要copy函数中src目录的遍历结果，包括子文件路径和子目录路径
+obj.filter = (src, dest) => {
+	let stat = fs.lstatSync(src)
+	let isDirectory = stat.isDirectory()
+
+	if (isDirectory) {
+		//自己的匹配规则
+		if (src.endsWith('.vs'))
+			return false;
+		else
+			return true;
+	}
+	else {
+		if (src.endsWith('.txt') ||
+			src.endsWith('.css') ||
+			src.endsWith('.html')) {
+			console.log(`${src} -> ${dest}`);
+			return true;
+		} else {
+			return false;
+		}
+	}
+}
+
+
+(async () => {
+
+	fs.removeSync("dist");
+	//复制函数
+	fs.copySync("src", "dist", obj, err => {
+		if (err) return console.error('err', err);
+		console.log("拷贝文件成功！")
+	})
+
+	console.log('編譯 esbuild abc2svgLin.js')
+
+	var { code, map, warnings } = buildSync(config);
+	var { code, map, warnings } = transformSync('let x:number = 1', {
+		format: 'cjs',
+		//  sourcefile: filename,
+		//format: 'cjs',
+		target: ["es2015"],
+		//sourcemap: 'external',
+		loader: 'ts'
+	})
+	if (warnings) console.log(warnings);
+	console.log(code);
+	var fstream = fs.createWriteStream(config.outdir + '/test.js');
+	fstream.write(code);
+
+})();
