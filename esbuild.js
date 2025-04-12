@@ -6,6 +6,7 @@ const { build } = require("./node_modules/esbuild/lib/main");
 var config = {
 	entryPoints: [
 		"./src/abc_parse.ts",
+		"./src/abc_glyphs.ts",
 		"./src/abc_tunebook.ts",
 		"./src/abc_write.ts",
 		"./src/application.ts",

@@ -108,6 +108,8 @@ function scale_font(font: Font, size: number, raphael: Raphael): void {
     }
 
     path = raphael.fn.toRelative(path);
+    path[0][1] = +path[0][1].toFixed(3); // round out the M part
+    path[0][2] = +path[0][2].toFixed(3);
     const w = Math.round(symb.getBBox().width * 1000) / 1000;
     const h = Math.round(symb.getBBox().height * 1000) / 1000;
 

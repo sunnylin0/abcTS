@@ -2,6 +2,8 @@
  * @author paulrosen
  */
 
+import { Format } from "esbuild";
+
 /*global Class */
 /*extern AbcTune, ParseAbc */
 
@@ -23,8 +25,8 @@ class AbcTune {
 	//		pitch: "C" is 0. The numbers refer to the pitch letter.
 	//		duration: .5 (sixteenth), .75 (dotted sixteenth), 1 (eighth), 1.5 (dotted eighth)
 	//			2 (quarter), 3 (dotted quarter), 4 (half), 6 (dotted half) 8 (whole)
-	//		chord: string
-	//		end_beam = true or undefined if this is the last note in a beam.
+	//		chord: { name:chord, position: one of 'default', 'above', 'below' }
+	//		end_beam = true or undefined if this is the last note in a beam.|| (elem.pitch<9) &&
 	//		lyric: { syllable: xxx, divider: one of " -_" }
 	// TODO: actually, decoration should be an array.
 	//		decoration: upbow, downbow, accent
@@ -41,7 +43,9 @@ class AbcTune {
 	extraText: string = "";
 	origin: string = "";
 	lines: Line[];
-	metaText: MetaTextInfo= {};
+	metaText: MetaTextInfo = {};
+	formatting: FormattingInfo = {};
+	;
 
 	constructor() {
 		this.reset();
@@ -49,23 +53,16 @@ class AbcTune {
 
 	reset(): void {
 		this.metaText = {};
+		this.formatting = {};
 		this.lines = [];
 	}
 
-	appendElement(type: ElementType, startChar: number, endChar: number, hashParams: Omit<AbcElement, "el_type" | "startChar" | "endChar">): void {
-		const element = {
-			el_type: type,
-			startChar,
-			endChar,
-			...hashParams,
-		} as AbcElement;
+	appendElement(type: ElementType, startChar: number, endChar: number, hashParams: AbcElement): void {
 
-		const lastLine = this.lines[this.lines.length - 1];
-		if (lastLine && "staff" in lastLine) {
-			lastLine.staff.push(element);
-		} else {
-			this.lines.push({ staff: [element] });
-		}
+		hashParams.el_type = type;
+		hashParams.startChar = startChar;
+		hashParams.endChar = endChar;
+		this.lines[this.lines.length - 1].staff.push(hashParams);
 	}
 }
 
@@ -107,39 +104,39 @@ class ParseAbc {
 		// Then see if there is a mode modifier. Add or subtract to the index.
 		// Then do a mod 12 on the index and return the key.
 		const keys: KeySignature[] = [
-			{ num: 3, acc: "sharp" }, // A
-			{ num: 2, acc: "flat" }, // Bb
-			{ num: 5, acc: "sharp" }, // B
-			{ num: 0 }, // C
-			{ num: 5, acc: "flat" }, // Db
-			{ num: 2, acc: "sharp" }, // D
-			{ num: 3, acc: "flat" }, // Eb
-			{ num: 4, acc: "sharp" }, // E
-			{ num: 1, acc: "flat" }, // F
-			{ num: 6, acc: "flat" }, // Gb
-			{ num: 1, acc: "sharp" }, // G
-			{ num: 4, acc: "flat" }, // Ab
+			{ num: 3, acc: 'sharp' },	// A
+			{ num: 2, acc: 'flat' },		// Bb
+			{ num: 5, acc: 'sharp' },	// B
+			{ num: 0 },	// C
+			{ num: 5, acc: 'flat' },	// Db
+			{ num: 2, acc: 'sharp' },	// D
+			{ num: 3, acc: 'flat' },	// Eb
+			{ num: 4, acc: 'sharp' },	// E
+			{ num: 1, acc: 'flat' },	// F
+			{ num: 6, acc: 'flat' },	// Gb
+			{ num: 1, acc: 'sharp' },	//G
+			{ num: 4, acc: 'flat' }		// Ab
 		];
 
 		str = str.replace(/ /g, "").toUpperCase();
 
 		let key: number;
 		switch (str[0]) {
-			case "A": key = 0; break;
-			case "B": key = 2; break;
-			case "C": key = 3; break;
-			case "D": key = 5; break;
-			case "E": key = 7; break;
-			case "F": key = 8; break;
-			case "G": key = 10; break;
+			case 'A': key = 0; break;
+			case 'B': key = 2; break;
+			case 'C': key = 3; break;
+			case 'D': key = 5; break;
+			case 'E': key = 7; break;
+			case 'F': key = 8; break;
+			case 'G': key = 10; break;
 			default: key = 3; break;
 		}
 
 		let i = 1;
 		if (i < str.length) {
 			switch (str[i]) {
-				case "#": key += 1; i += 1; break;
-				case "B": key -= 1; i += 1; break;
+				case '#': key += 1; i += 1; break;
+				case 'B': key -= 1; i += 1; break;
 			}
 		}
 
@@ -147,17 +144,16 @@ class ParseAbc {
 			const j = i + 3;
 			const substr = str.substring(i, j + 1);
 			switch (substr) {
-				case "LYD": key -= 5; break;
-				case "MIX": key -= 7; break;
-				case "DOR": key -= 2; break;
-				case "MIN": key -= 9; break;
-				case "M": key -= 9; break;
-				case "AEO": key -= 9; break;
-				case "PHR": key -= 4; break;
-				case "LOC": key -= 11; break;
+				case 'LYD': key -= 5; break;
+				case 'MIX': key -= 7; break;
+				case 'DOR': key -= 2; break;
+				case 'MIN': key -= 9; break;
+				case 'M': key -= 9; break;
+				case 'AEO': key -= 9; break;
+				case 'PHR': key -= 4; break;
+				case 'LOC': key -= 11; break;
 			}
 		}
-
 		if (key < 0) key += 12;
 		return keys[key];
 	}
@@ -166,23 +162,24 @@ class ParseAbc {
 		return str.replace(/\\n/g, "\n");
 	}
 
-	private getBrackettedSubstring(line: string, i: number, maxErrorChars: number): [number, string] {
+	private getBrackettedSubstring(line: string, i: number, maxErrorChars: number, _matchChar: any = null): [number, string] {
+
 		// This extracts the sub string by looking at the first character and searching for that
-		// character later in the line. For instance, if the first character is a quote it will look for
+		// character later in the line (or search for the optional _matchChar).
+		// For instance, if the first character is a quote it will look for
 		// the end quote. If the end of the line is reached, then only up to the default number
 		// of characters are returned, so that a missing end quote won't eat up the entire line.
 		// It returns the substring and the number of characters consumed.
 		// The number of characters consumed is normally two more than the size of the substring,
 		// but in the error case it might not be.
-		const matchChar = line[i];
+		const matchChar = _matchChar || line[i];
 		let pos = i + 1;
-		while (pos < line.length && line[pos] !== matchChar) {
-			pos++;
-		}
+		while (pos < line.length && line[pos] !== matchChar)
+			++pos;
+
 		if (line[pos] === matchChar) {
 			return [pos - i + 1, this.substInChord(line.substring(i + 1, pos))];
-		} else {
-			// we hit the end of line, so we'll just pick an arbitrary num of chars so the line doesn't disappear.
+		} else {	// we hit the end of line, so we'll just pick an arbitrary num of chars so the line doesn't disappear.
 			pos = i + maxErrorChars;
 			if (pos > line.length - 1) pos = line.length - 1;
 			return [pos - i + 1, this.substInChord(line.substring(i + 1, pos))];
@@ -192,8 +189,17 @@ class ParseAbc {
 	private letter_to_chord(line: string, i: number): [number, string] {
 		if (line[i] === '"') {
 			var chord = this.getBrackettedSubstring(line, i, 5);
-			if (chord[0] > 0 && chord[1].length > 0 && chord[1][0] === '^')	// If it starts with ^, then the chord appears above, but that is also the default, so strip it.
+			// If it starts with ^, then the chord appears above.
+			// If it starts with _ then the chord appears below.
+			// (note that the 2.0 draft standard defines them as not chords, but annotations and also defines < > and @.)
+			if (chord[0] > 0 && chord[1].length > 0 && chord[1][0] === '^') {
 				chord[1] = chord[1].substring(1);
+				chord.push('above');
+			} else if (chord[0] > 0 && chord[1].length > 0 && chord[1][0] === '_') {
+				chord[1] = chord[1].substring(1);
+				chord.push('below');
+			} else
+				chord.push('default');
 			return chord;
 		}
 		return [0, ""];
@@ -201,42 +207,39 @@ class ParseAbc {
 
 	private letter_to_accent(line: string, i: number): AccentInfo {
 		switch (line[i]) {
-			case ".":
-				return [1, "staccato"];
-			case "u":
-				return [1, "up_bow"];
-			case "v":
-				return [1, "down_bow"];
-			case "~":
-				return [1, "trill"];
-			case "!":
+			case '.': return [1, 'staccato'];
+			case 'u': return [1, 'upbow'];
+			case 'v': return [1, 'downbow'];
+			case '~': return [1, 'roll'];
+			case '!':
 				const ret = this.getBrackettedSubstring(line, i, 5);
 				// Be sure that the accent is recognizable.
-				var legalAccents = ["trill", "lowermordent", "uppermordent", "mordent", "pralltriller", "accent",
+				var legalAccents = ["trill", "lowermordent", "uppermordent", "mordent", "pralltriller", "accenpt",
 					"emphasis", "fermata", "invertedfermata", "tenuto", "0", "1", "2", "3", "4", "5", "+", "wedge",
 					"open", "thumb", "snap", "turn", "roll", "breath", "shortphrase", "mediumphrase", "longphrase",
 					"segno", "coda", "D.S.", "D.C.", "fine", "crescendo(", "crescendo)", "diminuendo(", "diminuendo)",
 					"p", "pp", "f", "ff", "mf", "ppp", "pppp", "fff", "ffff", "sfz", "repeatbar", "repeatbar2",
 					"upbow", "downbow"];
-				if (legalAccents.includes(ret[1])) {
+				if (ret[1].length > 0 && (ret[1][0] === '^' || ret[1][0] === '_'))
+					ret[1] = ret[1].substring(1);	// TODO-PER: The test files have indicators forcing the orniment to the top or bottom, but that isn't in the standard. We'll just ignore them.
+				if (legalAccents.find(function (acc) {
+					return (ret[1] === acc);
+				}))
 					return ret;
-				}
 				// We didn't find the accent in the list, so consume the space, but don't return an accent.
 				ret[1] = "";
 				return ret;
 			case 'H': return [1, 'fermata'];
+			case 'M': return [1, 'mordent'];
 		}
 		return [0, "0"];
 	}
 
 	private letter_to_accidental(line: string, i: number): AccidentalInfo {
 		switch (line[i]) {
-			case "^":
-				return [1, "sharp"];
-			case "=":
-				return [1, "natural"];
-			case "_":
-				return [1, "flat"];
+			case '^': return [1, 'sharp'];
+			case '=': return [1, 'natural'];
+			case '_': return [1, 'flat'];
 		}
 		return [0, ""];
 	}
@@ -329,17 +332,17 @@ class ParseAbc {
 	}
 
 	private letter_to_spacer(line: string, i: number): SpacerInfo {
-		if (line[i] === " " || line[i] === "\t") {
-			return [1, "spacer"];
-		}
-		return [0, ""];
+		if (line[i] === ' ' || line[i] === '\t')
+			return [1, 'spacer'];
+		else
+			return [0, ''];
 	}
 
 	// returns the class of the bar line
 	// the number of the repeat
 	// and the number of characters used up
 	// if 0 is returned, then the next element was not a bar line
-	private letter_to_bar(line, curr_pos) {
+	private letter_to_bar(line:string, curr_pos:number) {
 		let str1 = line.substring(curr_pos, curr_pos + 1);
 		let str2 = line.substring(curr_pos, curr_pos + 2);
 		let str3 = line.substring(curr_pos, curr_pos + 3);
@@ -353,7 +356,7 @@ class ParseAbc {
 		else if (str2 === "|:") return [2, "bar_left_repeat"];
 		else if (str2 === "||") return [2, "bar_thin_thin"];
 		else if (str2 === "::") return [2, "bar_dbl_repeat"];
-		else if (str2 === "[2" || str2 === "[1") return [2, "bar_thin", 2]; // should it guess a repeat?
+		else if (str2 === "[2" || str2 === "|2") return [2, "bar_thin", 2]; // should it guess a repeat?
 		else if (str2 === "[1" || str2 === "|1") return [2, "bar_thin", 1];
 		else if (str2 === "|]") return [2, "bar_thin_thick"];
 		else if (str2 === "[|") return [2, "bar_thick_thin"];
@@ -382,7 +385,7 @@ class ParseAbc {
 			case 'z': ret = [1, null]; break; // missing x, y
 		}
 		if (ret[0] !== 0 && curr_pos < line.length - 1) {
-			if (line[curr_pos + 1] === ",") {
+			if (line[curr_pos + 1] === ',') {
 				ret[0]++;
 				ret[1] -= 7;
 			} else if (line[curr_pos + 1] === "'") {
@@ -393,6 +396,27 @@ class ParseAbc {
 		return ret;
 	}
 
+	private addDirective(str) {
+		var s = this.stripComment(str);
+		var i = s.indexOf(' ');
+		var cmd = (i > 0) ? s.substring(0, i) : s;
+		var num;
+		switch (cmd) {
+			case "stretchlast": this.tune.formatting.stretchlast = true; break;
+			case "staffwidth":
+				num = this.getInt(s.substring(i));
+				if (num.digits === 0)
+					return; // TODO-PER: flag an error
+				this.tune.formatting.staffwidth = num.value;
+				break;
+			case "scale":
+				num = this.getInt(s.substring(i));
+				if (num.digits === 0)
+					return; // TODO-PER: flag an error
+				this.tune.formatting.scale = num.value;
+				break;
+		}
+	};
 
 	private setTitle(title: string): void {
 		if (this.multilineVars.hasMainTitle) {
@@ -405,12 +429,12 @@ class ParseAbc {
 
 	private setMeter(meter: string): void {
 		meter = this.stripComment(meter);
-		if (meter === "C") {
+		if (meter === 'C') {
 			this.multilineVars.meter = { el_type: "meter", type: "common_time" };
-		} else if (meter === "C|") {
+		} else if (meter === 'C|') {
 			this.multilineVars.meter = { el_type: "meter", type: "cut_time" };
 		} else {
-			const a = meter.split("/");
+			const a = meter.split('/');
 			if (a.length === 2) {
 				this.multilineVars.meter = {
 					el_type: "meter",
@@ -449,70 +473,74 @@ class ParseAbc {
 	private parseRegularMusicLine(line: string): void {
 		let i = 0;
 		// see if there is nothing but a comment on this line. If so, just ignore it. A full line comment is optional white space followed by %
-		while ((line[i] === " " || line[i] === "\t") && i < line.length)
+		while ((line[i] === '' || line[i] === '\t') && i < line.length)
 			i++;
-		if (i === line.length || line[i] === "%")
+		if (i === line.length || line[i] === '%')
 			return;
 
 
 		// Start with the standard staff, clef and key symbols on each line
 		this.tune.lines.push({ staff: [] });
-		this.tune.appendElement("clef", -1, -1, { type: "treble" });
-		this.tune.appendElement("key", -1, -1, this.multilineVars.key);
+		this.tune.appendElement('clef', -1, -1, { type: 'treble' });
+		this.tune.appendElement('key', -1, -1, this.multilineVars.key);
 		if (!this.multilineVars.meter) {
-			this.tune.appendElement("meter", -1, -1, this.multilineVars.meter);
+			this.tune.appendElement('meter', -1, -1, this.multilineVars.meter);
 			this.multilineVars.meter = {
-				el_type: "meter",
-				type: ""
+				el_type: 'meter',
+				type: ''
 			};
 		}
 
-		let inGrace = false;
 		while (i < line.length) {
-			if (line[i] === "%") {
-				break;
-			}
+			if (line[i] === '%')
+				break;			
 
-			const ret = this.letter_to_bar(line, i);
+			let ret = this.letter_to_bar(line, i);
 			if (ret[0] > 0) {
 				i += Number(ret[0]);
 				this.multilineVars.iChar += Number(ret[0]);
 
 				var bar = { type: ret[1], number: ret[2] };
 				this.tune.appendElement(
-					"bar",
+					'bar',
 					this.multilineVars.iChar,
 					this.multilineVars.iChar + Number(ret[0]),
 					bar
 				);
 			} else {
 				// Looking for a note. The note syntax looks like this:
-				// note :=  [chord] [accents] [accidental] pitch [duration]
+				// note :=  [chord] [grace-notes] [accents] [accidental] pitch [duration]
 				// TODO: straighten out all the start and end chars
-				// a note, or group of notes, can also be enclosed in {}. If so, the first gets the attribute "grace_start", and the last gets the attribute "grace_end"
-				let el: any = {};
-				if (!inGrace && line[i] === '{') {
-					el.grace_start = true;
-					inGrace = true;
-					if (i < line.length + 1) {
-						i++;
-						this.multilineVars.iChar++;
-					}
+				var el: any = {};
+				ret = this.letter_to_chord(line, i);
+				if (ret[0] > 0) {
+					el.chord = { name: ret[1], position: ret[2] };
+					i += Number(ret[0]);
+					this.multilineVars.iChar += Number(ret[0]);
 				}
-				let retChord = this.letter_to_chord(line, i);
-				if (retChord[0] > 0) {
-					el.chord = retChord[1];
-					i += retChord[0];
-					this.multilineVars.iChar += retChord[0];
+				el.gracenotes = [];
+				if (line[i] === '{') {
+					// fetch the gracenotes string and consume that into the array
+					var gra = this.getBrackettedSubstring(line, i, 1, '}'); // what happens on line ends?
+					// TODO: alert errors when non-matching close 
+					var ii = 0;
+					for (ret = this.letter_to_pitch(gra[1], ii); ret[0] > 0 && ii < gra[1].length;
+						ret = this.letter_to_pitch(gra[1], ii)) {
+						//todo get other stuff that could be in a grace note
+						ii += Number(ret[0]);
+						el.gracenotes.push({ el_type: 'gracenote', pitch: ret[1] });
+					}
+					i += gra[0];
+					this.multilineVars.iChar += gra[0];
 				}
 				let done = false;
+				let retChord;
 				while (!done) {
 					retChord = this.letter_to_accent(line, i);
 					if (retChord[0] > 0) {
 						if (retChord[1].length > 0) {
-							if (el.decoration === undefined) {
-								el.decoration = [];
-							}
+							if (el.decoration === undefined)
+								el.decoration = [];							
 							el.decoration.push(retChord[1]);
 						}
 						i += retChord[0];
@@ -521,11 +549,11 @@ class ParseAbc {
 						done = true;
 					}
 				}
-				retChord = this.letter_to_accidental(line, i);
-				if (retChord[0] > 0) {
-					el.accidental = retChord[1];
-					i += retChord[0];
-					this.multilineVars.iChar += retChord[0];
+				ret = this.letter_to_accidental(line, i);
+				if (ret[0] > 0) {
+					el.accidental = ret[1];
+					i += Number(ret[0]);
+					this.multilineVars.iChar += Number(ret[0]);
 				}
 				const retPitch = this.letter_to_pitch(line, i);
 				if (retPitch[0] > 0) {
@@ -541,19 +569,10 @@ class ParseAbc {
 						this.multilineVars.iChar += ret2[0];
 					}
 					const ret3 = this.letter_to_spacer(line, i);
-					if (ret3[1] === "spacer") {
+					if (ret3[1] === 'spacer') {
 						el.end_beam = true;
 					}
 
-					// look ahead to see if we are ending a grace note series
-					if (inGrace && i < line.length && line[i] === '}') {
-						el.grace_end = true;
-						inGrace = false;
-						if (i < line.length + 1) {
-							i++;
-							this.multilineVars.iChar++;
-						}
-					}
 					if (ret[1] !== null)	// not rest
 						this.tune.appendElement('note', this.multilineVars.iChar, this.multilineVars.iChar, el);
 					else
@@ -580,10 +599,21 @@ class ParseAbc {
 			this.tune.metaText[key] += this.stripComment(value) + "\n";
 	}
 
-	private getNumber(str) {
+	private getInt(str) {
 		// This parses the beginning of the string for a number and returns { value: num, digits: num }
 		// If digits is 0, then the string didn't point to a number.
 		var x = parseInt(str);
+		if (isNaN(x)) {
+			return { digits: 0 };
+		}
+		const s = x.toString();
+		const i = str.indexOf(s);	// This is to account for leading spaces
+		return { value: x, digits: i + s.length };
+	};
+	private getFloat(str) {
+		// This parses the beginning of the string for a number and returns { value: num, digits: num }
+		// If digits is 0, then the string didn't point to a number.
+		var x = parseFloat(str);
 		if (isNaN(x)) {
 			return { digits: 0 };
 		}
@@ -617,18 +647,18 @@ class ParseAbc {
 		if (str[0] === 'C') {	// either type 2 or type 3
 			if (str.length >= 3 && str[1] === '=') {
 				// This is a type 2 format. The multiplier is an implied 1
-				var x = this.getNumber(str.substring(2));
+				var x = this.getInt(str.substring(2));
 				if (x.digits === 0)
 					return;	// TODO-PER: flag as an error.
 				this.multilineVars.tempo = { multiplier: 1, bpm: x.value };
 				return;
 			} else if (str.length >= 2 && str[1] >= '0' && str[1] <= '9') {
 				// This is a type 3 format.
-				var mult = this.getNumber(str.substring(1));
+				var mult = this.getInt(str.substring(1));
 				str = str.substring(mult.digits + 1);
 				if (str.length < 2 || str[0] !== '=')
 					return;	// TODO-PER: flag an error
-				var speed = this.getNumber(str.substring(1));
+				var speed = this.getInt(str.substring(1));
 				if (speed.digits === 0)
 					return;	// TODO-PER: flag as an error.
 				this.multilineVars.tempo = { multiplier: mult.value, bpm: speed.value };
@@ -636,7 +666,7 @@ class ParseAbc {
 			}	// TODO-PER: if it isn't one of the above, flag as an error
 
 		} else if (str[0] >= '0' && str[0] <= '9') {	// either type 1 or type 4
-			var num = this.getNumber(str);
+			var num = this.getInt(str);
 			if (num.digits === 0)
 				return;	// TODO-PER: flag as an error.
 			str = str.substring(num.digits);
@@ -646,7 +676,7 @@ class ParseAbc {
 				return;
 			}
 			str = str.substring(1);
-			var num2 = this.getNumber(str);
+			var num2 = this.getInt(str);
 			if (num2.digits === 0)
 				return;	// TODO-PER: flag as an error.
 
@@ -654,7 +684,7 @@ class ParseAbc {
 			if (str.length === 0 || str[0] !== '=')
 				return;	// TODO-PER: flag as an error.
 
-			var num3 = this.getNumber(str.substring(1));
+			var num3 = this.getInt(str.substring(1));
 			if (num3.digits === 0)
 				return;	// TODO-PER: flag as an error.
 			this.tune.metaText.tempo = { duration: num.value / num2.value, bpm: num3.value };
@@ -742,7 +772,6 @@ class ParseAbc {
 				this.multilineVars.iChar += line.length + 1;
 				break;
 			case 'w:':
-				this.tune.lines[2].staff
 				this.addWords(this.tune.lines[this.tune.lines.length - 1].staff, line.substring(2));
 				this.multilineVars.iChar += line.length + 1;
 				break;
@@ -758,7 +787,7 @@ class ParseAbc {
 				this.multilineVars.iChar += line.length + 1;
 				break;
 			case '%%':
-				// TODO: handle meta commands.
+				this.addDirective(line.substring(2));
 				this.multilineVars.iChar += line.length + 1;
 				break;
 			default:

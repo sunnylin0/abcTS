@@ -220,7 +220,7 @@ function abc_keystroke(): void {
 		abcParser.parse(tunebook.tunes[i].abc);
 		var tune = abcParser.getTune();
 		let canvas = document.getElementById("canvas" + i);
-		paper = Raphael(canvas, 1024, 600);
+		paper = Raphael(canvas, 1200, 1200);
 		printer = new ABCPrinter(paper);
 		printer.printABC(tune);
 		//} catch (e) {

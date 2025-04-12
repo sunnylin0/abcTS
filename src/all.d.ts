@@ -43,8 +43,7 @@ type ElementType =
 	| "bar"
 	| "clef"
 	| "key-sig"
-	| "meter"
-	| "key";
+	| "meter";
 
 type NoteAccidental = "none" | "dbl_flat" | "flat" | "natural" | "sharp" | "dbl_sharp";
 type BarType =
@@ -177,6 +176,12 @@ interface Glyph {
 
 interface Glyphs {
 	[key: string]: Glyph;
+}
+
+interface FormattingInfo {
+	scale?: number;
+	staffwidth?: number;
+	stretchlast?: boolean;
 }
 
 interface BBox {
