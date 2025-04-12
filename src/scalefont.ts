@@ -1,4 +1,4 @@
-锘縱ar Raphael: Raphael;
+var Raphael: Raphael;
 
 Raphael.fn.toRelative = function (pathArray: any[] | string): any[] {
   const R = this.raphael;
@@ -135,7 +135,7 @@ function scale_font(font: Font, size: number, raphael: Raphael): void {
 }
 
 function old(): void {
-  // 姝ゅ嚱鏁告湭浣跨敤锛屽儏淇濈暀鍘熷閭忚集
+  // ㄧ计ゼㄏノ度玂痙﹍呸胯
   let gstr = "':{d:'";
   const path: any[] = [];
   const w = 0,

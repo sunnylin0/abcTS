@@ -6,7 +6,7 @@
   "name": "localhost (Chrome)",
   "type": "chrome",
   "request": "launch",
-  "url": "http://localhost:12006",
+  "url": "http://localhost:3000",
   "webRoot": "C:\\GitHub\\muse\\abcTS"
 }</LaunchJsonTarget>
   </PropertyGroup>

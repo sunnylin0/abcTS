@@ -1,4 +1,4 @@
-ï»¿//#######################################
+//#######################################
 //#
 //# Written by sk89q <http://sk89q.therisenrealm.com>
 //# Copyright 2008 sk89q. All rights reserved.
@@ -33,11 +33,11 @@
 
 class PlayTune {
 	/*
-			_playersï¼šç”¨æ–¼å­˜å„²æ’­æ”¾å™¨å…ƒç´ çš„é™£åˆ—ã€‚
-		_playerIï¼šç•¶å‰æ’­æ”¾å™¨çš„ç´¢å¼•ã€‚
-		_songLinesï¼šå­˜å„²æ¨‚æ›²æ•¸æ“šçš„é™£åˆ—ï¼Œæ¯å€‹å…ƒç´ æ˜¯ä¸€å€‹ [é »ç‡, æ™‚å€¼] çš„å…ƒçµ„ã€‚
-		_songLineIndexï¼šç•¶å‰æ’­æ”¾çš„æ¨‚æ›²è¡Œç´¢å¼•ã€‚
-		_isPlayingï¼šæ˜¯å¦æ­£åœ¨æ’­æ”¾çš„æ¨™èªŒã€‚
+			_players¡G¥Î©ó¦sÀx¼½©ñ¾¹¤¸¯Àªº°}¦C¡C
+		_playerI¡G·í«e¼½©ñ¾¹ªº¯Á¤Ş¡C
+		_songLines¡G¦sÀx¼Ö¦±¼Æ¾Úªº°}¦C¡A¨C­Ó¤¸¯À¬O¤@­Ó [ÀW²v, ®É­È] ªº¤¸²Õ¡C
+		_songLineIndex¡G·í«e¼½©ñªº¼Ö¦±¦æ¯Á¤Ş¡C
+		_isPlaying¡G¬O§_¥¿¦b¼½©ñªº¼Ğ»x¡C
 	*/
 	private _players: HTMLElement[] = [];
 	private _playerI: number = 0;
@@ -49,7 +49,7 @@ class PlayTune {
 
 
 	constructor() {
-		// åˆå§‹åŒ–æŒ‰éˆ•ç‹€æ…‹
+		// ªì©l¤Æ«ö¶sª¬ºA
 		const stopButton = document.getElementById('stopButton') as HTMLButtonElement;
 		if (stopButton) stopButton.disabled = true;
 
@@ -58,9 +58,9 @@ class PlayTune {
 	}
 
 	/**
- * æ’­æ”¾æŒ‡å®šé »ç‡çš„è²éŸ³
- * @param frequency é »ç‡
- * @param seconds æŒçºŒæ™‚é–“ï¼ˆç§’ï¼‰
+ * ¼½©ñ«ü©wÀW²vªºÁn­µ
+ * @param frequency ÀW²v
+ * @param seconds «ùÄò®É¶¡¡]¬í¡^
  */
 	private _playFreq(frequency: number, seconds: number): void {
 		const channels: number = 1;
@@ -71,7 +71,7 @@ class PlayTune {
 		let data: string[] = [];
 		let samples: number = 0;
 
-		// ç”Ÿæˆæ­£å¼¦æ³¢å½¢
+		// ¥Í¦¨¥¿©¶ªi§Î
 		for (let i = 0; i < sampleRate * seconds; i++) {
 			for (let c = 0; c < channels; c++) {
 				const v: number = volume * Math.sin((2 * Math.PI) * (i / sampleRate) * frequency);
@@ -82,36 +82,36 @@ class PlayTune {
 
 		data = [data.join('')];
 
-		// æ ¼å¼åŒ–å­å¡Š
+		// ®æ¦¡¤Æ¤l¶ô
 		const chunk1: string = [
-			"fmt ", // å­å¡Šæ¨™è­˜ç¬¦
-			pack("V", 16), // å¡Šé•·åº¦
-			pack("v", 1), // éŸ³é »æ ¼å¼ï¼ˆ1 è¡¨ç¤ºç·šæ€§é‡åŒ–ï¼‰
+			"fmt ", // ¤l¶ô¼ĞÃÑ²Å
+			pack("V", 16), // ¶ôªø«×
+			pack("v", 1), // ­µÀW®æ¦¡¡]1 ªí¥Ü½u©Ê¶q¤Æ¡^
 			pack("v", channels),
 			pack("V", sampleRate),
-			pack("V", sampleRate * channels * bitsPerSample / 8), // å­—ç¯€ç‡
+			pack("V", sampleRate * channels * bitsPerSample / 8), // ¦r¸`²v
 			pack("v", channels * bitsPerSample / 8),
 			pack("v", bitsPerSample)
 		].join('');
 
-		// æ•¸æ“šå­å¡Šï¼ˆåŒ…å«è²éŸ³ï¼‰
+		// ¼Æ¾Ú¤l¶ô¡]¥]§tÁn­µ¡^
 		const chunk2: string = [
-			"data", // å­å¡Šæ¨™è­˜ç¬¦
-			pack("V", samples * channels * bitsPerSample / 8), // å¡Šé•·åº¦
+			"data", // ¤l¶ô¼ĞÃÑ²Å
+			pack("V", samples * channels * bitsPerSample / 8), // ¶ôªø«×
 			data
 		].join('');
 
-		// é ­éƒ¨
+		// ÀY³¡
 		const header: string = [
 			"RIFF",
-			pack("V", 4 + (8 + chunk1.length) + (8 + chunk2.length)), // é•·åº¦
+			pack("V", 4 + (8 + chunk1.length) + (8 + chunk2.length)), // ªø«×
 			"WAVE"
 		].join('');
 
 		const out: string = [header, chunk1, chunk2].join('');
 		const dataURI: string = "data:audio/wav;base64," + escape(btoa(out));
 
-		// æ·»åŠ åµŒå…¥æ’­æ”¾å™¨
+		// ²K¥[´O¤J¼½©ñ¾¹
 		if (this._playerI % 2 === 0) {
 			if (this._players[0] && this._players[0].parentNode) {
 				this._players[0].parentNode.removeChild(this._players[0]);
@@ -137,12 +137,12 @@ class PlayTune {
 	}
 
 	/**
- * æ’­æ”¾æ¨‚æ›²
- * @param tune æ¨‚æ›²æ•¸æ“šï¼ˆäºŒç¶­æ•¸çµ„ï¼Œè¡¨ç¤ºéŸ³ç¬¦å’Œæ™‚å€¼ï¼‰
- * @param tempo é€Ÿåº¦ï¼ˆBPMï¼‰
+ * ¼½©ñ¼Ö¦±
+ * @param tune ¼Ö¦±¼Æ¾Ú¡]¤Gºû¼Æ²Õ¡Aªí¥Ü­µ²Å©M®É­È¡^
+ * @param tempo ³t«×¡]BPM¡^
  */
 	play(tune: number[][], tempo: number): void {
-		// é »ç‡å°æ‡‰è¡¨ï¼ˆå¾ä½éŸ³ C é–‹å§‹ï¼‰
+		// ÀW²v¹ïÀ³ªí¡]±q§C­µ C ¶}©l¡^
 		const frequencies = [
 			16.35, 17.32, 18.35, 19.45, 20.60, 21.83, 23.12, 24.50, 25.96, 27.5, 29.14, 30.87,
 			32.70, 34.65, 36.71, 38.89, 41.20, 43.65, 46.25, 49.00, 51.91, 55, 58.27, 61.74,
@@ -159,22 +159,22 @@ class PlayTune {
 		const ms = (60 / tempo) * 1000;
 		const eighthNoteLen = 250;
 
-		// é‡ç½®ç‹€æ…‹
+		// ­«¸mª¬ºA
 		this._songLines = [];
 		this._songLineIndex = 0;
 
-		// å°‡æ¨‚æ›²è½‰æ›ç‚ºæ’­æ”¾åºåˆ—
+		// ±N¼Ö¦±Âà´«¬°¼½©ñ§Ç¦C
 		for (let i = 0; i < tune.length; i++) {
 			const freq = frequencies[tune[i][0]];
 			const noteLength = (eighthNoteLen * ms * tune[i][1]) / 1000 / 500;
 			this._songLines.push([freq, noteLength]);
 		}
 
-		// é–‹å§‹æ’­æ”¾
+		// ¶}©l¼½©ñ
 		this._isPlaying = true;
 		this._consumeLine(this);
 
-		// å•Ÿç”¨åœæ­¢æŒ‰éˆ•
+		// ±Ò¥Î°±¤î«ö¶s
 		const stopButton = document.getElementById('stopButton') as HTMLButtonElement;
 		if (stopButton) stopButton.disabled = false;
 		const playButton = document.getElementById('playButton') as HTMLButtonElement;
@@ -182,20 +182,20 @@ class PlayTune {
 	}
 
 	/**
-	 * åœæ­¢æ’­æ”¾
+	 * °±¤î¼½©ñ
 	 */
 	stop(): void {
-		this._isPlaying = false; // åœæ­¢æ’­æ”¾
+		this._isPlaying = false; // °±¤î¼½©ñ
 		const stopButton = document.getElementById('stopButton') as HTMLButtonElement;
 		if (stopButton) stopButton.disabled = true;
 	}
 
 	/**
-	 * é€è¡Œæ’­æ”¾æ¨‚æ›²
-	 * @param This PlayTune å¯¦ä¾‹
+	 * ³v¦æ¼½©ñ¼Ö¦±
+	 * @param This PlayTune ¹ê¨Ò
 	 */
 	private _consumeLine(This: PlayTune): void {
-		// å¦‚æœåœæ­¢æ’­æ”¾æˆ–æ¨‚æ›²çµæŸ
+		// ¦pªG°±¤î¼½©ñ©Î¼Ö¦±µ²§ô
 		if (!This._isPlaying || This._songLineIndex >= This._songLines.length) {
 			This._isPlaying = false;
 			const stopButton = document.getElementById('stopButton') as HTMLButtonElement;
@@ -205,11 +205,11 @@ class PlayTune {
 			return;
 		}
 
-		// æ’­æ”¾ç•¶å‰éŸ³ç¬¦
+		// ¼½©ñ·í«e­µ²Å
 		const songLine = This._songLines[This._songLineIndex];
 		This._playFreq(songLine[0], songLine[1]);
 
-		// æ’­æ”¾ä¸‹ä¸€å€‹éŸ³ç¬¦
+		// ¼½©ñ¤U¤@­Ó­µ²Å
 		This._songLineIndex++;
 		setTimeout(() => { This._consumeLine(This); }, songLine[1] * 1000);
 	}
@@ -250,15 +250,15 @@ if (!window.btoa) {
 		return output;
 	};
 
-	// å°‡è‡ªå®šç¾©çš„ btoa å‡½æ•¸æ›è¼‰åˆ°å…¨å±€å°è±¡ä¸Š
+	// ±N¦Û©w¸qªº btoa ¨ç¼Æ±¾¸ü¨ì¥ş§½¹ï¶H¤W
 	(window as any).btoa = btoa;
 }
 
 /**
- * å°‡æ•¸æ“šæ‰“åŒ…ç‚ºäºŒé€²åˆ¶æ ¼å¼
- * @param format æ ¼å¼å­—ç¬¦ä¸²
- * @param value æ•¸å€¼
- * @returns æ‰“åŒ…å¾Œçš„å­—ç¬¦ä¸²
+ * ±N¼Æ¾Ú¥´¥]¬°¤G¶i¨î®æ¦¡
+ * @param format ®æ¦¡¦r²Å¦ê
+ * @param value ¼Æ­È
+ * @returns ¥´¥]«áªº¦r²Å¦ê
  */
 function pack(fmt: string, ...args: any[]): string {
 	let output: string = '';
@@ -293,7 +293,7 @@ function pack(fmt: string, ...args: any[]): string {
 				output += String.fromCharCode(arg & 255, (arg >> 8) & 255, (arg >> 16) & 255, (arg >> 24) & 255);
 				break;
 			case "x":
-				argi--; // ä¸æ¶ˆè€—åƒæ•¸
+				argi--; // ¤£®ø¯Ó°Ñ¼Æ
 				output += "\0";
 				break;
 			default:

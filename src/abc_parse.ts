@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @author paulrosen
  */
 
@@ -16,7 +16,7 @@ class AbcTune {
 	// field. The rest of the fields depend on the type and are listed below:
 	// REST: duration=1,2,4,8; chord: string
 	// NOTE: accidental=none,dbl_flat,flat,natural,sharp,dbl_sharp
-	//		pitch: "C," is 3. The numbers refer to the pitch letter.
+	//		pitch: "C" is 0. The numbers refer to the pitch letter.
 	//		duration: .5 (sixteenth), .75 (dotted sixteenth), 1 (eighth), 1.5 (dotted eighth)
 	//			2 (quarter), 3 (dotted quarter), 4 (half), 6 (dotted half) 8 (whole)
 	//		chord: string
@@ -77,7 +77,7 @@ class ParseAbc {
 		this.multilineVars = {
 			iChar: 0,
 			key: { num: 0 },
-			meter: {el_type:"meter", type: "specified", num: 4, den: 4 },
+			meter: { el_type: "meter", type: "specified", num: 4, den: 4 },
 			hasMainTitle: false,
 			copyright: "",
 			transcription: "",
@@ -357,21 +357,21 @@ class ParseAbc {
 	private letter_to_pitch(line: string, curr_pos: number): PitchInfo {
 		let ret: PitchInfo = [0, -1];
 		switch (line[curr_pos]) {
-			case 'A': ret = [1, 15]; break;
-			case 'B': ret = [1, 16]; break;
-			case 'C': ret = [1, 10]; break;
-			case 'D': ret = [1, 11]; break;
-			case 'E': ret = [1, 12]; break;
-			case 'F': ret = [1, 13]; break;
-			case 'G': ret = [1, 14]; break;
-			case 'a': ret = [1, 22]; break;
-			case 'b': ret = [1, 23]; break;
-			case 'c': ret = [1, 17]; break;
-			case 'd': ret = [1, 18]; break;
-			case 'e': ret = [1, 19]; break;
-			case 'f': ret = [1, 20]; break;
-			case 'g': ret = [1, 21]; break;
-			case 'z': ret = [1, -1]; break;
+			case 'A': ret = [1, 5]; break;
+			case 'B': ret = [1, 6]; break;
+			case 'C': ret = [1, 0]; break;
+			case 'D': ret = [1, 1]; break;
+			case 'E': ret = [1, 2]; break;
+			case 'F': ret = [1, 3]; break;
+			case 'G': ret = [1, 4]; break;
+			case 'a': ret = [1, 12]; break;
+			case 'b': ret = [1, 13]; break;
+			case 'c': ret = [1, 7]; break;
+			case 'd': ret = [1, 8]; break;
+			case 'e': ret = [1, 9]; break;
+			case 'f': ret = [1, 10]; break;
+			case 'g': ret = [1, 11]; break;
+			case 'z': ret = [1, null]; break;
 		}
 		if (ret[0] !== 0 && curr_pos < line.length - 1) {
 			if (line[curr_pos + 1] === ",") {
@@ -397,7 +397,7 @@ class ParseAbc {
 
 	private setMeter(meter: string): void {
 		if (meter === "C") {
-			this.multilineVars.meter = {el_type:"meter", type: "common_time" };
+			this.multilineVars.meter = { el_type: "meter", type: "common_time" };
 		} else if (meter === "C|") {
 			this.multilineVars.meter = { el_type: "meter", type: "cut_time" };
 		} else {
@@ -406,8 +406,8 @@ class ParseAbc {
 				this.multilineVars.meter = {
 					el_type: "meter",
 					type: "specified",
-					num: parseInt(a[0].trim(),10),
-					den: parseInt(a[1].trim(),10),
+					num: parseInt(a[0].trim(), 10),
+					den: parseInt(a[1].trim(), 10),
 				};
 			}
 		}
@@ -419,21 +419,21 @@ class ParseAbc {
 	private parseRegularMusicLine(line: string): void {
 		let i = 0;
 		// see if there is nothing but a comment on this line. If so, just ignore it. A full line comment is optional white space followed by %
-		while ((line[i] === " " || line[i] === "\t") && i < line.length) 
+		while ((line[i] === " " || line[i] === "\t") && i < line.length)
 			i++;
-		if (i === line.length || line[i] === "%") 
+		if (i === line.length || line[i] === "%")
 			return;
-		
+
 
 		// Start with the standard staff, clef and key symbols on each line
 		this.tune.lines.push({ staff: [] });
 		this.tune.appendElement("clef", -1, -1, { type: "treble" });
 		this.tune.appendElement("key", -1, -1, this.multilineVars.key);
-		if (!this.multilineVars.meter ) {
+		if (!this.multilineVars.meter) {
 			this.tune.appendElement("meter", -1, -1, this.multilineVars.meter);
 			this.multilineVars.meter = {
-				el_type:"meter",
-				type:""
+				el_type: "meter",
+				type: ""
 			};
 		}
 
@@ -477,33 +477,33 @@ class ParseAbc {
 				// note :=  [chord] [accents] [accidental] pitch [duration]
 				// TODO: straighen out all the start and end chars
 				const el: any = {};
-				let ret = this.letter_to_chord(line, i);
-				if (ret[0] > 0) {
-					el.chord = ret[1];
-					i += ret[0];
-					this.multilineVars.iChar += ret[0];
+				let retChord = this.letter_to_chord(line, i);
+				if (retChord[0] > 0) {
+					el.chord = retChord[1];
+					i += retChord[0];
+					this.multilineVars.iChar += retChord[0];
 				}
 				let done = false;
 				while (!done) {
-					ret = this.letter_to_accent(line, i);
-					if (ret[0] > 0) {
-						if (ret[1].length > 0) {
+					retChord = this.letter_to_accent(line, i);
+					if (retChord[0] > 0) {
+						if (retChord[1].length > 0) {
 							if (el.decoration === undefined) {
 								el.decoration = [];
 							}
-							el.decoration.push(ret[1]);
+							el.decoration.push(retChord[1]);
 						}
-						i += ret[0];
-						this.multilineVars.iChar += ret[0];
+						i += retChord[0];
+						this.multilineVars.iChar += retChord[0];
 					} else {
 						done = true;
 					}
 				}
-				ret = this.letter_to_accidental(line, i);
-				if (ret[0] > 0) {
-					el.accidental = ret[1];
-					i += ret[0];
-					this.multilineVars.iChar += ret[0];
+				retChord = this.letter_to_accidental(line, i);
+				if (retChord[0] > 0) {
+					el.accidental = retChord[1];
+					i += retChord[0];
+					this.multilineVars.iChar += retChord[0];
 				}
 				const retPitch = this.letter_to_pitch(line, i);
 				if (retPitch[0] > 0) {
@@ -522,21 +522,11 @@ class ParseAbc {
 					if (ret3[1] === "spacer") {
 						el.end_beam = true;
 					}
-					if (retPitch[1] === -1) {
-						this.tune.appendElement(
-							"rest",
-							this.multilineVars.iChar,
-							this.multilineVars.iChar,
-							el
-						);
-					} else {
-						this.tune.appendElement(
-							"note",
-							this.multilineVars.iChar,
-							this.multilineVars.iChar,
-							el
-						);
-					}
+
+					if (retChord[1])	// not a rest
+						this.tune.appendElement('rest', this.multilineVars.iChar, this.multilineVars.iChar, el);
+					else
+						this.tune.appendElement('note', this.multilineVars.iChar, this.multilineVars.iChar, el);
 				} else {// don't know what this is, so ignore it.
 					i++;
 					this.multilineVars.iChar++;

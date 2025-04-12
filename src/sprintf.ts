@@ -1,4 +1,4 @@
-ï»¿/**
+/**
  * sprintf() for JavaScript v.0.4
  *
  * Copyright (c) 2007 Alexandru Marasteanu <http://alexei.417.ro/>
@@ -98,6 +98,6 @@ function sprintf(format: string, ...args: (string | number)[]): string {
 }
 
 
-// æ¸¬è©¦
-// console.log(sprintf("Hello, %s! You have %d unread messages.", "Alice", 5)); // è¼¸å‡º: Hello, Alice! You have 5 unread messages.
-// console.log(sprintf("Binary: %b, Hex: %x, Octal: %o", 255, 255, 255)); // è¼¸å‡º: Binary: 11111111, Hex: ff, Octal: 377
+// ´ú¸Õ
+// console.log(sprintf("Hello, %s! You have %d unread messages.", "Alice", 5)); // ¿é¥X: Hello, Alice! You have 5 unread messages.
+// console.log(sprintf("Binary: %b, Hex: %x, Octal: %o", 255, 255, 255)); // ¿é¥X: Binary: 11111111, Hex: ff, Octal: 377

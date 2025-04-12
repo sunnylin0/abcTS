@@ -1,4 +1,4 @@
-﻿/*!
+/*!
  * Raphael 1.2.2 - JavaScript Vector Library
  *
  * Copyright (c) 2008 - 2009 Dmitry Baranovskiy (http://raphaeljs.com)

@@ -1,6 +1,6 @@
-Ôªø/*global Class */
+/*global Class */
 /*global sprintf */
-/*extern  ABCBeamElem, ABCGraphElem, ABCPrinter, AbcGlyphs, AbcSpacing, getDuration, getPitch */
+/*extern  ABCBeamElem, ABCGraphElem, ABCPrinter, AbcGlyphs, AbcSpacing, getDuration */
 
 class AbcGlyphs {
 	private glyphs: Glyphs;
@@ -69,11 +69,6 @@ class AbcGlyphs {
 	}
 }
 
-// Temporary functions to convert from the parser's numbering system to the writer's
-function getPitch(elem: any): number {
-	return elem.pitch - 10;
-}
-
 function getDuration(elem: any): number {
 	if (!elem || !elem.duration) return 0;
 	return elem.duration / 8; // the parser calls a 1 an eighth note.
@@ -119,14 +114,14 @@ class ABCBeamElem {
 	auxbeamsingle?: boolean;
 
 	add(elem: ABCGraphElem, note: any): void {
-		this.elems.push(elem);
-		this.notes.push(note);
-		this.total += getPitch(note);
-		if (!this.min || getPitch(note) < this.min) {
-			this.min = getPitch(note);
+		this.elems[this.elems.length] = elem;
+		this.notes[this.notes.length] = note;
+		this.total += note.pitch;
+		if (!this.min || note.pitch < this.min) {
+			this.min = note.pitch;
 		}
-		if (!this.max || getPitch(note) > this.max) {
-			this.max = getPitch(note);
+		if (!this.max || note > this.max) {
+			this.max = note.pitch;
 		}
 	}
 
@@ -365,12 +360,12 @@ class ABCPrinter {
 		const elemset = this.paper.set();
 		let notehead: any = null;
 
-		// ÊâìÂç∞ÂíåÂº¶Ê®ôË®ò
+		// •¥¶L©M©∂º–∞O
 		if (elem.chord !== undefined) {
 			this.paper.text(this.x, this.y + 20, elem.chord);
 		}
 
-		// ËôïÁêÜÂçáÈôçË®òËôü
+		// ≥B≤z§…≠∞∞O∏π
 		if (elem.accidental !== undefined && elem.accidental !== 'none') {
 			let symb: string;
 			switch (elem.accidental) {
@@ -388,12 +383,12 @@ class ABCPrinter {
 				default:
 					symb = "";
 			}
-			const acc = this.glyphs.printSymbol(this.x, this.calcY(getPitch(elem) + 1), symb); // 1 ÊòØÁ°¨Á∑®Á¢º
-			acc.translate(-(this.glyphs.getSymbolWidth(symb, acc) + 2), 0); // Á°¨Á∑®Á¢º
+			const acc = this.glyphs.printSymbol(this.x, this.calcY(elem.pitch + 1), symb); // 1 ¨OµwΩsΩX
+			acc.translate(-(this.glyphs.getSymbolWidth(symb, acc) + 2), 0); // µwΩsΩX
 			elemset.push(acc);
 		}
 
-		// Èü≥Á¨¶È†≠Á¨¶ËôüÂ∞çÊáâË°®
+		// ≠µ≤≈¿Y≤≈∏ππÔ¿≥™Ì
 		const chartable: { [key: string]: { [key: number]: string } } = {
 			up: { 0: "w", 1: "h", 2: "q", 3: "e", 4: "x" },
 			down: { 0: "w", 1: "H", 2: "Q", 3: "E", 4: "X" }
@@ -405,48 +400,48 @@ class ABCPrinter {
 		const dot = (Math.pow(2, durlog) !== dur);
 		let c = "";
 
-		// Ê†πÊìöÈü≥Á¨¶ÊñπÂêëÂíåÊôÇÂÄºÈÅ∏ÊìáÁ¨¶Ëôü
+		// Æ⁄æ⁄≠µ≤≈§Ë¶V©MÆ…≠»øÔæ‹≤≈∏π
 		if (!stem) {
-			const dir = (getPitch(elem) >= 6) ? "down" : "up";
+			const dir = (elem.pitch >= 6) ? "down" : "up";
 			c = chartable[dir][-durlog];
 		} else {
-			c = "\u0153"; // 1 ÊòØÁ°¨Á∑®Á¢º
+			c = "\u0153"; // 1 ¨OµwΩsΩX
 			xcorr = 1;
 		}
 
-		// ÊâìÂç∞Èü≥Á¨¶È†≠
-		notehead = this.glyphs.printSymbol(this.x, this.calcY(getPitch(elem) + xcorr), c);
+		// •¥¶L≠µ≤≈¿Y
+		notehead = this.glyphs.printSymbol(this.x, this.calcY(elem.pitch + xcorr), c);
 		elemset.push(notehead);
 
-		// Ë®àÁÆóÈü≥Á¨¶ÁöÑÈÇäÁïåÊ°Ü
+		// ≠p∫‚≠µ≤≈™∫√‰¨…Æÿ
 		const bbox = {
 			x: this.x,
-			y: this.calcY(getPitch(elem) + xcorr),
+			y: this.calcY(elem.pitch + xcorr),
 			width: this.glyphs.getSymbolWidth(c, notehead),
 			height: this.glyphs.getSymbolHeight(c, notehead)
 		};
 
-		// ËôïÁêÜÈôÑÈªû
+		// ≥B≤z™˛¬I
 		if (dot) {
-			const dotadjust = (1 - getPitch(elem) % 2);
-			elemset.push(this.glyphs.printSymbol(this.x + 12, 1 + this.calcY(getPitch(elem) + 2 - 1 + dotadjust), ".")); // 12 Âíå 1 ÊòØÁ°¨Á∑®Á¢º
+			const dotadjust = (1 - elem.pitch % 2);
+			elemset.push(this.glyphs.printSymbol(this.x + 12, 1 + this.calcY(elem.pitch + 2 - 1 + dotadjust), ".")); // 12 ©M 1 ¨OµwΩsΩX
 		}
 
-		// ÊâìÂç∞‰∏äÊñπÂä†Á∑ö
-		for (let i = getPitch(elem); i > 11; i--) {
+		// •¥¶L§W§Ë•[Ωu
+		for (let i = elem.pitch; i > 11; i--) {
 			if (i % 2 === 0) {
-				elemset.push(this.glyphs.printSymbol(this.x - 1, this.calcY(i + 1), "_")); // 1 ÊòØÁ°¨Á∑®Á¢º
+				elemset.push(this.glyphs.printSymbol(this.x - 1, this.calcY(i + 1), "_")); // 1 ¨OµwΩsΩX
 			}
 		}
 
-		// ÊâìÂç∞‰∏ãÊñπÂä†Á∑ö
-		for (let i = getPitch(elem); i < 1; i++) {
+		// •¥¶L§U§Ë•[Ωu
+		for (let i = elem.pitch; i < 1; i++) {
 			if (i % 2 === 0) {
-				elemset.push(this.glyphs.printSymbol(this.x - 1, this.calcY(i + 1), "_")); // 1 ÊòØÁ°¨Á∑®Á¢º
+				elemset.push(this.glyphs.printSymbol(this.x - 1, this.calcY(i + 1), "_")); // 1 ¨OµwΩsΩX
 			}
 		}
 
-		// ËøîÂõû ABCGraphElem Â∞çË±°
+		// ™¶^ ABCGraphElem πÔ∂H
 		return new ABCGraphElem(elemset, notehead, 0, Math.sqrt(getDuration(elem) * 8), bbox);
 	}
 

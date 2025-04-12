@@ -1,4 +1,4 @@
-﻿
+
 declare function str_repeat(i: any, m: number): string;
 declare function sprintf(format: string, ...args: (string | number)[]): string;
 
@@ -200,7 +200,7 @@ interface PlayTune {
 	 * @param frequency 頻率
 	 * @param seconds 持續時間（秒）
 	 */
-	private _playFreq(frequency: number, seconds: number): void;
+	 _playFreq(frequency: number, seconds: number): void;
 
 	/**
 	 * 播放樂曲
@@ -218,7 +218,7 @@ interface PlayTune {
 	 * 逐行播放樂曲
 	 * @param This PlayTune 實例
 	 */
-	private _consumeLine(This: PlayTune): void;
+	 _consumeLine(This: PlayTune): void;
 
 }
 
@@ -228,4 +228,4 @@ interface PlayTune {
  * @param value 數值
  * @returns 打包後的字符串
  */
-declare  pack(format: string, value: number): string;
+declare function pack(format: string, value: number): string;
