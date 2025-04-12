@@ -1,4 +1,4 @@
-/**
+ï»¿/**
  * @author paulrosen
  */
 class PlayEmbedded {
@@ -9,8 +9,8 @@ class PlayEmbedded {
   }
 
   /**
-   * ¼½©ñ ABC ¸ÑªR«áªº¼Ö¦±
-   * @param abcParsed ¸ÑªR«áªº ABC ¼Ö¦±¼Æ¾Ú
+   * æ’­æ”¾ ABC è§£æå¾Œçš„æ¨‚æ›²
+   * @param abcParsed è§£æå¾Œçš„ ABC æ¨‚æ›²æ•¸æ“š
    */
   play(abcParsed: any): void {
     const abcPitchToAbsPitch: number[] = [
@@ -23,7 +23,7 @@ class PlayEmbedded {
     ];
     const tune: [number, number][] = [];
 
-    // ±N¸ÑªR«áªº®æ¦¡Âà´«¬°µ´¹ï­µ°ª©M®É­Èªº°}¦C
+    // å°‡è§£æå¾Œçš„æ ¼å¼è½‰æ›ç‚ºçµ•å°éŸ³é«˜å’Œæ™‚å€¼çš„é™£åˆ—
     abcParsed.lines.forEach((line: any) => {
       if (line.staff !== undefined) {
         line.staff.forEach((item: any) => {
@@ -36,12 +36,12 @@ class PlayEmbedded {
       }
     });
 
-    // ¼½©ñ¼Ö¦±
+    // æ’­æ”¾æ¨‚æ›²
     this.playTune.play(tune, 89);
   }
 
   /**
-   * °±¤î¼½©ñ
+   * åœæ­¢æ’­æ”¾
    */
   stop(): void {
     this.playTune.stop();

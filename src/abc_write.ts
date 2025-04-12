@@ -1,4 +1,4 @@
-/*global Class */
+ï»¿/*global Class */
 /*global sprintf */
 /*extern  ABCBeamElem, ABCGraphElem, ABCPrinter, AbcGlyphs, AbcSpacing, getDuration */
 
@@ -281,6 +281,8 @@ class ABCPrinter {
 		this.y = 0;
 		this.paper.text(100, 5, abctune.title);
 		this.paper.text(100, 20, abctune.author);
+		if (abctune.origin && abctune.origin.length > 0)
+			this.paper.text(100, 35, "(" + abctune.origin + ")");
 
 		for (let line = 0; line < abctune.lines.length; line++) {
 			this.printABCLine(abctune.lines[line]);
@@ -331,6 +333,9 @@ class ABCPrinter {
 			case "key":
 				this.printKeySignature(elem);
 				break;
+			case "rest":
+				this.debugMsg("rest(" + elem.duration + ")");
+				break;
 		}
 		return graphelem;
 	}
@@ -362,12 +367,16 @@ class ABCPrinter {
 		const elemset = this.paper.set();
 		let notehead: any = null;
 
-		// ¥´¦L©M©¶¼Ğ°O
+		if (elem.decoration) {
+			var decs = elem.decoration.join(',');
+			this.debugMsg(decs);
+		}
+		// æ‰“å°å’Œå¼¦æ¨™è¨˜
 		if (elem.chord !== undefined) {
 			this.paper.text(this.x, this.y + 20, elem.chord);
 		}
 
-		// ³B²z¤É­°°O¸¹
+		// è™•ç†å‡é™è¨˜è™Ÿ
 		if (elem.accidental !== undefined && elem.accidental !== 'none') {
 			let symb: string;
 			switch (elem.accidental) {
@@ -385,12 +394,15 @@ class ABCPrinter {
 				default:
 					symb = "";
 			}
-			const acc = this.glyphs.printSymbol(this.x, this.calcY(elem.pitch + 1), symb); // 1 ¬Oµw½s½X
-			acc.translate(-(this.glyphs.getSymbolWidth(symb, acc) + 2), 0); // µw½s½X
+			const acc = this.glyphs.printSymbol(this.x, this.calcY(elem.pitch + 1), symb); // 1 æ˜¯ç¡¬ç·¨ç¢¼
+			acc.translate(-(this.glyphs.getSymbolWidth(symb, acc) + 2), 0); // ç¡¬ç·¨ç¢¼
 			elemset.push(acc);
 		}
 
-		// ­µ²ÅÀY²Å¸¹¹ïÀ³ªí
+		if (elem.lyric !== undefined) {
+			this.debugMsg(elem.lyric.syllable + "  " + elem.lyric.divider);
+		}
+		// éŸ³ç¬¦é ­ç¬¦è™Ÿå°æ‡‰è¡¨
 		const chartable: { [key: string]: { [key: number]: string } } = {
 			up: { 0: "w", 1: "h", 2: "q", 3: "e", 4: "x" },
 			down: { 0: "w", 1: "H", 2: "Q", 3: "E", 4: "X" }
@@ -402,20 +414,20 @@ class ABCPrinter {
 		const dot = (Math.pow(2, durlog) !== dur);
 		let c = "";
 
-		// ®Ú¾Ú­µ²Å¤è¦V©M®É­È¿ï¾Ü²Å¸¹
+		// æ ¹æ“šéŸ³ç¬¦æ–¹å‘å’Œæ™‚å€¼é¸æ“‡ç¬¦è™Ÿ
 		if (!stem) {
 			const dir = (elem.pitch >= 6) ? "down" : "up";
 			c = chartable[dir][-durlog];
 		} else {
-			c = "\u0153"; // 1 ¬Oµw½s½X
+			c = "\u0153"; // 1 æ˜¯ç¡¬ç·¨ç¢¼
 			xcorr = 1;
 		}
 
-		// ¥´¦L­µ²ÅÀY
+		// æ‰“å°éŸ³ç¬¦é ­
 		notehead = this.glyphs.printSymbol(this.x, this.calcY(elem.pitch + xcorr), c);
 		elemset.push(notehead);
 
-		// ­pºâ­µ²ÅªºÃä¬É®Ø
+		// è¨ˆç®—éŸ³ç¬¦çš„é‚Šç•Œæ¡†
 		const bbox = {
 			x: this.x,
 			y: this.calcY(elem.pitch + xcorr),
@@ -423,27 +435,27 @@ class ABCPrinter {
 			height: this.glyphs.getSymbolHeight(c, notehead)
 		};
 
-		// ³B²zªşÂI
+		// è™•ç†é™„é»
 		if (dot) {
 			const dotadjust = (1 - elem.pitch % 2);
-			elemset.push(this.glyphs.printSymbol(this.x + 12, 1 + this.calcY(elem.pitch + 2 - 1 + dotadjust), ".")); // 12 ©M 1 ¬Oµw½s½X
+			elemset.push(this.glyphs.printSymbol(this.x + 12, 1 + this.calcY(elem.pitch + 2 - 1 + dotadjust), ".")); // 12 å’Œ 1 æ˜¯ç¡¬ç·¨ç¢¼
 		}
 
-		// ¥´¦L¤W¤è¥[½u
+		// æ‰“å°ä¸Šæ–¹åŠ ç·š
 		for (let i = elem.pitch; i > 11; i--) {
 			if (i % 2 === 0) {
-				elemset.push(this.glyphs.printSymbol(this.x - 1, this.calcY(i + 1), "_")); // 1 ¬Oµw½s½X
+				elemset.push(this.glyphs.printSymbol(this.x - 1, this.calcY(i + 1), "_")); // 1 æ˜¯ç¡¬ç·¨ç¢¼
 			}
 		}
 
-		// ¥´¦L¤U¤è¥[½u
+		// æ‰“å°ä¸‹æ–¹åŠ ç·š
 		for (let i = elem.pitch; i < 1; i++) {
 			if (i % 2 === 0) {
-				elemset.push(this.glyphs.printSymbol(this.x - 1, this.calcY(i + 1), "_")); // 1 ¬Oµw½s½X
+				elemset.push(this.glyphs.printSymbol(this.x - 1, this.calcY(i + 1), "_")); // 1 æ˜¯ç¡¬ç·¨ç¢¼
 			}
 		}
 
-		// ªğ¦^ ABCGraphElem ¹ï¶H
+		// è¿”å› ABCGraphElem å°è±¡
 		return new ABCGraphElem(elemset, notehead, 0, Math.sqrt(getDuration(elem) * 8), bbox);
 	}
 

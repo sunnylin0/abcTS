@@ -1,4 +1,4 @@
-// Place your application-specific JavaScript functions and classes here
+﻿// Place your application-specific JavaScript functions and classes here
 // This file is automatically included by javascript_include_tag :defaults
 
 let abcParser: ParseAbc | null = null;
@@ -51,7 +51,7 @@ function pickTuneAndPdf(pdf_id: string, abc_file: string, value: string): void {
 	let pdf_file = abc_file.substring(0, abc_file.lastIndexOf('.'));
 	pdf_file = `/testdata/${pdf_file}.pdf`;
 	if (value === '') {
-	// TODO
+		// TODO
 		alert("implement NEXT");
 	}
 	editArea.set(value.replace(/`n/g, '\n').replace(/`a/g, "'"));
@@ -60,6 +60,75 @@ function pickTuneAndPdf(pdf_id: string, abc_file: string, value: string): void {
 	if (pdf) {
 		pdf.innerHTML = `<embed src='${pdf_file}' height='100%' width='100%'>`;
 	}
+}
+
+function pickTuneAndPdf(pdf_id, abc_file, value) {
+	$("persistent_url").update("http://" + window.location.host + "/comparison?tune=" + abc_file);
+	var filename = abc_file.substring(0, abc_file.lastIndexOf('.'));
+	var pdf_file = "/testdata/" + filename.gsub('\\+', '%2B') + '.ps';
+	var err_file = filename + '.txt';
+	if (value == '') {
+		// TODO
+		alert("implement NEXT");
+	}
+	editArea.set(value.gsub('`n', '\n').gsub('`a', "'"));
+	abc_keystroke();
+	var pdf = $(pdf_id);
+	//pdf.src = '/testdata/Ach_below.pdf';
+	pdf.innerHTML = "<embed src='" + pdf_file + "' height='100%' width='100%'>";
+	new Ajax.Updater("abcm2ps_output", "/tunes/get_file", { parameters: { file: err_file, authenticity_token: window.authenticity_token } });
+}
+
+function pickTuneAndPdf(pdf_id: string, abc_file: string, value: string): void {
+	// 處理 persistent_url 元素更新
+	const persistentUrlElement = document.getElementById("persistent_url") as HTMLSpanElement;
+	if (persistentUrlElement) {
+		persistentUrlElement.textContent = `http://${window.location.host}/comparison?tune=${abc_file}`;
+	}
+
+	// 處理文件名轉換
+	const filename = abc_file.substring(0, abc_file.lastIndexOf('.'));
+	const sanitizedFilename = filename.replace(/\+/g, '%2B');
+	const pdf_file = `/testdata/${sanitizedFilename}.ps`;
+	const err_file = `${filename}.txt`;
+
+	// 處理空值情況
+	if (value === '') {
+		alert("implement NEXT");
+		return; // 提前返回避免後續錯誤
+	}
+
+	// 處理文本替換（Prototype.js 的 gsub 轉換）
+	const processedValue = value
+		.replace(/`n/g, '\n')
+		.replace(/`a/g, "'");
+
+	editArea.set(processedValue);
+	abc_keystroke();
+
+	// 更新 PDF 嵌入
+	const pdfElement = document.getElementById(pdf_id) as HTMLObjectElement;
+	if (pdfElement) {
+		pdfElement.innerHTML = `<embed src="${pdf_file}" height="100%" width="100%">`;
+	}
+
+	// 替換 Prototype.js 的 Ajax.Updater
+	fetch("/tunes/get_file", {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/x-www-form-urlencoded",
+			"X-CSRF-Token": window.authenticity_token
+		},
+		body: `file=${encodeURIComponent(err_file)}`
+	})
+		.then(response => response.text())
+		.then(data => {
+			const outputDiv = document.getElementById("abcm2ps_output");
+			if (outputDiv) {
+				outputDiv.textContent = data;
+			}
+		})
+		.catch(error => console.error('Error:', error));
 }
 
 function pickTune(value: string): void {
@@ -159,37 +228,40 @@ let bReentry = false;
 function abc_keystroke(): void {
 	if (bReentry) return;
 	bReentry = true;
+
+	// clear out any old tune
+	var done = false;
+	var i = 0;
+	while (!done) {
+		var el = document.getElementById("canvas" + i);
+		if (el)
+			el.innerHTML = "";
+		else
+			done = true;
+		i++;
+	}
+
 	let canvas;
 	try {
-	//	parseABC();
-	//	var draw = new DrawNotation('music', 'main_title', 'author');
-	//
-		const t = editArea.get();
-		if (abcParser === null) 
+		var t = editArea.get();
+		var tunebook = new AbcTuneBook(t);
+		if (abcParser === null)
 			abcParser = new ParseAbc();
-		abcParser.parse(t);
-		//	  var scratch = $('scratch2');
-		const tune = abcParser.getTune();
-		canvas = document.getElementById("canvas");
-		//canvas.down().update();
-		canvas.innerHTML = "";
-		//paper.remove();
-		//if (paper === null)
-		paper = Raphael(canvas, 1000, 600);
-		//else
-		//	 paper.remove();
-		//canvas.innerHTML = "";
-		//if (printer === null)
-		printer = new ABCPrinter(paper);			
-		printer.printABC(tune);
-		//	  scratch.innerHTML = tune.toString();
-		//	selection = editArea.getSelection();
-		//	draw.draw(abcParser.getTune());
-		
+
+		for (i = 0; i < tunebook.tunes.length; i++) {
+			try {
+				abcParser.parse(tunebook.tunes[i]);
+				var tune = abcParser.getTune();
+				canvas = document.getElementById("canvas" + i);
+				paper = Raphael(canvas, 1000, 600);
+				printer = new ABCPrinter(paper);
+				printer.printABC(tune);
+			} catch (e) {
+				console.log("error: " + e);
+			}
+		}
 	} catch (e) {
-		if (canvas)
-			canvas.update("error: " + e);
-		else throw (e);
+		console.log("error: " + e);
 	}
 	bReentry = false;
 }

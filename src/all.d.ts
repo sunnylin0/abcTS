@@ -2,6 +2,9 @@
 declare function str_repeat(i: any, m: number): string;
 declare function sprintf(format: string, ...args: (string | number)[]): string;
 
+interface Window {
+	authenticity_token: string;
+}
 
 interface Raphael {
 	fn: {
@@ -151,6 +154,8 @@ interface MultilineVars {
 	transcription: string;
 	notes: string;
 	rhythm: string;
+	book: string,
+	default_length: number,
 	reset(): void;
 }
 
@@ -231,3 +236,10 @@ interface PlayTune {
  * @returns 打包後的字符串
  */
 declare function pack(format: string, value: number): string;
+
+
+
+// 假設 editArea 的型別定義（根據實際情況調整）
+interface  EditArea {
+}
+
