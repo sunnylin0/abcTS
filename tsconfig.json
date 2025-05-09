@@ -23,5 +23,6 @@
       "node"
     ]
   },
-  "include": [ "src", "types", "abcjs" ],
+  
+  "include": [ "src/*.ts", "src/*.d.ts","type" ]
 }

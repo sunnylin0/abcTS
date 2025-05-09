@@ -7,7 +7,7 @@
   "type": "chrome",
   "request": "launch",
   "url": "http://localhost:3000",
-  "webRoot": "C:\\GitHub\\muse\\abcTS"
+  "webRoot": "C:\\GitHub\\muse-react\\abcTS"
 }</LaunchJsonTarget>
   </PropertyGroup>
 </Project>

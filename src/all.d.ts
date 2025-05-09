@@ -6,15 +6,15 @@ interface Window {
 	authenticity_token: string;
 }
 
-interface Raphael {
-	fn: {
-		toRelative(pathArray: any[] | string): any[];
-	};
-	path(pathString: string): any;
-	parsePathString(pathString: string): any[];
-	is(value: any, type: string): boolean;
-	_path2string: () => string;
-}
+//interface Raphael {
+//	fn: {
+//		toRelative(pathArray: any[] | string): any[];
+//	};
+//	path(pathString: string): any;
+//	parsePathString(pathString: string): any[];
+//	is(value: any, type: string): boolean;
+//	_path2string: () => string;
+//}
 
 interface Font {
 	face: {
@@ -43,7 +43,9 @@ type ElementType =
 	| "bar"
 	| "clef"
 	| "key-sig"
-	| "meter";
+	| "meter"
+	| "key"
+	| "part";
 
 type NoteAccidental = "none" | "dbl_flat" | "flat" | "natural" | "sharp" | "dbl_sharp";
 type BarType =
@@ -67,25 +69,26 @@ interface ElementBase {
 }
 
 interface RestElement extends ElementBase {
-	el_type: "rest";
-	duration: number;
+	el_type?: "rest";
+	duration?: number;
 	chord?: string;
 }
 
 interface NoteElement extends ElementBase {
-	el_type: "note";
-	accidental: NoteAccidental;
-	pitch: number;
-	duration: number;
+	el_type?: "note";
+	accidental?: NoteAccidental;
+	pitch?: number;
+	duration?: number;
 	chord?: string;
 	end_beam?: boolean;
 	decoration?: Decoration;
+	averagepitch?: number;
 }
 
 interface BarElement extends ElementBase {
-	el_type: "bar";
-	type: BarType;
-	number: number;
+	el_type?: "bar";
+	type?: BarType;
+	number?: number;
 	start_first_ending?: boolean;
 	start_second_ending?: boolean;
 	end_first_ending?: boolean;
@@ -98,7 +101,7 @@ interface ClefElement extends ElementBase {
 }
 
 interface KeySigElement extends ElementBase {
-	el_type: "key-sig";
+	el_type: "key";
 	num: number;
 	dir: KeySigDir;
 	extra?: { pitch: number; type: NoteAccidental }[];
@@ -111,25 +114,81 @@ interface MeterElement extends ElementBase {
 	den?: number;
 }
 
-type AbcElement = RestElement | NoteElement | BarElement | ClefElement | KeySigElement | MeterElement;
+//type AbcElement = RestElement | NoteElement | BarElement | ClefElement | KeySigElement | MeterElement;
 
-interface StaffLine {
-	staff?: AbcElement[];
-	subtitle?: string;
+
+//interface AbcElement {
+
+	
+//	duration?: number;
+//	pitches?: {
+//		accidental?: string;
+//		pitch: number;
+//		duration?: number;
+//		startTie?: boolean;
+//		endTie?: boolean;
+//		startSlur?: number;
+//		endSlur?: number;
+//	}[];
+//	rest_type?: string;
+//	chord?: { name: string; position: string };
+//	decoration?: string[];
+//	gracenotes?: any[]; // Assuming any[] for lack of details
+//	lyric?: { syllable: string; divider: string };
+//	startSlur?: number;
+//	endSlur?: number;
+//	startTriplet?: number;
+//	endTriplet?: boolean;
+//	end_beam?: boolean;
+//	accidental?: string;
+
+
+//}
+
+
+interface ABCLine {
+	staff?: ABCElement[];
+	subtitle?: string
 }
 
+interface ABCElement {
+	el_type?: string;
+	type?: string;
+	startChar?: number;
+	endChar?: number;
+	duration?: number;
+	pitches?: {
+		accidental?: string;
+		pitch: number;
+		duration?: number;
+		startTie?: boolean;
+		endTie?: boolean;
+		startSlur?: number;
+		endSlur?: number;
+	}[];
+	rest_type?: string;
+	chord?: { name: string; position: string };
+	decoration?: string[];
+	gracenotes?: any[]; // Assuming any[] for lack of details
+	lyric?: { syllable: string; divider: string };
+	startSlur?: number;
+	endSlur?: number;
+	startTriplet?: number;
+	endTriplet?: boolean;
+	end_beam?: boolean;
+	accidental?: string;
 
-interface SubtitleLine {
+	pitch: number,
+	startTie: boolean,
+	endTie: boolean,
 }
 
-//type Line = StaffLine | SubtitleLine;
-type Line = StaffLine;
 
 // Parse
 
 type KeySignature = {
 	num: number;
-	acc?: "sharp" | "flat";
+	acc?: "sharp" | "sharps" | "flat";
 };
 
 type DurationInfo = [number, number, number?]; // [charactersConsumed, duration, nextNoteDuration?]
@@ -138,11 +197,14 @@ type AccidentalInfo = [number, "" | "sharp" | "natural" | "flat"];
 type SpacerInfo = [number, "" | "spacer"];
 type BarInfo = [number, string]; // [charactersConsumed, barType]
 
-
+interface TokenInfo {
+	acc: string;
+	note: string;
+}
 
 
 type BarEndingInfo = [number, string[]]; // [charactersConsumed, endingAttributes]
-type PitchInfo = [number, number]; // [charactersConsumed, pitch]
+type PitchInfo = [number, number, string?]; // [charactersConsumed, pitch]
 
 interface MetaTextInfo {
 	[key: string]: string;
@@ -155,18 +217,27 @@ interface TempoInfo {
 	duration?: number;
 }
 
-interface MultilineVars {
+interface MultilineVarsElement {
 	iChar: number;
-	key: KeySignature;
+	key: { regularKey: KeySignature };
 	meter: MeterElement;
 	hasMainTitle: boolean;
 	default_length: number;
 	tempo?: TempoInfo;
-	reset(): void;
+	clef: string,
+	next_note_duration: number,
+	start_new_line: boolean,
+	is_in_header: boolean,
+	partForNextLine: string,
+	havent_set_length: boolean,
+	tempo: any,
+	warnings: any,
+	reset():void
 }
 
 
 ////  abc_write
+
 
 interface Glyph {
 	d: (string | number)[][];
@@ -182,6 +253,7 @@ interface FormattingInfo {
 	scale?: number;
 	staffwidth?: number;
 	stretchlast?: boolean;
+	sep?: string;
 }
 
 interface BBox {
@@ -200,6 +272,100 @@ interface BarTypes {
 	"bar_right_repeat": string[];
 	"bar_double_repeat": string[];
 }
+
+interface VoiceItemBase {
+	el_type?: VoiceElType;
+	stafflines?: number;
+	staffscale?: number;
+	transpose?: number;
+	type?: Clef;
+	verticalPos?: number;
+	clefPos?: number;
+	startChar?: number;
+	endChar?: number;
+	rest_type?: string;
+}
+
+interface Element_XXX {
+	pitches?: Pitch[];
+	accidental?: string;
+	pitch?: number;
+	duration?: number;
+	startTie?: boolean;
+	endTie?: boolean;
+	startSlur?: number;
+	endSlur?: number;
+	rest_type?: string;
+	lyric?: Lyric;
+	gracenotes?: GraceNote[];
+	decoration?: string[];
+	chord?: Chord;
+	startTriplet?: boolean;
+	endTriplet?: boolean;
+}
+
+interface Pitch {
+	accidental?: string;
+	pitch: number;
+	duration?: number;
+	startTie?: boolean;
+	endTie?: boolean;
+	startSlur?: number;
+	endSlur?: number;
+}
+
+interface Lyric {
+	syllable: string;
+	divider: string;
+}
+
+interface GraceNote {
+	pitch: number;
+}
+
+interface Chord {
+	name: string;
+	position?: string;
+}
+
+
+declare class ABCAbsoluteElement {
+	abcelem: ABCElement;
+	duration: number;
+	minspacing: number;
+	x: number;
+	children: ABCRelativeElement[];
+	heads: ABCRelativeElement[];
+	extra: ABCRelativeElement[];
+	extraw: number;
+	decs: any[];
+	w: number;
+	right: ABCRelativeElement[];
+
+	getMinWidth(): number;
+	getExtraWidth(): number;
+	addExtra(extra: any): void;
+	addHead(head: any): void;
+	addRight(right: any): void;
+	addChild(child: any): void;
+	draw(printer: ABCPrinter): void;
+	highlight(): void;
+	unhighlight(): void;
+}
+
+declare class ABCRelativeElement {
+	x: number;
+	c: string | null;
+	dx: number;
+	w: number;
+	pitch: number;
+	scalex: number;
+	type: string;
+	graphelem?: SVGElement;
+
+	draw(printer: ABCPrinter, x: number): any;
+}
+
 
 
 interface Elem {
@@ -253,5 +419,8 @@ declare function pack(format: string, value: number): string;
 
 // 假設 editArea 的型別定義（根據實際情況調整）
 interface EditArea {
+
 }
+
+
 

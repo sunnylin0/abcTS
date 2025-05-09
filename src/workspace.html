@@ -12,7 +12,6 @@
 
 
 	<script src="raphael-patched.js" type="text/javascript"></script>
-	<script src="Maestro_500.js" type="text/javascript"></script>
 	<script src="sprintf.js" type="text/javascript"></script>
 	<script src="scalefont.js" type="text/javascript"></script>
 	<script src="abc_glyphs.js" type="text/javascript"></script>
@@ -20,7 +19,7 @@
 
 	<script src="abc_tunebook.js" type="text/javascript"></script>
 	<script src="abc_parse.js" type="text/javascript"></script>
-
+	<script src="abc_parser_lint.js" type="text/javascript"></script>
 	<script src="wav_generator.js" type="text/javascript"></script>
 	<script src="play_embedded.js" type="text/javascript"></script>
 
@@ -35,24 +34,11 @@
 
 	<p style="color: green;"></p>
 
-	<!--<script language="javascript" type="text/javascript" src="/edit_area/edit_area_loader.js"></script>
-	<script language="javascript" type="text/javascript">
-	editAreaLoader.init({
-		id : "abc"		// textarea id
-		,syntax: "abc"			// syntax to be uses for highgliting
-		,start_highlight: true		// to display with highlight mode on start-up
-		,allow_resize: "both"
-		,allow_toggle: false
-		,change_callback: "abc_keystroke"
-		,plugins: "keypresscallback"
-	});
-	</script>-->
-
 	<table>
 		<tbody>
 			<tr>
 				<td>
-					<textarea name="abc" id="abc" cols="80" rows="15" onclick="click();" onkeyup="abc_keystroke();">X: 1
+					<textarea name="abc" id="abc" cols="80" rows="15" onclick="click();" onkeyup="abc_keystroke();" onmousemove="abc_mousemove()">X: 1
 T: Cooley's
 M: 4/4
 L: 1/8
@@ -170,6 +156,7 @@ B2BB B2BB|&quot;Am&quot;A2AA c2dd|e2eg e2c2|&quot;D&quot;d2dd d2dd|d2dd d2cd|
 	<hr />
 	<div id="main_title">&nbsp;</div>
 	<div id="author">&nbsp;</div>
+	<div id="warnings"></div>
 	<div id="music"></div>
 	<div id="canvas0"></div>
 	<div id="canvas1"></div>

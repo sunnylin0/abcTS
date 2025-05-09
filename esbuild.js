@@ -9,6 +9,7 @@ var config = {
 		"./src/abc_glyphs.ts",
 		"./src/abc_tunebook.ts",
 		"./src/abc_write.ts",
+		"./src/abc_parser_lint.ts",
 		"./src/application.ts",
 		"./src/Maestro_500.js",
 		"./src/play_embedded.ts",
