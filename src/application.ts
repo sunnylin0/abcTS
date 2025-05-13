@@ -98,7 +98,11 @@ function writeOneTune(tune, warnings, count) {
 	else
 		document.getElementById('warnings').innerHTML = 'No errors';
 	var canvas = document.getElementById("canvas" + count);
-	paper = Raphael(canvas, 1500, 1500);
+
+	//paper = Raphael(canvas, 1500, 1500);
+	paper = new Svg(canvas);
+	paper.setSize(1500, 1500);
+
 	printer = new ABCPrinter(paper);
 	printer.printABC(tune);
 	printer.addSelectListener(editArea);

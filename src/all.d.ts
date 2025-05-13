@@ -119,7 +119,7 @@ interface MeterElement extends ElementBase {
 
 //interface AbcElement {
 
-	
+
 //	duration?: number;
 //	pitches?: {
 //		accidental?: string;
@@ -232,7 +232,7 @@ interface MultilineVarsElement {
 	havent_set_length: boolean,
 	tempo: any,
 	warnings: any,
-	reset():void
+	reset(): void
 }
 
 
@@ -248,13 +248,126 @@ interface Glyph {
 interface Glyphs {
 	[key: string]: Glyph;
 }
-
+declare interface Font {
+	face?: string;
+	size?: number;
+	weight?: 'normal' | 'bold';
+	style?: 'normal' | 'italic';
+	decoration?: 'none' | 'underline';
+	box?: boolean;
+}
+//declare interface String {
+//	/**
+//	 * Converts string to number with enhanced parsing capabilities
+//	 * - Supports hex(0x), binary(0b), octal(0o) prefixes
+//	 * - Handles scientific notation (1.23e4)
+//	 * - Automatic trim and whitespace removal
+//	 * - Graceful handling of trailing characters
+//	 * @returns Parsed number or NaN
+//	 */
+//	toNumber(): number;
+//}
 interface FormattingInfo {
 	scale?: number;
 	staffwidth?: number;
 	stretchlast?: boolean;
 	sep?: string;
 }
+declare interface Formatting {
+	alignbars?: number;
+	aligncomposer?: Alignment;
+	auquality?: string;
+	bagpipes?: boolean;
+	botmargin?: number;
+	botspace?: number;
+	bstemdown?: boolean;
+	composerspace?: number;
+	continueall?: boolean;
+	continuous?: string;
+	dynalign?: boolean;
+	exprabove?: boolean;
+	exprbelow?: boolean;
+	flatbeams?: boolean;
+	footer?: string;
+	freegchord?: boolean;
+	gchordbox?: boolean;
+	graceSlurs?: boolean;
+	gracespacebefore?: number;
+	gracespaceinside?: number;
+	gracespaceafter?: number;
+	header?: string;
+	indent?: number;
+	infoline?: boolean;
+	infospace?: number;
+	leftmargin?: number;
+	linesep?: number;
+	lineskipfac?: number;
+	map?: string;
+	maxshrink?: number;
+	maxstaffsep?: number;
+	maxsysstaffsep?: number;
+	measurebox?: boolean;
+
+	musicspace?: number;
+	nobarcheck?: string;
+	notespacingfactor?: number;
+	parskipfac?: number;
+	partsbox?: boolean;
+	partsspace?: number;
+	percmap?: Array<PercMapElement>;
+	playtempo?: string;
+	rightmargin?: number;
+	scale?: number;
+	score?: string;
+	slurheight?: number;
+	splittune?: boolean;
+	squarebreve?: boolean;
+	staffsep?: number;
+	staffwidth?: number;
+	stemheight?: number;
+	straightflags?: boolean;
+	stretchlast?: number;
+	stretchstaff?: boolean;
+	subtitlespace?: number;
+	sysstaffsep?: number;
+	systemsep?: number;
+	textspace?: number;
+	titleformat?: string;
+	titleleft?: boolean;
+	titlespace?: number;
+	topmargin?: number;
+	topspace?: number;
+	vocalabove?: boolean;
+	vocalspace?: number;
+	wordsspace?: number;
+
+	annotationfont?: Font;
+	composerfont?: Font;
+	footerfont?: Font;
+	gchordfont?: Font;
+	headerfont?: Font;
+	historyfont?: Font;
+	infofont?: Font;
+	measurefont?: Font;
+	pageheight?: number;
+	pagewidth?: number;
+	partsfont?: Font;
+	repeatfont?: Font;
+	subtitlefont?: Font;
+	tabgracefont?: Font;
+	tablabelfont?: Font;
+	tabnumberfont?: Font;
+	tempofont?: Font;
+	textfont?: Font;
+	titlefont?: Font;
+	tripletfont?: Font;
+	vocalfont?: Font;
+	voicefont?: Font;
+	wordsfont?: Font;
+
+	jazzchords?: boolean;
+}
+
 
 interface BBox {
 	x: number;
@@ -329,42 +442,42 @@ interface Chord {
 }
 
 
-declare class ABCAbsoluteElement {
-	abcelem: ABCElement;
-	duration: number;
-	minspacing: number;
-	x: number;
-	children: ABCRelativeElement[];
-	heads: ABCRelativeElement[];
-	extra: ABCRelativeElement[];
-	extraw: number;
-	decs: any[];
-	w: number;
-	right: ABCRelativeElement[];
+//declare class ABCAbsoluteElement {
+//	abcelem: ABCElement;
+//	duration: number;
+//	minspacing: number;
+//	x: number;
+//	children: ABCRelativeElement[];
+//	heads: ABCRelativeElement[];
+//	extra: ABCRelativeElement[];
+//	extraw: number;
+//	decs: any[];
+//	w: number;
+//	right: ABCRelativeElement[];
 
-	getMinWidth(): number;
-	getExtraWidth(): number;
-	addExtra(extra: any): void;
-	addHead(head: any): void;
-	addRight(right: any): void;
-	addChild(child: any): void;
-	draw(printer: ABCPrinter): void;
-	highlight(): void;
-	unhighlight(): void;
-}
+//	getMinWidth(): number;
+//	getExtraWidth(): number;
+//	addExtra(extra: any): void;
+//	addHead(head: any): void;
+//	addRight(right: any): void;
+//	addChild(child: any): void;
+//	draw(printer: ABCPrinter): void;
+//	highlight(): void;
+//	unhighlight(): void;
+//}
 
-declare class ABCRelativeElement {
-	x: number;
-	c: string | null;
-	dx: number;
-	w: number;
-	pitch: number;
-	scalex: number;
-	type: string;
-	graphelem?: SVGElement;
+//declare class ABCRelativeElement {
+//	x: number;
+//	c: string | null;
+//	dx: number;
+//	w: number;
+//	pitch: number;
+//	scalex: number;
+//	type: string;
+//	graphelem?: SVGElement;
 
-	draw(printer: ABCPrinter, x: number): any;
-}
+//	draw(printer: ABCPrinter, x: number): any;
+//}
 
 
 

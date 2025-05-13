@@ -1068,9 +1068,7 @@ class ParseAbc {
 			case "linesep":
 			case "midi":
 			case "titlecaps":
-			case "titlefont":
 			case "composerfont":
-			case "indent":
 			case "playtempo":
 			case "auquality":
 			case "text":
@@ -2095,7 +2093,7 @@ class ParseAbc {
 				this.addMetaText("transcription", line.substring(2));
 				this.multilineVars.iChar += line.length + 1;
 				break;
-			case 'I:':
+			//case 'I:':
 			case '%%':
 				const err = this.addDirective(line.substring(2));
 				if (err) {

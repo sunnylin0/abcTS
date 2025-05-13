@@ -13,10 +13,12 @@ var config = {
 		"./src/application.ts",
 		"./src/Maestro_500.js",
 		"./src/play_embedded.ts",
-		"./src/raphael-patched.js",
+		//"./src/raphael-patched.js",
 		"./src/scalefont.ts",
 		"./src/sprintf.ts",
 		"./src/wav_generator.ts",
+		"./src/svg.ts",
+		"./src/string_extension.ts",
 	],
 	bundle: false,
 	outdir: './dist'

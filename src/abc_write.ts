@@ -33,9 +33,9 @@ interface TuneMetaText {
 }
 
 interface Tune {
-	lines:ABCLine[];
+	lines: ABCLine[];
 	metaText: TuneMetaText;
-	formatting: FormattingInfo;
+	formatting: Formatting;
 	appendElement: (type: string, startChar: number, endChar: number, element: Element) => void;
 	reset: () => void;
 }
@@ -145,7 +145,7 @@ class ABCStaffElement {
 }
 
 
-class ABCAbsoluteElement  {
+class ABCAbsoluteElement {
 	// spacing which must be taken on top of the width
 	abcelem: ABCElement;
 	duration: number;
@@ -158,7 +158,7 @@ class ABCAbsoluteElement  {
 	decs: any[];
 	w: number;
 	right: ABCRelativeElement[];
-	elemset ?: raSet;
+	elemset?: SVGElement[];
 
 	constructor(abcelem: ABCElement, duration: number, minspacing: number) {
 		this.abcelem = abcelem;
@@ -185,7 +185,7 @@ class ABCAbsoluteElement  {
 	}
 
 	addExtra(extra: ABCRelativeElement): void {
-		if(extra.dx < this.extraw) this.extraw = extra.dx;
+		if (extra.dx < this.extraw) this.extraw = extra.dx;
 		this.extra.push(extra);
 		this.addChild(extra);
 	}
@@ -196,7 +196,7 @@ class ABCAbsoluteElement  {
 	}
 
 	addRight(right: ABCRelativeElement): void {
-		if(right.dx + right.w > this.w) this.w = right.dx + right.w;
+		if (right.dx + right.w > this.w) this.w = right.dx + right.w;
 		this.right.push(right);
 		this.addChild(right);
 	}
@@ -205,24 +205,45 @@ class ABCAbsoluteElement  {
 		this.children.push(child);
 	}
 
-	draw(printer: ABCPrinter, x ?: number, y ?: number): void {
-		this.elemset = printer.paper.set();
-		for(let i = 0; i <this.children.length; i++) {
-		this.elemset.push(this.children[i].draw(printer, this.x));
+	draw(printer: ABCPrinter, x?: number, y?: number): void {
+		this.elemset = [];//printer.paper.set();
+		for (let i = 0; i < this.children.length; i++) {
+			this.elemset.push(this.children[i].draw(printer, this.x));
+		}
+		var self = this;
+		//TODO line:
+
+		// 统一的事件处理函数
+		const handleMouseUp = (event: MouseEvent) => {
+
+			// 你的点击逻辑
+			printer.notifySelect(this);
+		};
+
+		// 快速绑定（一行代码写法）
+		for (let element of this.elemset) {
+			if (element)
+				element.addEventListener('mouseup', handleMouseUp);
+		}
+
+
+		//this.elemset.mouseup((e) => {
+		//	printer.notifySelect(self);
+		//});
 	}
-	var self = this;
-	this.elemset.mouseup((e) => {
-		printer.notifySelect(self);
-	});
-}
 
-highlight(): void {
-	this.elemset.attr({ fill: "#ff0000" });
-}
+	highlight(): void {
+		//TODO line ok: 
+		//this.elemset.attr({ fill: "#ff0000" });
+		this.elemset.forEach(el => el.style.fill = "#ff0000");
 
-unhighlight(): void {
-	this.elemset.attr({ fill: "#000000" });
-}
+	}
+
+	unhighlight(): void {
+		//TODO line ok: 
+		//this.elemset.attr({ fill: "#000000" });
+		this.elemset.forEach(el => el.style.fill = "#000000");
+	}
 }
 
 class ABCRelativeElement {
@@ -233,7 +254,7 @@ class ABCRelativeElement {
 	pitch: number;    // relative y position by pitch
 	scalex: number;   // should the character/path be scaled?
 	type: string;     // cheap types.
-	graphelem?: raElement;
+	graphelem?: SVGElement;
 
 
 	constructor(c: string | null, dx: number, w: number, pitch: number, opt?: { scalex?: number; type?: string }) {
@@ -245,12 +266,12 @@ class ABCRelativeElement {
 		this.type = opt?.type || "symbol";
 	}
 
-	draw(printer: ABCPrinter, x: number): raElement {
+	draw(printer: ABCPrinter, x: number): SVGElement {
 		this.x = x + this.dx;
 		switch (this.type) {
 			case "symbol":
 				if (this.c === null) return null;
-				this.graphelem = printer.printSymbol(this.x, this.pitch, this.c, 0, 0) as raElement;
+				this.graphelem = printer.printSymbol(this.x, this.pitch, this.c, 0, 0);
 				break;
 			case "path":
 				this.graphelem = printer.paper.path(this.c);
@@ -263,7 +284,10 @@ class ABCRelativeElement {
 				break;
 		}
 		if (this.scalex !== 1) {
-			this.graphelem.scale(this.scalex, 1, this.x, 0);
+			//TODO line ok:
+			//this.graphelem.scale(this.scalex, 1, this.x, 0);
+			this.graphelem.setAttribute("transform", `translate(${-(this.scalex - 1) * this.x}) scale(${this.scalex},1) `)
+			//transform = "translate(-121)scale(3,1) "
 		}
 		return this.graphelem;
 	}
@@ -275,7 +299,7 @@ class ABCEndingElem extends ABCAbsoluteElement {
 	anchor2: ABCRelativeElement | null;  // must have a .x property or be null (means ends at the end of the line)
 
 	constructor(text: string, anchor1: ABCRelativeElement | null, anchor2: ABCRelativeElement | null) {
-		super(null,0,0);
+		super(null, 0, 0);
 		this.text = text;
 		this.anchor1 = anchor1;
 		this.anchor2 = anchor2;
@@ -284,18 +308,24 @@ class ABCEndingElem extends ABCAbsoluteElement {
 	draw(printer: ABCPrinter, linestartx: number, lineendx: number): void {
 		if (this.anchor1) {
 			linestartx = this.anchor1.x + this.anchor1.w;
-			printer.paper.path(sprintf("M %f %f L %f %f", linestartx, printer.y, linestartx, printer.y + 10))
-				.attr({ stroke: "#000000" });
+			printer.paper.path({
+				path: sprintf("M %f %f L %f %f", linestartx, printer.y, linestartx, printer.y + 10)
+				, stroke: "#000000"
+			});
 			printer.printText(linestartx + 5, 18.5, this.text);
 		}
 
 		if (this.anchor2) {
 			lineendx = this.anchor2.x;
-			printer.paper.path(sprintf("M %f %f L %f %f", lineendx, printer.y, lineendx, printer.y + 10))
-				.attr({ stroke: "#000000" });
+			printer.paper.path({
+				path: sprintf("M %f %f L %f %f", lineendx, printer.y, lineendx, printer.y + 10)
+				, stroke: "#000000"
+			});
 		}
-		printer.paper.path(sprintf("M %f %f L %f %f", linestartx, printer.y, lineendx, printer.y))
-			.attr({ stroke: "#000000" });
+		printer.paper.path({
+			path: sprintf("M %f %f L %f %f", linestartx, printer.y, lineendx, printer.y)
+			, stroke: "#000000"
+		});
 	}
 }
 
@@ -364,7 +394,7 @@ class ABCBeamElem extends ABCAbsoluteElement {
 	}
 
 	add(abselem: ABCAbsoluteElement): void {
-		this.allrests = this.allrests && (abselem.abcelem.rest_type?.length>0) ;
+		this.allrests = this.allrests && (abselem.abcelem.rest_type?.length > 0);
 		this.elems.push(abselem);
 		const pitch = abselem.abcelem.pitches[0].pitch;
 		this.total += pitch; // TODO CHORD (get pitches from abselem.heads)
@@ -408,8 +438,10 @@ class ABCBeamElem extends ABCAbsoluteElement {
 
 		const dy = this.asc ? AbcSpacing.STEP : -AbcSpacing.STEP;
 
-		printer.paper.path(`M${this.startx} ${this.starty} L${this.endx} ${this.endy} L${this.endx} ${this.endy + dy} L${this.startx} ${this.starty + dy}z`)
-			.attr({ fill: "#000000" });
+		printer.paper.path({
+			path: `M${this.startx} ${this.starty} L${this.endx} ${this.endy} L${this.endx} ${this.endy + dy} L${this.startx} ${this.starty + dy}z`,
+			fill: "#000000"
+		});
 	}
 
 	drawStems(printer: ABCPrinter): void {
@@ -421,8 +453,10 @@ class ABCBeamElem extends ABCAbsoluteElement {
 			const x = this.elems[i].heads[0].x + ((this.asc) ? this.elems[i].heads[0].w : 0);
 			const dx = (this.asc) ? -0.6 : 0.6;
 			const bary = this.getBarYAt(x);
-			printer.paper.path(sprintf("M %f %f L %f %f L %f %f L %f %f z", x, y, x, bary,
-				x + dx, bary, x + dx, y)).attr({ stroke: "none", fill: "#000000" });
+			printer.paper.path({
+				path: sprintf("M %f %f L %f %f L %f %f L %f %f z", x, y, x, bary,
+					x + dx, bary, x + dx, y), stroke: "none", fill: "#000000"
+			});
 
 			const sy = (this.asc) ? 1.5 * AbcSpacing.STEP : -1.5 * AbcSpacing.STEP;
 			for (let durlog = getDurlog(this.elems[i].duration); durlog < -3; durlog++) {
@@ -442,8 +476,10 @@ class ABCBeamElem extends ABCAbsoluteElement {
 						auxbeamendx = (i === 0) ? x + 5 : x - 5;
 						auxbeamendy = this.getBarYAt(auxbeamendx) + sy * (j + 1);
 					}
-					printer.paper.path(`M${auxbeams[j].x} ${auxbeams[j].y} L${auxbeamendx} ${auxbeamendy} L${auxbeamendx} ${auxbeamendy + dy} L${auxbeams[j].x} ${auxbeams[j].y + dy} z`)
-						.attr({ fill: "#000000" });
+					printer.paper.path({
+						path: `M${auxbeams[j].x} ${auxbeams[j].y} L${auxbeamendx} ${auxbeamendy} L${auxbeamendx} ${auxbeamendy + dy} L${auxbeams[j].x} ${auxbeams[j].y + dy} z`,
+						fill: "#000000"
+					});
 					auxbeams = auxbeams.slice(0, j);
 				}
 			}
@@ -458,7 +494,7 @@ class ABCBeamElem extends ABCAbsoluteElement {
 class ABCPrinter {
 	x: number;
 	y: number;
-	paper: raPaper; // Assuming any for lack of details
+	paper: Svg; // Assuming any for lack of details
 	space: number;
 	glyphs: ABCGlyphs;
 	listeners: EditArea[];
@@ -520,35 +556,38 @@ class ABCPrinter {
 		}
 	}
 
-	printText(x: number, offset: number, text: string): raElement {
-		return this.paper.text(x, this.calcY(offset), text).attr({ "text-anchor": "start" });
+	printText(x: number, offset: number, text: string): SVGTextElement {
+		return this.paper.text(x, this.calcY(offset), text, { "text-anchor": "start" });
 	}
 
 	// assumes this.y is set appropriately
-	printSymbol(x: number, offset: number, symbol: string, start: number, end: number): raElement|raElement[] {
+	printSymbol(x: number, offset: number, symbol: string, start: number, end: number): SVGElement | SVGGElement {
 		const ycorr = this.glyphs.getYCorr(symbol);
-		let arrelemts: raElement[]=[];
-		if (symbol === "") return null;
+		let arrelemts: SVGPathElement[] = [];
+		if (symbol.toString() === "") return null;
 		let el = this.glyphs.printSymbol(x, this.calcY(offset + ycorr), symbol[0]);
-		if (el) el.node.setAttribute("abc-pos", "" + start + ',' + end);
+		if (el) el.setAttribute("abc-pos", "" + start + ',' + end);
 		else this.debugMsg(0, "no symbol:" + symbol);
-		if (symbol.length < 2) {
+		if (symbol.toString().length < 2) {
 			return el;
 		} else {
-			const elemset: raSet = this.paper.set();
-			elemset.push(el);
-			for (let i = 1; i < symbol.length; i++) {
+			let elemset: SVGPathElement;
+			let groupEle = this.paper.openGroup()
+			elemset = el;
+			for (let i = 1; i < symbol.toString().length; i++) {
 				el = this.glyphs.printSymbol(x + elemset.getBBox().width + 3, this.calcY(offset + ycorr), symbol[i]);
-				if (el) el.node.setAttribute("abc-pos", "" + start + ',' + end);
+				if (el) el.setAttribute("abc-pos", "" + start + ',' + end);
 				else this.debugMsg(0, "no symbol:" + symbol);
+
 				arrelemts.push(el);
 				//elemset.push(el);
 			}
-			return arrelemts;
+			this.paper.closeGroup();
+			return groupEle;
 		}
 	}
 
-	drawArc(x1: number, x2: number, pitch1: number, pitch2: number, above: boolean): raElement {
+	drawArc(x1: number, x2: number, pitch1: number, pitch2: number, above: boolean): SVGPathElement {
 		x1 = x1 + 6;
 		x2 = x2 + 4;
 		pitch1 = pitch1 + ((above) ? 1.5 : -1.5);
@@ -561,9 +600,11 @@ class ABCPrinter {
 		const controlx2 = x2 - (x2 - x1) / 5;
 		const controly2 = y2 + ((above) ? -dy : dy);
 		const thickness = 2;
-		return this.paper.path(sprintf("M %f %f C %f %f %f %f %f %f C %f %f %f %f %f %f z", x1, y1,
-			controlx1, controly1, controlx2, controly2, x2, y2,
-			controlx2, controly2 + thickness, controlx1, controly1 + thickness, x1, y1)).attr({ stroke: "none", fill: "#000000" });
+		return this.paper.path({
+			path: sprintf("M %f %f C %f %f %f %f %f %f C %f %f %f %f %f %f z", x1, y1,
+				controlx1, controly1, controlx2, controly2, x2, y2,
+				controlx2, controly2 + thickness, controlx1, controly1 + thickness, x1, y1), stroke: "none", fill: "#000000"
+		});
 	}
 
 	calcY(ofs: number): number {
@@ -594,7 +635,7 @@ class ABCPrinter {
 		return nextElem.el_type;
 	}
 
-	debugMsg(x: number, msg: string): raElement {
+	debugMsg(x: number, msg: string): SVGTextElement {
 		return this.paper.text(x, this.y, msg);
 	}
 
@@ -603,7 +644,7 @@ class ABCPrinter {
 		if (abctune.formatting.stretchlast) { this.paper.text(200, this.y, "Format: stretchlast"); this.y += 20; }
 		if (abctune.formatting.staffwidth) { this.paper.text(200, this.y, "Format: staffwidth=" + abctune.formatting.staffwidth); this.y += 20; }
 		if (abctune.formatting.scale) { this.paper.text(200, this.y, "Format: scale=" + abctune.formatting.scale); this.y += 20; }
-		this.paper.text(350, this.y, abctune.metaText.title).attr({ "font-size": 20 });
+		this.paper.text(350, this.y, abctune.metaText.title, { "font-size": 20 });
 		this.y += 20;
 		if (abctune.metaText.author) { this.paper.text(100, this.y, abctune.metaText.author); this.y += 15; }
 		if (abctune.metaText.origin) { this.paper.text(100, this.y, "(" + abctune.metaText.origin + ")"); this.y += 15; }
@@ -629,11 +670,13 @@ class ABCPrinter {
 		if (abctune.metaText.discography) extraText += "Discography: " + abctune.metaText.discography + "\n";
 		if (abctune.metaText.history) extraText += "History: " + abctune.metaText.history + "\n";
 		if (abctune.metaText.unalignedWords) extraText += "Words:\n" + abctune.metaText.unalignedWords + "\n";
-		const text = this.paper.text(10, this.y + 30, extraText).attr({ "text-anchor": "start" });
-		text.translate(0, text.getBBox().height / 2);
+		const text = this.paper.text(10, this.y + 30, extraText, { "text-anchor": "start", font: "10px" });
+		//TODO line ok 沒有 translate:text.translate(0, text.getBBox().height / 2);
+		const dy = text.getAttribute("y").toNumber() + text.getBBox().height / 2
+		text.setAttribute("y", dy.toString());
 	}
 
-	printSubtitleLine(abcline:ABCLine): void {
+	printSubtitleLine(abcline: ABCLine): void {
 		this.paper.text(100, this.y, abcline.subtitle);
 	}
 
@@ -849,7 +892,7 @@ class ABCPrinter {
 		}
 
 		if (elem.decoration) {
-			this.printDecoration(elem.decoration, pitch, (notehead) ? notehead.w : 0, abselem);
+			this.printDecoration([elem.decoration], pitch, (notehead) ? notehead.w : 0, abselem);
 		}
 
 		// 处理加线
@@ -970,6 +1013,9 @@ class ABCPrinter {
 		var anchor: ABCRelativeElement = null;// place to attach part lines
 		var dx = 0;
 
+		if (elem.type === "bar_left_repeat")
+			console.log("debug bar_left_repeat")
+
 		var firstdots = (elem.type === "bar_right_repeat" || elem.type === "bar_dbl_repeat");
 		var firstthin = (elem.type != "bar_left_repeat" && elem.type != "bar_thick_thin");
 		var thick = (elem.type === "bar_right_repeat" || elem.type === "bar_dbl_repeat" || elem.type === "bar_left_repeat" ||
@@ -1029,11 +1075,23 @@ class ABCPrinter {
 
 	//printStave 方法用于打印五线谱，处理谱号的绘制。
 	printStave(width: number): void {
-		var staff = this.printSymbol(0, 3, "=", -1, -1) as raElement; // 3 is hardcoded
-		width = width / (this.glyphs.getSymbolWidth("="));
-		staff.scale(width, 1, 0,0);
+		this.printStaveLine(0, width, 2);
+		this.printStaveLine(0, width, 4);
+		this.printStaveLine(0, width, 6);
+		this.printStaveLine(0, width, 8);
+		this.printStaveLine(0, width, 10);
+		//var staff = this.printSymbol(0, 3, "=", -1, -1); // 3 is hardcoded
+		//width = width / (this.glyphs.getSymbolWidth("="));
+		////TODO line 沒有 scale staff.scale(width, 1, 0, 0);
 	};
-
+	printStaveLine(x1: number, x2: number, pitch: number) {
+		var dy = 0.35;
+		var y = this.calcY(pitch);
+		return this.paper.path({
+			path: sprintf("M %f %f L %f %f L %f %f L %f %f z", x1, y - dy, x2, y - dy,
+				x2, y + dy, x1, y + dy), stroke: "none", fill: "#000000"
+		});
+	};
 	//printKeySignature 方法用于打印调号，处理升降号的绘制。
 	printKeySignature(elem: any): ABCAbsoluteElement {
 		var abselem = new ABCAbsoluteElement(elem, 0, 10);
