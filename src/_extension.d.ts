@@ -11,6 +11,10 @@ declare interface String {
 	 */
 	toNumber(options?: NumberConversionOptions): number;
 }
+
+declare interface SVGElement {
+	translate(x:number,y:number):SVGElement;
+}
 //}
 
 //export { }; // Important for module augmentation

@@ -1,0 +1,387 @@
+﻿//    abc_tune.js: a computer usable internal structure representing one tune.
+//    Copyright (C) 2010 Paul Rosen (paul at paulrosen dot net)
+//
+//    This program is free software: you can redistribute it and/or modify
+//    it under the terms of the GNU General Public License as published by
+//    the Free Software Foundation, either version 3 of the License, or
+//    (at your option) any later version.
+//
+//    This program is distributed in the hope that it will be useful,
+//    but WITHOUT ANY WARRANTY; without even the implied warranty of
+//    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//    GNU General Public License for more details.
+//
+//    You should have received a copy of the GNU General Public License
+//    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+/*global Class */
+/*extern AbcTune */
+
+declare module "abc_tune" {
+
+
+
+	interface AbcTune {
+		metaText: { [key: string]: string };
+		formatting: { [key: string]: any };
+		lines: ABCLine[];
+
+		reset(): void;
+		cleanUp(): void;
+		initialize(): void;
+		getLastNote(): { el_type: string } | null;
+		addTieToLastNote(): boolean;
+		getDuration(el: { duration?: number }): number;
+		appendElement(
+			type: string,
+			startChar: number,
+			endChar: number,
+			hashParams: {
+				el_type?: string;
+				pitches?: Array<{ pitch: number; verticalPos?: number }>;
+				gracenotes?: Array<{ pitch: number; verticalPos?: number }>;
+				rest?: boolean;
+				end_beam?: boolean;
+				// 其他潜在属性...
+			}
+		): void;
+		appendStartingElement(
+			type: string,
+			startChar: number,
+			endChar: number,
+			hashParams: { el_type?: string }
+		): void;
+	}
+
+}
+
+
+
+// This is the data for a single ABC tune. It is created and populated by the AbcParse class.
+class AbcTune {
+	// The structure consists of a hash with the following two items:
+	// metaText: a hash of {key, value}, where key is one of: title, author, rhythm, source, transcription, unalignedWords, etc...
+	// tempo: { noteLength: number (e.g. .125), bpm: number }
+	// lines: an array of elements, or one of the following:
+	//
+	// STAFF: array of elements
+	// SUBTITLE: string
+	//
+	// TODO: actually, the start and end char should modify each part of the note type
+	// The elements all have a type field and a start and end char
+	// field. The rest of the fields depend on the type and are listed below:
+	// REST: duration=1,2,4,8; chord: string
+	// NOTE: accidental=none,dbl_flat,flat,natural,sharp,dbl_sharp
+	//		pitch: "C" is 0. The numbers refer to the pitch letter.
+	//		duration: .5 (sixteenth), .75 (dotted sixteenth), 1 (eighth), 1.5 (dotted eighth)
+	//			2 (quarter), 3 (dotted quarter), 4 (half), 6 (dotted half) 8 (whole)
+	//		chord: { name:chord, position: one of 'default', 'above', 'below' }
+	//		end_beam = true or undefined if this is the last note in a beam.
+	//		lyric: array of { syllable: xxx, divider: one of " -_" }
+	//		startTie = true|undefined
+	//		endTie = true|undefined
+	//		startTriplet = num <- that is the number to print
+	//		endTriplet = true|undefined (the last note of the triplet)
+	// TODO: actually, decoration should be an array.
+	//		decoration: upbow, downbow, accent
+	// BAR: type=bar_thin, bar_thin_thick, bar_thin_thin, bar_thick_thin, bar_right_repeat, bar_left_repeat, bar_double_repeat
+	//	number: 1 or 2: if it is the start of a first or second ending
+	// CLEF: type=treble,bass
+	// KEY-SIG:
+	//		regularKey: { num:0-7 dir:sharp,flat }
+	//		extraAccidentals[]: { acc:sharp|dblsharp|natural|flat|dblflat,  note:a|b|c|d|e|f|g }
+	// METER: type: common_time,cut_time,specified
+	//		if specified, { num: 99, den: 99 }
+	metaText: MetaTextInfo = {};
+	formatting: Formatting = {};
+	lines: ABCLine[] = [];
+	staffNum: number = 0;
+	voiceNum: number = 0;
+	lineNum: number = 0;
+
+	reset(): void {
+		this.metaText = {};
+		this.formatting = {};
+		this.lines = [];
+		this.staffNum = 0;
+		this.voiceNum = 0;
+		this.lineNum = 0;
+	}
+
+	cleanUp(): void {
+		// Remove any blank lines
+		let anyDeleted = false;
+
+		for (let i = 0; i < this.lines.length; i++) {
+			if (this.lines[i].staff !== undefined) {
+				let hasAny = false;
+
+				for (let s = 0; s < this.lines[i].staff.length; s++) {
+					if (this.lines[i].staff[s] === undefined) {
+						anyDeleted = true;
+						this.lines[i].staff[s] = null;
+						// this.linesi].staffs = { voices: }; // TODO-PER: Handle missing part in abc music
+					} else {
+						for (let v = 0; v < this.lines[i].staff[s].voices.length; v++) {
+							if (this.lines[i].staff[s].voices[v] === undefined) {
+								this.lines[i].staff[s].voices[v] = [];
+								// TODO-PER: Handle missing part in abc music
+							} else if (this.containsNotes(this.lines[i].staff[s].voices[v])) {
+								hasAny = true;
+							}
+						}
+					}
+				}
+
+				if (!hasAny) {
+					this.lines[i] = null;
+					anyDeleted = true;
+				}
+			}
+		}
+
+		if (anyDeleted) {
+			this.lines = this.lines.filter(line => line !== null) as any; // Assuming compact() method removes nulls
+			this.lines.forEach(line => {
+				if (line.staff) {
+					line.staff = line.staff.filter(staff => staff !== null) as any; // Assuming compact() method removes nulls
+				}
+			});
+		}
+
+		for (this.lineNum = 0; this.lineNum < this.lines.length; this.lineNum++) {
+			if (this.lines[this.lineNum].staff) {
+				for (this.staffNum = 0; this.staffNum < this.lines[this.lineNum].staff.length; this.staffNum++) {
+					for (this.voiceNum = 0; this.voiceNum < this.lines[this.lineNum].staff[this.staffNum].voices.length; this.voiceNum++) {
+						const el = this.getLastNote();
+						if (el) {
+							el.end_beam = true;
+						}
+					}
+				}
+			}
+		}
+
+		// Remove temporary variables that the outside doesn't need to know about
+		delete this.staffNum;
+		delete this.voiceNum;
+		delete this.lineNum;
+	}
+
+	initialize(): void {
+		this.reset();
+	}
+
+	getLastNote(): Voice | null {
+		if (this.lines[this.lineNum] && this.lines[this.lineNum].staff && this.lines[this.lineNum].staff[this.staffNum] &&
+			this.lines[this.lineNum].staff[this.staffNum].voices[this.voiceNum]) {
+			for (let i = this.lines[this.lineNum].staff[this.staffNum].voices[this.voiceNum].length - 1; i >= 0; i--) {
+				const el = this.lines[this.lineNum].staff[this.staffNum].voices[this.voiceNum][i];
+				if (el.el_type === 'note') {
+					return el;
+				}
+			}
+		}
+		return null;
+	}
+
+	addTieToLastNote(): boolean {
+		// TODO-PER: if this is a chord, which note?
+		const el = this.getLastNote();
+		if (el && el.pitches[0]) {
+			el.pitches[0].startTie = true;
+			return true;
+		}
+		return false;
+	}
+
+	getDuration(el: { duration?: number }): number {
+		if (el.duration !== undefined)
+			return el.duration;
+		// if (el.pitches && el.pitches.length > ) return el.pitches].duration;
+		return 0;
+	}
+
+	appendElement(type: string, startChar: number, endChar: number, hashParams: ParamsOther): void {
+		const pushNote = (hp: any) => {
+			if (hp.pitches !== undefined && this.lines[this.lineNum].staff[this.staffNum].clef) {
+				const mid = this.lines[this.lineNum].staff[this.staffNum].clef.middle;
+				hp.pitches.forEach(p => { p.verticalPos = p.pitch + - mid; });
+			}
+			if (hp.gracenotes !== undefined && this.lines[this.lineNum].staff[this.staffNum].clef) {
+				const mid = this.lines[this.lineNum].staff[this.staffNum].clef.middle;
+				hp.gracenotes.forEach(p => { p.verticalPos = p.pitch + - mid; });
+			}
+			this.lines[this.lineNum].staff[this.staffNum].voices[this.voiceNum].push(hp);
+		};
+
+		hashParams.el_type = type;
+		hashParams.startChar = startChar;
+		hashParams.endChar = endChar;
+
+		if (type === 'note' && (hashParams.rest !== undefined || hashParams.end_beam === undefined)) {
+			// Now, add the end_beam where it is needed.
+			//  end_beam goes on all notes which are followed by a space.  (This case is already done by the parser.)
+			// end_beam goes on all notes that are 1/4 or longer (regardless of spacing).
+			const dur = this.getDuration(hashParams);
+			if (dur >= 0.25) {
+				hashParams.end_beam = true;
+				//  end_beam goes on notes which _precede_ a note which is 1/4 or longer.
+				const el = this.getLastNote();
+				if (el) el.end_beam = true;
+			}
+			//  end_beam goes on rests and notes which precede rests _except_ when a rest (or set of adjacent rests) has normal notes on both sides (no spaces)
+			if (hashParams.rest !== undefined) {
+				hashParams.end_beam = true;
+				const el2 = this.getLastNote();
+				if (el2) el2.end_beam = true;
+				// TODO-PER: implement exception mentioned in the comment.
+			}
+		}
+		pushNote(hashParams);
+	}
+
+	appendStartingElement(type: string, startChar: number, endChar: number, hashParams2: ParamsOther) {
+		// Clone the object because it will be sticking around for the next line and we don't want the extra fields in it.
+		const hashParams = { ...hashParams2 };
+
+		// These elements should not be added twice, so if the element exists on this line without a note or bar before it, just replace the staff version.
+		const voice = this.lines[this.lineNum].staff[this.staffNum].voices[this.voiceNum];
+		for (let i = 0; i < voice.length; i++) {
+			if (voice[i].el_type === 'note' || voice[i].el_type === 'bar') {
+				hashParams.el_type = type;
+				hashParams.startChar = startChar;
+				hashParams.endChar = endChar;
+				voice.push(hashParams);
+				return;
+			}
+			if (voice[i].el_type === type) {
+				hashParams.el_type = type;
+				hashParams.startChar = startChar;
+				hashParams.endChar = endChar;
+				voice[i] = hashParams;
+				return;
+			}
+		}
+		// We didn't see either that type or a note, so replace the element to the staff.
+		this.lines[this.lineNum].staff[this.staffNum][type] = hashParams2;
+	}
+
+	getNumLines(): number {
+		return this.lines.length;
+	}
+
+	addSubtitle(str: string): void {
+		this.lines.push({ subtitle: str });
+	}
+
+	addSeparator(spaceAbove?: number, spaceBelow?: number, lineLength?: number): void {
+		this.lines.push({ separator: { spaceAbove, spaceBelow, lineLength } });
+	}
+
+	addText(str: string): void {
+		this.lines.push({ text: str });
+	}
+
+	containsNotes(voice: any[]): boolean {
+		for (let i = 0; i < voice.length; i++) {
+			if (voice[i].el_type === 'note' || voice[i].el_type === 'bar')
+				return true;
+		}
+		return false;
+	}
+
+	startNewLine(params: any): void {
+		// If the pointed to line doesn't exist, just create that. If the line does exist, but doesn't have any music on it, just use it.
+		// If it does exist and has music, then increment the line number. If the new element doesn't exist, create it.
+		const This = this;
+		const createVoice = (params: any) => {
+			This.lines[This.lineNum].staff[This.staffNum].voices[This.voiceNum] = [];
+			if (This.isFirstLine(This.lineNum)) {
+				if (params.name) {
+					if (!This.lines[This.lineNum].staff[This.staffNum].title) This.lines[This.lineNum].staff[This.staffNum].title = [];
+					This.lines[This.lineNum].staff[This.staffNum].title[This.voiceNum] = params.name;
+				}
+			} else {
+				if (params.subname) {
+					if (!This.lines[This.lineNum].staff[This.staffNum].title) This.lines[This.lineNum].staff[This.staffNum].title = [];
+					This.lines[This.lineNum].staff[This.staffNum].title[This.voiceNum] = params.subname;
+				}
+			}
+			if (params.stem)
+				This.appendElement('stem', -1, -1, { direction: params.stem });
+		};
+
+		const createStaff = (params: any) => {
+			This.lines[This.lineNum].staff[This.staffNum] = { voices: [], clef: params.clef, key: params.key };
+			if (params.vocalfont) This.lines[This.lineNum].staff[This.staffNum].vocalfont = params.vocalfont;
+			if (params.bracket) This.lines[This.lineNum].staff[This.staffNum].bracket = params.bracket;
+			if (params.brace) This.lines[This.lineNum].staff[This.staffNum].brace = params.brace;
+			if (params.connectBarLines) This.lines[This.lineNum].staff[This.staffNum].connectBarLines = params.connectBarLines;
+			createVoice(params);
+			// Some stuff just happens for the first voice
+			if (params.part)
+				This.appendElement('part', params.startChar, params.endChar, { title: params.part });
+			if (params.meter !== undefined) This.lines[This.lineNum].staff[This.staffNum].meter = params.meter;
+		};
+
+		const createLine = (params: any) => {
+			This.lines[This.lineNum] = { staff: [] };
+			createStaff(params);
+		};
+
+		if (this.lines[this.lineNum] === undefined) createLine(params);
+		else if (this.lines[this.lineNum].staff === undefined) {
+			this.lineNum++;
+			this.startNewLine(params);
+		} else if (this.lines[this.lineNum].staff[this.staffNum] === undefined) createStaff(params);
+		else if (this.lines[this.lineNum].staff[this.staffNum].voices[this.voiceNum] === undefined) createVoice(params);
+		else if (!this.containsNotes(this.lines[this.lineNum].staff[this.staffNum].voices[this.voiceNum])) return;
+		else {
+			this.lineNum++;
+			this.startNewLine(params);
+		}
+	}
+
+	hasBeginMusic(): boolean {
+		return this.lines.length > 0;
+	}
+
+	isFirstLine(index: number): boolean {
+		for (let i = index - 1; i >= 0; i--) {
+			if (this.lines[i].staff !== undefined) return false;
+		}
+		return true;
+	}
+
+	getCurrentVoice(): Voice[] {
+		if (this.lines[this.lineNum] !== undefined &&
+			this.lines[this.lineNum].staff[this.staffNum] !== undefined &&
+			this.lines[this.lineNum].staff[this.staffNum].voices[this.voiceNum] !== undefined)
+			return this.lines[this.lineNum].staff[this.staffNum].voices[this.voiceNum];
+		else return null;
+	}
+
+	setCurrentVoice(staffNum: number, voiceNum: number): void {
+		this.staffNum = staffNum;
+		this.voiceNum = voiceNum;
+		let i = 0;
+		for (i = 0; i < this.lines.length; i++) {
+			if (this.lines[i].staff) {
+				if (this.lines[i].staff[staffNum] === undefined || this.lines[i].staff[staffNum].voices[voiceNum] === undefined ||
+					!this.containsNotes(this.lines[i].staff[staffNum].voices[voiceNum])) {
+					this.lineNum = i;
+					return;
+				}
+			}
+		}
+		this.lineNum = i;
+	}
+
+	addMetaText(key: string, value: string): void {
+		if (this.metaText[key] === undefined)
+			this.metaText[key] = value;
+		else
+			this.metaText[key] += "\n" + value;
+	}
+}

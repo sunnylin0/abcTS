@@ -4,7 +4,16 @@
 
 const svgNS = "http://www.w3.org/2000/svg";
 
-
+Object.defineProperty(SVGElement.prototype, "translate", {
+	value(x: number, y: number) {
+		const dx = this.getAttribute("x").toNumber() + x
+		const dy = this.getAttribute("y").toNumber() + y
+		if (!dx) this.setAttribute("x", dx.toString());
+		if (!dy) this.setAttribute("y", dy.toString());
+		return this;
+	}
+});
+let sizeCache = {};
 class Svg {
 	svg?: SvgInHtml;
 	parentElement?: HTMLElement;	//父容器
@@ -166,8 +175,10 @@ class Svg {
 		let el = document.createElementNS(svgNS, 'text') as SVGTextElement;
 		el.setAttribute("stroke", "none");
 		if (!attr) attr = {};
-		attr.x = x;
-		attr.y = y;
+		if (typeof attr === 'object') {
+			attr.x = x;
+			attr.y = y;
+		}
 		for (const key in attr) {
 			if (attr.hasOwnProperty(key)) {
 				el.setAttribute(key, attr[key].toString());

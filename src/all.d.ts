@@ -16,16 +16,40 @@ interface Window {
 //	_path2string: () => string;
 //}
 
-interface Font {
-	face: {
-		"units-per-em": number;
-	};
-	glyphs: {
-		[key: string]: {
-			d: string;
-		};
-	};
+interface ParamsOther {
+	type?:string
+	el_type?: string;
+	value?: any;
+	startChar?: number;
+	endChar?: number;
+	part?: string;
+	rest?: boolean;
+	clef?: { type: string; middle?: number };
+	key?: { extraAccidentals: any[]; };
+	meter?: { type: string; value: { num: string; den: string }[]; };
+	name?: string;
+	vocalfont?: any;
+	brace?: boolean;
+	bracket?: boolean;
+	connectBarLines?: boolean;
+	subname?: string;
+	stem?: any;
+	direction?: string;
+	end_beam?: boolean;
+	title?: string;
+	duration?: number;
 }
+
+//interface Font {
+//	face: {
+//		"units-per-em": number;
+//	};
+//	glyphs: {
+//		[key: string]: {
+//			d: string;
+//		};
+//	};
+//}
 
 interface Symbol {
 	attrs: {
@@ -47,7 +71,8 @@ type ElementType =
 	| "key"
 	| "part";
 
-type NoteAccidental = "none" | "dbl_flat" | "flat" | "natural" | "sharp" | "dbl_sharp";
+//type NoteAccidental = "none" | "dbl_flat" | "flat" | "natural" | "sharp" | "dbl_sharp";
+type NoteAccidental = 'flat' | 'natural' | 'sharp' | 'dblsharp' | 'dblflat' | 'quarterflat' | 'quartersharp'
 type BarType =
 	| "bar_thin"
 	| "bar_thin_thick"
@@ -83,6 +108,11 @@ interface NoteElement extends ElementBase {
 	end_beam?: boolean;
 	decoration?: Decoration;
 	averagepitch?: number;
+	//startTie?: boolean;
+	//endTie?: boolean;
+	//startSlur?: number;
+	//endSlur?: number;
+	verticalPos?: number;
 }
 
 interface BarElement extends ElementBase {
@@ -96,20 +126,20 @@ interface BarElement extends ElementBase {
 }
 
 interface ClefElement extends ElementBase {
-	el_type: "clef";
-	type: ClefType;
+	el_type?: "clef";
+	type?: ClefType;
 }
 
 interface KeySigElement extends ElementBase {
-	el_type: "key";
-	num: number;
-	dir: KeySigDir;
+	el_type?: "key";
+	num?: number;
+	dir?: KeySigDir;
 	extra?: { pitch: number; type: NoteAccidental }[];
 }
 
 interface MeterElement extends ElementBase {
-	el_type: "meter";
-	type: MeterType;
+	el_type?: "meter";
+	type?: MeterType;
 	num?: number;
 	den?: number;
 }
@@ -146,49 +176,109 @@ interface MeterElement extends ElementBase {
 //}
 
 
+interface Voice {
+	el_type?: string;
+	startChar?: number;
+	endChar?: number;
+	pitches?: Pitch[];
+	gracenotes?: GraceNote[];
+	end_beam?: boolean;
+
+	// 其他潜在属性...
+}
+
+interface Staff {
+	voices?: Voice[][];
+	clef?: {
+		middle?: number;
+	};
+	key?: any;
+	vocalfont?: any;
+	bracket?: any;
+	brace?: any;
+	connectBarLines?: any;
+	meter?: any;
+	title?: string[];
+	// 其他潜在属性...
+}
+
+interface StaffInfo {
+	brace?: string;
+	bracket?: string;
+	clef?: string;
+	middle?: number;
+	name?: string;
+	spacing?: string;
+	staves?: string;
+	subname?: string;
+	startStaff?: boolean;
+	middle?: number;
+}
+
+interface Separator {
+	spaceAbove?: number;
+	spaceBelow?: number;
+	lineLength?: number;
+}
 interface ABCLine {
-	staff?: ABCElement[];
-	subtitle?: string
+	staff?: Staff[];
+	subtitle?: string;
+	separator?: Separator;
+	text?: string;
 }
 
 interface ABCElement {
 	el_type?: string;
 	type?: string;
+	pitches?: Pitch[];
+	rest?: { type: string };
+	chord?: Chord;
+	barNumber?: string;
 	startChar?: number;
 	endChar?: number;
 	duration?: number;
-	pitches?: {
-		accidental?: string;
-		pitch: number;
-		duration?: number;
-		startTie?: boolean;
-		endTie?: boolean;
-		startSlur?: number;
-		endSlur?: number;
-	}[];
-	rest_type?: string;
-	chord?: { name: string; position: string };
 	decoration?: string[];
-	gracenotes?: any[]; // Assuming any[] for lack of details
-	lyric?: { syllable: string; divider: string };
+	gracenotes?: GraceNote[];
+	lyric?: Lyric;
 	startSlur?: number;
 	endSlur?: number;
 	startTriplet?: number;
 	endTriplet?: boolean;
+	startBeam?: boolean;
 	end_beam?: boolean;
+	direction?: string;
 	accidental?: string;
-
-	pitch: number,
-	startTie: boolean,
-	endTie: boolean,
+	pitch?: number,
+	startTie?: boolean,
+	endTie?: boolean,
+	averagepitch?: number;
 }
 
-
+//interface ABCElement {
+//	el_type: string;
+//	duration?: number;
+//	pitches?: {
+//		pitch: number, accidental?: string, duration?: number, startTie?: boolean, endTie?: boolean, startSlur?: number, endSlur?: number,
+//		printer_shift?: string
+//	}[];
+//	rest?: { type: string };
+//	lyric?: { syllable: string, divider: string }[];
+//	gracenotes?: { pitch: number, accidental?: string }[];
+//	decoration?: string[];
+//	barNumber?: string;
+//	startTriplet?: boolean;
+//	endTriplet?: boolean;
+//	direction?: string;
+//	startBeam?: boolean;
+//	endBeam?: boolean;
+//	averagepitch?: number;
+//}
 // Parse
 
 type KeySignature = {
-	num: number;
+	num?: number;
 	acc?: "sharp" | "sharps" | "flat";
+	note?: string;
 };
 
 type DurationInfo = [number, number, number?]; // [charactersConsumed, duration, nextNoteDuration?]
@@ -217,23 +307,22 @@ interface TempoInfo {
 	duration?: number;
 }
 
-interface MultilineVarsElement {
-	iChar: number;
-	key: { regularKey: KeySignature };
-	meter: MeterElement;
-	hasMainTitle: boolean;
-	default_length: number;
-	tempo?: TempoInfo;
-	clef: string,
-	next_note_duration: number,
-	start_new_line: boolean,
-	is_in_header: boolean,
-	partForNextLine: string,
-	havent_set_length: boolean,
-	tempo: any,
-	warnings: any,
-	reset(): void
-}
+//interface MultilineVarsElement {
+//	iChar: number;
+//	key: { regularKey: KeySignature };
+//	meter: MeterElement;
+//	hasMainTitle: boolean;
+//	default_length: number;
+//	tempo?: TempoInfo;
+//	clef: string,
+//	next_note_duration: number,
+//	start_new_line: boolean,
+//	is_in_header: boolean,
+//	partForNextLine: string,
+//	havent_set_length: boolean,
+//	warnings: any,
+//	reset(): void
+//}
 
 
 ////  abc_write
@@ -249,6 +338,7 @@ interface Glyphs {
 	[key: string]: Glyph;
 }
 declare interface Font {
+	font?: string;
 	face?: string;
 	size?: number;
 	weight?: 'normal' | 'bold';
@@ -326,8 +416,10 @@ declare interface Formatting {
 	staffwidth?: number;
 	stemheight?: number;
 	straightflags?: boolean;
-	stretchlast?: number;
+	stretchlast?: boolean;
 	stretchstaff?: boolean;
+	landscape?: boolean;
+	slurgraces?: boolean;
 	subtitlespace?: number;
 	sysstaffsep?: number;
 	systemsep?: number;
@@ -419,21 +511,25 @@ interface Element_XXX {
 
 interface Pitch {
 	accidental?: string;
-	pitch: number;
+	pitch?: number;
 	duration?: number;
 	startTie?: boolean;
 	endTie?: boolean;
 	startSlur?: number;
 	endSlur?: number;
+	verticalPos?: number;
+	printer_shift?: string
 }
 
 interface Lyric {
-	syllable: string;
-	divider: string;
+	syllable?: string;
+	divider?: string;
 }
 
 interface GraceNote {
-	pitch: number;
+	pitch?: number;
+	verticalPos?: number;
+	accidental?: NoteAccidental;
 }
 
 interface Chord {

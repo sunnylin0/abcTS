@@ -1,545 +1,723 @@
-﻿/**
- * @author paulrosen
- *
- * This file takes as input the output of AbcParser and analyzes it to make sure there are no
- * unexpected elements in it. It also returns a person-readable version of it that is suitable
- * for regression tests.
- */
+﻿//    abc_parser_lint.js: Analyzes the output of abc_parse.
+//    Copyright (C) 2010 Paul Rosen (paul at paulrosen dot net)
+//
+//    This program is free software: you can redistribute it and/or modify
+//    it under the terms of the GNU General Public License as published by
+//    the Free Software Foundation, either version 3 of the License, or
+//    (at your option) any later version.
+//
+//    This program is distributed in the hope that it will be useful,
+//    but WITHOUT ANY WARRANTY; without even the implied warranty of
+//    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//    GNU General Public License for more details.
+//
+//    You should have received a copy of the GNU General Public License
+//    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+//This file takes as input the output of AbcParser and analyzes it to make sure there are no
+//unexpected elements in it. It also returns a person-readable version of it that is suitable
+//for regression tests.
 
 /*global Class */
+/*global JSONSchema */
 /*extern AbcParserLint */
 
+//declare const Class: any; // Assume Class is from a library like Prototype.js, need a declaration for TypeScript
+declare const jsonSchema: JSONSchema.Schema; // Assume JSONSchema is a validation library, need a declaration for TypeScript
 
-//interface MeterInfo {
-//	type: 'C' | 'C|' | 'fraction';
-//	value?: string;
+//interface DecorationList {
+//	type: 'array';
+//	optional: true;
+//	items: {
+//		type: 'string';
+//		Enum: string[];
+//	};
 //}
 
-
-//interface KeyInfo {
-//	type: 'major' | 'minor';
-//	accidentals?: Accidental[];
-//	startChar: number;
-//	endChar: number;
-//}
-
-
-//interface NoteInfo {
-//	pitch: string;
-//	duration: number;
-//	grace?: GraceNote;
-//	slur?: boolean;
-//	startChar: number;
-//}
-
-
-///* 基础类型定义 */
-//declare type ParsePosition = {
-//	startChar: number;
-//	endChar: number;
-//	line?: number;
-//};
-
-//declare type ValidationError = {
-//	code: number;
-//	message: string;
-//	position: ParsePosition;
-//};
-
-///* 解析器配置接口 */
-//declare interface ParserConfig {
-//	strictMode: boolean;
-//	allowUnknownProperties: boolean;
-//	maxNestingDepth: number;
-//}
-
-
-///* 主解析器类声明 */
-//declare class AbcParserLint {
-//	constructor(config?: Partial<ParserConfig>);
-
-//	parse(input: string): ParseResult;
-//	addError(error: ValidationError): void;
-//	addOutput(message: string, indentLevel?: number): void;
-
-//	/* 核心解析方法 */
-//	private parseKey(obj: KeyInfo): void;
-//	private parseBar(obj: BarInfo): void;
-//	private parseNote(obj: NoteInfo): void;
-//	private parseStaff(obj: StaffInfo): void;
-//}
-
-
-
-//declare interface StaffInfo extends ParsePosition {
-//	lines: LineInfo[];
-//	clef?: ClefType;
-//}
-
-//declare interface LineInfo {
-//	elements: (NoteInfo | BarInfo)[];
-//	lineNumber: number;
-//}
-
-///* 复合结构接口 */
-//declare interface KeyInfo extends ParsePosition {
-//	type: 'major' | 'minor';
-//	accidentals?: Accidental[];
-//}
-
-//declare interface BarInfo extends ParsePosition {
-//	type: 'single' | 'repeat';
-//	repeatCount?: number;
-//}
-
-//declare interface NoteInfo extends ParsePosition {
-//	pitch: string;
-//	duration: number;
-//	grace?: GraceNote;
-//	slur?: boolean;
-//}
-
-///* 为可能的外部依赖声明类型 */
-//declare module 'abc-music-notation' {
-//	export interface Accidental {
-//		symbol: string;
-//		alter: number;
+//const decorationList: DecorationList = {
+//	type: 'array',
+//	optional: true,
+//	items: {
+//		type: 'string',
+//		Enum: [
+//			"trill", "lowermordent", "uppermordent", "mordent", "pralltriller", "accent",
+//			"emphasis", "fermata", "invertedfermata", "tenuto", "0", "1", "2", "3", "4", "5", "+", "wedge",
+//			"open", "thumb", "snap", "turn", "roll", "breath", "shortphrase", "mediumphrase", "longphrase",
+//			"segno", "coda", "D.S.", "D.C.", "fine", "crescendo(", "crescendo)", "diminuendo(", "diminuendo)",
+//			"p", "pp", "f", "ff", "mf", "ppp", "pppp", "fff", "ffff", "sfz", "repeatbar", "repeatbar2", "slide",
+//			"upbow", "downbow", "staccato"
+//		]
 //	}
+//};
 
-//	export type GraceNote = {
-//		type: 'appoggiatura' | 'acciaccatura';
-//		durationRatio: number;
+//interface TempoProperties {
+//	duration?: {
+//		type: "array";
+//		optional: true;
+//		output: "join";
+//		requires: string[];
+//		items: { type: "number" };
+//	};
+//	bpm?: { type: "number"; optional: true; requires: string[]; };
+//	preString?: string;
+//	postString?: string;
+//}
+
+//function appendPositioning<T extends Record<string, any>>(properties: T): T & { startChar: { type: 'number'; output: 'hidden' }; endChar: { type: 'number'; output: 'hidden' }; } {
+//	return { ...properties, startChar: { type: 'number', output: 'hidden' }, endChar: { type: 'number', output: 'hidden' } } as any;
+//}
+
+//interface FontType {
+//	type: 'object';
+//	optional: true;
+//	properties: {
+//		font?: string;
+//		size?: number;
+//	}
+//}
+
+//interface ClefProperties {
+//	type: { type: 'string'; enum: string[]; };
+//	middle: { type: 'number'; minimum: -; maximum: ; }; // the pitch that goes in the middle of the staff C=
+//}
+
+//interface KeyProperties {
+//	extraAccidentals?: {
+//		type: 'array';
+//		optional: true;
+//		output: "noindex";
+//		items: {
+//			type: 'object';
+//			properties: {
+//				acc: { type: 'string'; enum: string[]; };
+//				note: { type: 'string'; enum: string[]; };
+//				verticalPos: { type: 'number'; minimum: ; maximum: ; };
+//			}
+//		};
+//	};
+//	// regularKey?: { ... }; // Uncomment and define if needed
+//}
+
+//interface MeterProperties {
+//	type: { type: 'string'; enum: string[]; };
+//	value?: {
+//		type: 'array';
+//		optional: true;
+//		output: 'noindex';
+//		items: {
+//			type: 'object';
+//			properties: {
+//				num: { type: 'string' };
+//				den: { type: 'string' };
+//			}
+//		};
 //	};
 //}
 
-/////* 扩展原始解析器的验证逻辑 */
-////declare namespace AbcParserLint {
-////	interface ValidationRules {
-////		checkNoteDuration(note: NoteInfo): boolean;
-////		validateKeyAccidentals(key: KeyInfo): ValidationError[];
-////	}
-////}
+//interface VoiceItem {
+//	type: "union";
+//	field: "el_type";
+//	types: Array<{ value: string; properties: Record<string, any> }>;
+//}
 
-//declare type ParseResult<T = unknown> = {
-//	ast: T;
-//	errors: ValidationError[];
-//	warnings: string[];
-//	metadata: {
-//		parseTime: number;
-//		memoryUsage: number;
-//	};
-//};
+// abc_parser_lint.d.ts
 
-//declare type ParserMethod =
-//	| 'parseKey'
-//	| 'parseBar'
-//	| 'parseNote'
-//	| 'parseStaff';
+declare namespace AbcParserLint {
+	interface Decoration {
+		type: 'string';
+		Enum: [
+			"trill", "lowermordent", "uppermordent", "mordent", "pralltriller", "accent",
+			"emphasis", "fermata", "invertedfermata", "tenuto", "0", "1", "2", "3", "4", "5", "+", "wedge",
+			"open", "thumb", "snap", "turn", "roll", "breath", "shortphrase", "mediumphrase", "longphrase",
+			"segno", "coda", "D.S.", "D.C.", "fine", "crescendo(", "crescendo)", "diminuendo(", "diminuendo)",
+			"p", "pp", "f", "ff", "mf", "ppp", "pppp", "fff", "ffff", "sfz", "repeatbar", "repeatbar2", "slide",
+			"upbow", "downbow", "staccato"
+		];
+	}
+
+	interface TempoProperties {
+		duration?: {
+			type: "array";
+			optional: true;
+			output: "join";
+			requires: ['bpm'];
+			items: { type: "number" };
+		};
+		bpm?: {
+			type: "number";
+			optional: true;
+			requires: ['duration'];
+		};
+		preString?: { type: 'string'; optional: true };
+		postString?: { type: 'string'; optional: true };
+	}
+
+	interface FontType {
+		type: 'object';
+		optional: true;
+		properties: {
+			font?: { type: 'string'; optional: true };
+			size?: { type: 'number'; optional: true };
+		};
+	}
+
+	interface ClefProperties {
+		type: {
+			type: 'string';
+			Enum: [
+				'treble', 'tenor', 'bass', 'alto', 'treble+', 'tenor+', 'bass+', 'alto+', 'treble-', 'tenor-', 'bass-', 'alto-', 'none'
+			];
+		};
+		middle?: { type: 'number'; minimum: -14; maximum: 14 };
+	}
+
+	interface ExtraAccidentals {
+		type: 'object';
+		properties: {
+			acc: { type: 'string'; Enum: ['flat', 'natural', 'sharp', 'dblsharp', 'dblflat', 'quarterflat', 'quartersharp'] };
+			note: { type: 'string'; Enum: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'a', 'b', 'c', 'd', 'e', 'f', 'g'] };
+			verticalPos: { type: 'number'; minimum: -14; maximum: 14 };
+		};
+	}
+
+	interface KeyProperties {
+		extraAccidentals?: {
+			type: 'array';
+			optional: true;
+			output: "noindex";
+			items: ExtraAccidentals;
+		};
+	}
+
+	interface MeterPropertiesValue {
+		type: 'object';
+		properties: {
+			num: { type: 'string' };
+			den: { type: 'string' };
+		};
+	}
+
+	interface MeterProperties {
+		type: { type: 'string'; Enum: ['common_time', 'cut_time', 'specified'] };
+		value?: {
+			type: 'array';
+			optional: true;
+			output: 'noindex';
+			items: MeterPropertiesValue;
+		};
+	}
+
+	interface VoiceItem {
+		type: "union";
+		field: "el_type";
+		types: [
+			{
+				value: "clef",
+				properties: ClefProperties & {
+					startChar: { type: 'number'; output: 'hidden' };
+					endChar: { type: 'number'; output: 'hidden' }
+				}
+			},
+			{
+				value: "bar", properties: {
+					startChar: { type: 'number'; output: 'hidden' };
+					endChar: { type: 'number'; output: 'hidden' };
+					chord?: { type: 'object'; optional: true; properties: { name: { type: 'string' }; position: { type: 'string' } } };
+					decoration: Decoration[];
+					ending?: { type: 'string'; optional: true };
+					type: { type: 'string'; Enum: ['bar_dbl_repeat', 'bar_right_repeat', 'bar_left_repeat', 'bar_invisible', 'bar_thick_thin', 'bar_thin_thin', 'bar_thin', 'bar_thin_thick'] };
+				}
+			},
+			{ value: "key", properties: KeyProperties & { startChar: { type: 'number'; output: 'hidden' }; endChar: { type: 'number'; output: 'hidden' } } },
+			{ value: "meter", properties: MeterProperties & { startChar: { type: 'number'; output: 'hidden' }; endChar: { type: 'number'; output: 'hidden' } } },
+			{
+				value: "part", properties: {
+					startChar: { type: 'number'; output: 'hidden' };
+					endChar: { type: 'number'; output: 'hidden' };
+					title: { type: 'string' };
+				}
+			},
+			{
+				value: 'stem', properties: {
+					startChar: { type: 'number'; output: 'hidden' };
+					endChar: { type: 'number'; output: 'hidden' };
+					direction: { type: 'string'; Enum: ['up', 'down'] };
+				}
+			},
+			{ value: 'tempo', properties: TempoProperties & { startChar: { type: 'number'; output: 'hidden' }; endChar: { type: 'number'; output: 'hidden' } } },
+			{
+				value: "note", properties: {
+					startChar: { type: 'number'; output: 'hidden' };
+					endChar: { type: 'number'; output: 'hidden' };
+					barNumber?: { type: 'number'; optional: true };
+					chord?: { type: 'object'; optional: true; properties: { name: { type: 'string' }; position: { type: 'string' } } };
+					decoration: Decoration[];
+					duration: { type: 'number' };
+					endTriplet?: {
+						type: 'boolean'; Enum: [true]; optional: true
+					};
+					end_beam?: { type: 'boolean'; Enum: [true]; optional: true };
+					gracenotes?: {
+						type: 'array';
+						optional: true;
+						output: "noindex";
+						items: {
+							type: 'object';
+							properties: {
+								accidental?: { type: 'string'; Enum: ['sharp', 'flat', 'natural', 'dblsharp', 'dblflat', 'quarterflat', 'quartersharp']; optional: true };
+								duration: { type: 'number' };
+								startSlur?: { type: 'number'; minimum: 1; optional: true };
+								startTie?: { type: 'boolean'; Enum: [true]; optional: true };
+							};
+						};
+					};
+					lyric?: {
+						type: 'array';
+						optional: true;
+						output: "noindex";
+						items: {
+							type: 'object';
+							properties: {
+								syllable: { type: 'string' };
+								divider: { type: 'string'; Enum: ['-', ' ', '_'] };
+							};
+						};
+					};
+					pitches?: {
+						type: 'array';
+						optional: true;
+						output: "noindex";
+						prohibits: ['pitch', 'duration', 'lyric'];
+						items: {
+							type: 'object';
+							properties: {
+								accidental?: { type: 'string'; Enum: ['sharp', 'flat', 'natural', 'dblsharp', 'dblflat', 'quarterflat', 'quartersharp']; optional: true };
+								endSlur?: { type: 'number'; minimum: 1; optional: true };
+								endTie?: { type: 'boolean'; Enum: [true]; optional: true };
+								pitch: { type: 'number' };
+								verticalPos: { type: 'number' };
+								startSlur?: { type: 'number'; minimum: 1; optional: true };
+								startTie?: { type: 'boolean'; Enum: [true]; optional: true };
+							};
+						};
+					};
+					rest?: {
+						type: 'object';
+						optional: true;
+						prohibits: ['pitch', 'duration', 'lyric'];
+						properties: {
+							type: { type: 'string'; Enum: ['invisible', 'spacer', 'rest'] };
+							endSlur?: { type: 'number'; minimum: 1; optional: true };
+							endTie?: { type: 'boolean'; Enum: [true]; optional: true };
+							startSlur?: { type: 'number'; minimum: 1; optional: true };
+							startTie?: { type: 'boolean'; Enum: [true]; optional: true };
+						};
+					};
+					startTriplet?: { type: 'number'; minimum: 2; maximum: 9; optional: true };
+				}
+			}
+		];
+	}
+
+	interface MusicSchema {
+		description: "ABC Internal Music Representation";
+		type: "object";
+		properties: {
+			formatting?: {
+				type: "object";
+				properties: {
+					auquality?: { type: "string"; optional: true };
+					bagpipes?: { type: "boolean"; optional: true };
+					voicefont?: FontType;
+					wordsspace?: { type: "number"; optional: true };
+				};
+			};
+			lines?: {
+				type: "array";
+				description: "This is an array of horizontal elements. It is usually a staff of music. For multi-stave music, each staff is an element, just like single-staff. The difference is the connector properties.";
+				items: {
+					type: "object";
+					properties: {
+						separator?: {
+							type: 'object';
+							optional: true;
+							prohibits: ['staff', 'text', 'subtitle'];
+							properties: {
+								lineLength?: { type: 'number'; optional: true };
+								spaceAbove?: { type: 'number'; optional: true };
+								spaceBelow?: { type: 'number'; optional: true };
+							};
+						};
+						subtitle?: { type: "string"; optional: true; prohibits: ['staff', 'text', 'separator'] };
+						text?: { type: "string"; optional: true; prohibits: ['staff', 'subtitle', 'separator'] };
+						staff?: {
+							type: 'array';
+							optional: true;
+							prohibits: ['subtitle', 'text', 'separator'];
+							items: {
+								type: 'object';
+								properties: {
+									brace?: { type: 'string'; optional: true; Enum: ["start", "continue", "end"] };
+									voices?: {
+										type: 'array';
+										output: 'hidden';
+										items: {
+											type: "array";
+											optional: true;
+											output: "noindex";
+											items: VoiceItem;
+										};
+									};
+								};
+							};
+						};
+					};
+				};
+			};
+			metaText?: {
+				type: "object";
+				properties: {
+					author?: { type: "string"; optional: true };
+					unalignedWords?: { type: "string"; optional: true };
+					url?: { type: "string"; optional: true };
+				};
+			};
+		};
+	}
+
+	interface LintResult {
+		valid: boolean;
+		errors: ValidationError[];
+		output: string[];
+	}
+
+	interface ValidationError {
+		property: string;
+		message: string;
+	}
+
+	class AbcParserLint {
+		constructor();
+		lint(tune: any, warnings?: string[]): string;
+	}
+
+}
 
 
 class AbcParserLint {
-	private errors: string[] = [];
-	private output: string[] = [];
-
-	private addError(str: string, indent: number = 0): void {
-		this.errors.push(str);
-	}
-
-	private addOutput(str: string, indent: number = 0): void {
-		let spacing = "\t".repeat(indent);
-		this.output.push(spacing + str);
-		if (str.indexOf("[object Object]") >= 0)
-			this.addError("Object not expanded: " + str);
-		if (str.indexOf("undefined") >= 0)
-			this.addError("property undefined: " + str);
-	};
-
-	private needs(obj: any, attr: string, name: string): void {
-		if (obj[attr] === undefined) {
-			this.addError(`${name} must contain: ${attr}`);
-		}
-	}
-
-	private lacks(obj: any, attr: string, name: string): void {
-		if (obj[attr] !== undefined) {
-			this.addError(`${name} cannot contain: ${attr}`);
-		}
-	}
-
-	private onlyArray(obj: any, name: string): void {
-		const keys = Object.keys(obj).sort();
-		keys.forEach(property => {
-			const t = typeof obj[property];
-			if (t !== 'function') {
-				const index = parseInt(property, 10);
-				if (index === 0 && property !== '0') {
-					this.addError(`${name} should not contain: ${property}`);
+	decorationList;
+	tempoProperties;
+	fontType;
+	clefProperties;
+	keyProperties;
+	meterProperties;
+	voiceItem;
+	musicSchema;
+	constructor() {
+		this.decorationList = {
+			type: 'array', optional: true, items: {
+				type: 'string', Enum: [
+					"trill", "lowermordent", "uppermordent", "mordent", "pralltriller", "accent",
+					"emphasis", "fermata", "invertedfermata", "tenuto", "0", "1", "2", "3", "4", "5", "+", "wedge",
+					"open", "thumb", "snap", "turn", "roll", "breath", "shortphrase", "mediumphrase", "longphrase",
+					"segno", "coda", "D.S.", "D.C.", "fine", "crescendo(", "crescendo)", "diminuendo(", "diminuendo)",
+					"p", "pp", "f", "ff", "mf", "ppp", "pppp", "fff", "ffff", "sfz", "repeatbar", "repeatbar2", "slide",
+					"upbow", "downbow", "staccato"
+				]
+			}
+		};
+		this.tempoProperties = {
+			duration: { type: "array", optional: true, output: "join", requires: ['bpm'], items: { type: "number" } },
+			bpm: { type: "number", optional: true, requires: ['duration'] },
+			preString: { type: 'string', optional: true },
+			postString: { type: 'string', optional: true }
+		};
+		this.fontType = {
+			type: 'object', optional: true, properties: {
+				font: { type: 'string', optional: true },
+				size: { type: 'number', optional: true }
+			}
+		};
+		this.clefProperties = {
+			type: { type: 'string', Enum: ['treble', 'tenor', 'bass', 'alto', 'treble+8', 'tenor+8', 'bass+8', 'alto+8', 'treble-8', 'tenor-8', 'bass-8', 'alto-8', 'none'] },
+			middle: { type: 'number', minimum: -14, maximum: 14 } // the pitch that goes in the middle of the staff C=0
+		};
+		this.keyProperties = {
+			extraAccidentals: {
+				type: 'array', optional: true, output: "noindex", items: {
+					type: 'object', properties: {
+						acc: { type: 'string', Enum: ['flat', 'natural', 'sharp', 'dblsharp', 'dblflat', 'quarterflat', 'quartersharp'] },
+						note: { type: 'string', Enum: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'a', 'b', 'c', 'd', 'e', 'f', 'g'] },
+						verticalPos: { type: 'number', minimum: 0, maximum: 13 }
+					}
 				}
 			}
-		});
-	}
-
-
-
-	private onlyContains(name: string, obj: any, arr: string[]): void {
-		const keys = Object.keys(obj).sort();
-		keys.forEach(property => {
-			const t = typeof obj[property];
-			if (t !== 'function') {
-				if (!arr.includes(property)) {
-					this.addError(`${name} cannot contain: ${property}`);
+		};
+		this.meterProperties = {
+			type: { type: 'string', Enum: ['common_time', 'cut_time', 'specified'] },
+			value: {
+				type: 'array', optional: true, output: 'noindex', // TODO-PER: Check for type=specified and require these in that case.
+				items: {
+					type: 'object', properties: {
+						num: { type: 'string' },
+						den: { type: 'string' }
+					}
 				}
 			}
-		});
-	}
+		};
+		this.voiceItem = {
+			type: "union",
+			field: "el_type",
+			types: [
+				{ value: "clef", properties: this.appendPositioning(this.clefProperties) },
+				{
+					value: "bar", properties: {
+						startChar: { type: 'number', output: 'hidden' },
+						endChar: { type: 'number', output: 'hidden' },
+						chord: {
+							type: 'object', optional: true, properties: {
+								name: { type: 'string' },
+								position: { type: 'string' }
+							}
+						},
+						decoration: this.decorationList,
+						ending: { type: 'string', optional: true },
+						type: { type: 'string', Enum: ['bar_dbl_repeat', 'bar_right_repeat', 'bar_left_repeat', 'bar_invisible', 'bar_thick_thin', 'bar_thin_thin', 'bar_thin', 'bar_thin_thick'] }
+					}
+				},
+				{ value: "key", properties: this.appendPositioning(this.keyProperties) },
+				{ value: "meter", properties: this.appendPositioning(this.meterProperties) },
+				{
+					value: "part", properties: {
+						startChar: { type: 'number', output: 'hidden' },
+						endChar: { type: 'number', output: 'hidden' },
+						title: { type: 'string' }
+					}
+				},
 
-	private parseMetaText(obj: any): void {
-		this.addOutput("MetaText:", 0);
-		const keys = Object.keys(obj).sort();
-		keys.forEach(property => {
-			const t = typeof obj[property];
-			if (t !== 'function') {
-				switch (property) {
-					case 'title':
-					case 'notes':
-					case 'origin':
-					case 'rhythm':
-					case 'author':
-					case 'composer':
-					case 'url':
-					case 'history':
-					case 'discography':
-					case 'source':
-					case 'book':
-					case 'partOrder':
-					case 'transcription':
-					case 'unalignedWords':
-						this.addOutput(`${property}: ${obj[property]}`, 1);
-						break;
-					case 'tempo':
-						this.addOutput(`${property}: duration = ${obj[property].duration} bpm = ${obj[property].bpm} `, 1);
-						this.onlyContains("tempo", obj[property], ['duration', 'bpm']);
-						break;
-					default:
-						this.addError(`MetaText should not contain: ${property} `);
+				{
+					value: 'stem', properties: {
+						startChar: { type: 'number', output: 'hidden' },
+						endChar: { type: 'number', output: 'hidden' },
+						direction: { type: 'string', Enum: ['up', 'down'] }
+					}
+				},
+				{ value: 'tempo', properties: this.appendPositioning(this.tempoProperties) },
+
+				{
+					value: "note", properties: {
+						startChar: { type: 'number', output: 'hidden' },
+						endChar: { type: 'number', output: 'hidden' },
+						//accidental: { type: 'string', Enum: [ 'sharp', 'flat', 'natural', 'dblsharp', 'dblflat', 'quarterflat', 'quartersharp' ], optional: true },
+						barNumber: { type: 'number', optional: true },
+						chord: {
+							type: 'object', optional: true, properties: {
+								name: { type: 'string' },
+								position: { type: 'string' }
+							}
+						},
+						decoration: this.decorationList,
+						duration: { type: 'number' },
+						//     endSlur: { type: 'number', minimum: 1, optional: true },
+						//     endTie: { type: 'boolean', Enum: [ true ], optional: true },
+						endTriplet: { type: 'boolean', Enum: [true], optional: true },
+						end_beam: { type: 'boolean', Enum: [true], optional: true },
+						gracenotes: {
+							type: 'array', optional: true, output: "noindex", items: {
+								type: "object", properties: {
+									accidental: { type: 'string', Enum: ['sharp', 'flat', 'natural', 'dblsharp', 'dblflat', 'quarterflat', 'quartersharp'], optional: true },
+									duration: { type: 'number' },
+									end_beam: { type: 'boolean', Enum: [true], optional: true },
+									endSlur: { type: 'number', minimum: 1, optional: true },
+									endTie: { type: 'boolean', Enum: [true], optional: true },
+									pitch: { type: 'number' },
+									verticalPos: { type: 'number' },
+									startSlur: { type: 'number', minimum: 1, optional: true },
+									startTie: { type: 'boolean', Enum: [true], optional: true }
+								}
+							}
+						},
+						lyric: {
+							type: 'array', optional: true, output: "noindex", items: {
+								type: 'object', properties: {
+									syllable: { type: 'string' },
+									divider: { type: 'string', Enum: ['-', ' ', '_'] }
+								}
+							}
+						},
+						//pitch: { optional: true, type: 'number', prohibits: [ 'rest', 'pitches' ] },
+						pitches: {
+							type: 'array', optional: true, output: "noindex", prohibits: ['pitch', 'duration', 'rest'], items: {
+								type: 'object', properties: {
+									accidental: { type: 'string', Enum: ['sharp', 'flat', 'natural', 'dblsharp', 'dblflat', 'quarterflat', 'quartersharp'], optional: true },
+									endSlur: { type: 'number', minimum: 1, optional: true },
+									endTie: { type: 'boolean', Enum: [true], optional: true },
+									pitch: { type: 'number' },
+									verticalPos: { type: 'number' },
+									startSlur: { type: 'number', minimum: 1, optional: true },
+									startTie: { type: 'boolean', Enum: [true], optional: true }
+								}
+							}
+						},
+						rest: {
+							type: 'object', optional: true, prohibits: ['pitch', 'duration', 'lyric'], properties: {
+								type: { type: 'string', Enum: ['invisible', 'spacer', 'rest'] },
+								endSlur: { type: 'number', minimum: 1, optional: true },
+								endTie: { type: 'boolean', Enum: [true], optional: true },
+								startSlur: { type: 'number', minimum: 1, optional: true },
+								startTie: { type: 'boolean', Enum: [true], optional: true }
+							}
+						},
+						//     startSlur: { type: 'number', minimum: 1, optional: true },
+						//     startTie: { type: 'boolean', Enum: [ true ], optional: true },
+						startTriplet: { type: 'number', minimum: 2, maximum: 9, optional: true }
+					}
+				}
+			]
+		};
+		this.musicSchema = {
+			description: "ABC Internal Music Representation",
+			type: "object",
+			properties: {
+				formatting: {
+					type: "object",
+					properties: {
+						auquality: { type: "string", optional: true },
+						bagpipes: { type: "boolean", optional: true },
+						barlabelfont: this.fontType,
+						barnumberfont: this.fontType,
+						botmargin: { type: "number", optional: true },
+						botspace: { type: "number", optional: true },
+						composerfont: this.fontType,
+						composerspace: { type: "number", optional: true },
+						continuous: { type: "string", optional: true },
+						gchordfont: this.fontType,
+						indent: { type: "number", optional: true },
+						landscape: { type: "boolean", optional: true },
+						leftmargin: { type: "number", optional: true },
+						linesep: { type: "number", optional: true },
+						midi: { type: "string", optional: true },
+						musicspace: { type: "number", optional: true },
+						nobarcheck: { type: "string", optional: true },
+						partsfont: this.fontType,
+						partsspace: { type: "number", optional: true },
+						playtempo: { type: "string", optional: true },
+						scale: { type: "number", optional: true },
+						score: { type: "string", optional: true },
+						slurgraces: { type: "boolean", optional: true },
+						staffsep: { type: "number", optional: true },
+						staffwidth: { type: "number", optional: true },
+						staves: { type: "string", optional: true },
+						stretchlast: { type: "boolean", optional: true },
+						subtitlefont: this.fontType,
+						subtitlespace: { type: "number", optional: true },
+						sysstaffsep: { type: "number", optional: true },
+						systemsep: { type: "number", optional: true },
+						tempofont: this.fontType,
+						textspace: { type: "number", optional: true },
+						titlefont: this.fontType,
+						titleleft: { type: "boolean", optional: true },
+						titlespace: { type: "number", optional: true },
+						topmargin: { type: "number", optional: true },
+						topspace: { type: "number", optional: true },
+						vocalspace: { type: "number", optional: true },
+						voicefont: this.fontType,
+						wordsspace: { type: "number", optional: true }
+					}
+				},
+
+				lines: {
+					type: "array",
+					description: "This is an array of horizontal elements. It is usually a staff of music. For multi-stave music, each staff is an element, just like single-staff. The difference is the connector properties.",
+					items: {
+						type: "object",
+						properties: {
+							separator: {
+								type: 'object', optional: true, prohibits: ['staff', 'text', 'subtitle'],
+								properties: {
+									lineLength: { type: 'number', optional: true },
+									spaceAbove: { type: 'number', optional: true },
+									spaceBelow: { type: 'number', optional: true }
+								}
+							},
+							subtitle: { type: "string", optional: true, prohibits: ['staff', 'text', 'separator'] },
+							text: { type: "string", optional: true, prohibits: ['staff', 'subtitle', 'separator'] },
+							staff: {
+								type: 'array', optional: true, prohibits: ['subtitle', 'text', 'separator'],
+								items: {
+									type: 'object',
+									properties: {
+										brace: { type: 'string', optional: true, Enum: ["start", "continue", "end"] },
+										bracket: { type: 'string', optional: true, Enum: ["start", "continue", "end"] },
+										clef: { type: 'object', optional: true, properties: this.clefProperties },
+										connectBarLines: { type: 'string', optional: true, Enum: ["start", "continue", "end"] },
+										vocalfont: this.fontType,
+										key: { type: 'object', optional: true, properties: this.keyProperties },
+										meter: { type: 'object', optional: true, properties: this.meterProperties },
+										spacingBelow: { type: 'number', optional: true },
+										title: { type: 'array', optional: true, items: { type: 'string' } },
+										voices: {
+											type: 'array', output: 'hidden',
+											items: {
+												type: "array", optional: true, output: "noindex",
+												items: this.voiceItem
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				},
+
+				metaText: {
+					type: "object",
+					properties: {
+						author: { type: "string", optional: true },
+						book: { type: "string", optional: true },
+						composer: { type: "string", optional: true },
+						discography: { type: "string", optional: true },
+						history: { type: "string", optional: true },
+						instruction: { type: "string", optional: true },
+						notes: { type: "string", optional: true },
+						origin: { type: "string", optional: true },
+						partOrder: { type: "string", optional: true },
+						rhythm: { type: "string", optional: true },
+						source: { type: "string", optional: true },
+						tempo: { type: "object", optional: true, properties: this.tempoProperties },
+						textBlock: { type: "string", optional: true },
+						title: { type: "string", optional: true },
+						transcription: { type: "string", optional: true },
+						unalignedWords: { type: "string", optional: true },
+						url: { type: "string", optional: true }
+					}
 				}
 			}
-		});
-	}
-
-	private parseFormatting(obj: any): void {
-		this.addOutput("Formatting:", 0);
-		const formattingKeys = [
-			'stretchlast', 'staffwidth', 'scale', 'sep', 'score', 'indent', 'voicefont',
-			'titlefont', 'barlabelfont', 'barnumfont', 'barnumberfont', 'barnumbers',
-			'topmargin', 'botmargin', 'topspace', 'titlespace', 'subtitlespace',
-			'composerspace', 'musicspace', 'partsspace', 'wordsspace', 'textspace',
-			'vocalspace', 'staffsep', 'linesep', 'midi', 'titlecaps', 'titlefont',
-			'composerfont', 'indent', 'playtempo', 'auquality', 'text', 'begintext',
-			'endtext', 'vocalfont', 'systemsep', 'sysstaffsep', 'landscape',
-			'gchordfont', 'leftmargin', 'partsfont', 'staves', 'slurgraces',
-			'titleleft', 'subtitlefont', 'tempofont', 'continuous', 'botspace',
-			'nobarcheck'
-		];
-
-		const keys = Object.keys(obj).sort();
-		keys.forEach(property => {
-			const t = typeof obj[property];
-			if (t !== 'function') {
-				const lowerProperty = property.toLowerCase();
-				if (formattingKeys.includes(lowerProperty)) {
-					this.addOutput(`${property}: ${obj[property]} `, 1);
-				} else {
-					this.addError(`Formatting should not contain: ${property} `);
-				}
-			}
-		});
-	}
-
-	private parseClef(obj: any): void {
-		const name = "Clef";
-		this.addOutput(`${name}: (${obj.startChar},${obj.endChar})`, 3);
-		const keys = Object.keys(obj).sort();
-		keys.forEach(property => {
-			const t = typeof obj[property];
-			if (t !== 'function') {
-				switch (property) {
-					case 'type':
-						this.addOutput(`${property}: ${obj[property]} `, 4);
-						break;
-					case 'startChar':
-					case 'endChar':
-					case 'el_type':
-						break;
-					default:
-						this.addError(`${name} should not contain: ${property} `);
-				}
-			}
-		});
-	}
-
-
-	private parseRegularKey(obj: any): void {
-		const name = "Regular Key";
-		const regularKeys = ["num", "acc"]
-		const keys = Object.keys(obj).sort();
-		keys.forEach(property => {
-			var t = typeof obj[property];
-			if (t !== 'function') {
-				switch (property) {
-					case 'num': break;
-					case 'acc': break;
-					default:
-						this.addError(name + " should not contain: " + property);
-				}
-			}
-		});
-		this.needs(obj, "num", name);
-		this.needs(obj, "acc", name);
-		this.addOutput("(" + obj.num + ", " + obj.acc + ")", 4);
-	}
-
-	private parseGrace(obj: any): void {
-		const name = "Gracenote";
-		this.onlyArray(obj, name);
-		obj.forEach(el => {
-			this.addOutput(el.el_type + " " + el.pitch, 5);
-		});
-	}
-
-	private parseKey(obj: any): void {
-		const name = "Key";
-		this.addOutput(name + ": (" + obj.startChar + "," + obj.endChar + ")", 3);
-		var processExtraAccidentals = function (obj, property) {
-			var strAcc = "";
-			obj[property].each(function (o) {
-				this.onlyContains(property, o, ["acc", 'note']);
-				strAcc += o.acc + " " + o.note + " ";
-			});
-			return strAcc;
 		};
 
-		const keys = Object.keys(obj).sort();
-		keys.forEach(property => {
-			var t = typeof obj[property];
-			if (t !== 'function') {
-				switch (property) {
-					case 'regularKey':
-						this.parseRegularKey(obj[property]); break;
-					case 'extraAccidentals':
-						this.onlyArray(property, obj[property]);
-						var strAcc = processExtraAccidentals(obj, property);
-						this.addOutput(property + ": " + strAcc, 4);
-						break;
-					case 'startChar':
-					case 'endChar':
-					case 'el_type': break;
-					default:
-						this.addError(name + " should not contain: " + property);
-				}
-			}
-		});
-	};
-
-	private parseMeter(obj: any): void {
-		const name = "Meter";
-		this.addOutput(`${name}:`, 3);
-
-		if (!obj.type) this.addError(`${name} 缺少必要属性: type`);
-
-		switch (obj.type) {
-			case 'fraction':
-				this.addOutput(`分数拍号: ${obj.value}`, 4);
-				if (!obj.value?.match(/^\d+\/\d+$/)) {
-					this.addError("无效分数拍号格式");
-				}
-				break;
-			case 'C':
-			case 'C|':
-				this.addOutput(`符号拍号: ${obj.type}`, 4);
-				break;
-			default:
-				this.addError(`未知拍号类型: ${obj.type}`);
-		}
+	}
+	appendPositioning(properties: any): any {
+		const ret = { ...properties };
+		ret.startChar = { type: 'number', output: 'hidden' };
+		ret.endChar = { type: 'number', output: 'hidden' };
+		return ret;
 	}
 
-	private parseBar(obj: any): void {
-		const name = "Bar";
-		this.addOutput(`${name}: ${obj.type}`, 3);
-
-		const keys = Object.keys(obj).sort()
-		keys.forEach(property => {
-			switch (property) {
-				case 'type':
-				case 'decoration':
-				case 'number':
-					this.addOutput(property + ": " + obj[property], 4);
-					break;
-				case 'chord':
-					this.onlyContains(property, obj[property], ['name', 'position']);
-					this.addOutput(property + ": " + obj[property].name + " " + obj[property].position, 4);
-					break;
-				case 'startChar':
-				case 'endChar':
-				case 'el_type':
-					break;
-				default:
-					this.addError(name + " should not contain: " + property);
-			}
+	lint(tune: any, warnings?: string[]): string {
+		const ret: JSONSchema.ValidationResult = JSONSchema.validate(tune, this.musicSchema as JSONSchema.Schema);
+		let err = "";
+		ret.errors.forEach((e: JSONSchema.ValidationError) => {
+			err += e.property + ": " + e.message + "\n";
 		});
-	};
-	private parseNote(obj: any): void {
-		const name = "Note";
-		this.addOutput(`${name}: ${obj.pitch}@${obj.duration}`, 3);
+		const out = ret.output.join("\n");
 
-		this.needs(obj, 'pitch', name); // 强制要求音高属性
-
-		const keys = Object.keys(obj).sort();
-		keys.forEach(property => {
-			const t = obj[property ];
-			if (typeof t === 'function') return;
-			if (t !== 'function') {
-				switch (property) {
-					case 'pitch':
-					case 'duration':
-					case 'end_beam':
-					case 'startSlur':
-					case 'endSlur':
-					case 'startTriplet':
-					case 'endTriplet':
-					case 'startTie':
-					case 'endTie':
-					case 'decoration':
-					case 'accidental':
-					case 'rest_type':
-						this.addOutput(property + ": " + obj[property], 4);
-						break;
-					case 'lyric':
-						this.onlyContains(property, obj[property], ['divider', 'syllable']);
-						this.addOutput(property + ": " + obj[property].syllable + " div=" + obj[property].divider, 4);
-						break;
-					case 'gracenotes':
-						this.parseGrace(obj[property]); break;
-					case 'chord':
-						this.onlyContains(property, obj[property], ['name', 'position']);
-						this.addOutput(property + ": " + obj[property].name + " " + obj[property].position, 4);
-						break;
-					case 'pitches':
-						this.onlyArray(obj[property], property);
-						for (var i = 0; i < obj[property].length; i++) {
-							var pitch = obj[property][i];
-							this.onlyContains('pitches[' + i + ']', pitch, ['pitch', 'duration', 'endChar', 'startTie', 'endTie', 'startSlur', 'endSlur', 'accidental']);
-							var str = property + ": p=" + pitch.pitch;
-							if (pitch.accidental !== undefined) str += ' a: ' + pitch.accidental;
-							str += " d=" + pitch.duration;
-							if (pitch.startTie === true) str += " startTie";
-							if (pitch.endTie === true) str += " endTie";
-							this.addOutput(str, 5);
-						}
-						break;
-					case 'startChar':
-					case 'endChar':
-					case 'el_type': break;
-					default:
-						this.addError(name + " should not contain: " + property);
-				}
-			}
-		});
-	};
-
-	private parseStaff(obj: any): void {
-		const name = "Staff";
-		this.addOutput(`${name}:`, 2);
-
-		this.onlyArray(obj, "Staff");
-
-		obj.forEach(el => {
-			var ty = el.el_type;
-			switch (ty) {
-				case "part":
-					this.onlyContains(ty, el, ['el_type', 'title', 'startChar', 'endChar']);
-					this.addOutput("Part: " + el.title, 3);
-					break;
-				case "clef": this.parseClef(el); break;
-				case "key": this.parseKey(el); break;
-				case "meter": this.parseMeter(el); break;
-				case "note": this.parseNote(el); break;
-				case "bar": this.parseBar(el); break;
-				default:
-					this.addError("No staff element type of: " + ty);
-			}
-			if (el.startChar === undefined)
-				this.addError("All elements need a startChar: " + el.el_type);
-			if (el.endChar === undefined)
-				this.addError("All elements need an endChar:" + el.el_type);
-		});
-	};
-
-	private parseLine(obj: any, index: number): void {
-		const name = "Line";
-		this.addOutput(`${name} ${index + 1} :`, 4);
-
-		const keys = Object.keys(obj).sort();
-		keys.forEach(property => {
-			var t = typeof obj[property];
-			if (t !== 'function') {
-				switch (property) {
-					case 'staff':
-						this.parseStaff(obj[property]);
-						break;
-					case 'subtitle':
-						this.addOutput("Subtitle: " + obj[property]);
-						break;
-					default:
-						this.addError("Line should not contain: " + property);
-				}
-			}
-		});
-	};
-
-
-	private parseLines(obj: any): void {
-		const name = "Lines";
-		this.addOutput(`${name}:`, 0);
-
-		const keys = Object.keys(obj);//.sort();
-		keys.forEach(property => {
-			var t = typeof obj[property];
-			if (t !== 'function') {
-				var index = parseInt(property);
-				if (index === 0 && property !== '0')
-					this.addError("Lines should not contain: " + property);
-				else {
-					this.parseLine(obj[index], index);
-				}
-			}
-		});
-	};
-	public lint(tune: any, warnings?: string[]): string {
-		this.errors = [];
-		this.output = [];
-
-		const keys = Object.keys(tune).sort();
-		keys.forEach(property => {
-			const t = typeof tune[property];
-			if (t !== 'function') {
-				switch (property) {
-					case 'metaText': this.parseMetaText(tune[property]); break;
-					case 'formatting': this.parseFormatting(tune[property]); break;
-					case 'lines': this.parseLines(tune[property]); break;
-					default:
-						this.addError(`tune should not contain: ${property} `);
-				}
-			}
-		});
-
-		let warn = warnings ? warnings.join('\n') : "No errors";
+		let warn = warnings === undefined ? "No errors" : warnings.join('\n');
+		// 替換字串樣式（假設原程式碼中的 `gsub` 是全局替換，這裡用正則表達式實現）
 		warn = warn.replace(/<span style="text-decoration:underline;font-size:1.3em;font-weight:bold;">/g, '$$$$');
 		warn = warn.replace(/<\/span>/g, '$$$$');
 
-		return `Error: ------\n${this.errors.join('\n')} \nObj: -------\n${this.output.join('\n')} \nWarn: ------\n${warn} `;
+		return `Error:------\n${err}\nObj:-------\n${out}\nWarn:------\n${warn}`;
 	}
-
-
-
 }
+
+

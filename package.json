@@ -1,4 +1,4 @@
-﻿{
+{
 	"name": "abcts",
 	"version": "1.0.0",
 	"description": "",
@@ -12,6 +12,7 @@
 	},
 	"dependencies": {
 		"@types/fs-extra": "^11.0.4",
+		"@types/json-schema": "4.0.0",
 		"esbuild": "^0.15.18",
 		"fs-extra": "^11.3.0"
 	}

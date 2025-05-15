@@ -96,7 +96,7 @@ function scale_font(font: Font, size: number, raphael: Raphael): void {
   for (const glyph in font.glyphs) {
     let symb: Symbol;
     try {
-      symb = raphael.path(font.glyphs[glyph].d).attr({ fill: "#000", stroke: "none" });
+      symb = raphael.path({ path: font.glyphs[glyph].d, fill: "#000", stroke: "none" });
       symb.scale(scale, scale, 0, 0);
     } catch (e) {
       continue;
