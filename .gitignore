@@ -1,5 +1,7 @@
 ﻿# Logs
 abcjs
+tmp
+
 logs
 *.log
 npm-debug.log*

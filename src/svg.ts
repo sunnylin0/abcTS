@@ -13,6 +13,71 @@ Object.defineProperty(SVGElement.prototype, "translate", {
 		return this;
 	}
 });
+
+Object.defineProperty(SVGElement.prototype, "attr", {
+	value<T extends SVGElement>(this: T, attr: SVGAttributes<T>) {
+		const el = this;
+		for (const key in attr) {
+			if (Object.prototype.hasOwnProperty.call(attr, key)) {
+				const value = attr[key];
+				if (value === undefined) continue;
+
+				if (key === 'path') {
+					const pathValue = Array.isArray(value)
+						? value.join().replace(/,/g, ' ')
+						: String(value).replace(/,/g, ' ');
+					el.setAttributeNS(null, 'd', pathValue);
+				}
+				else if (key === 'klass') {
+					el.setAttributeNS(null, 'class', String(value));
+				}
+				else {
+					el.setAttributeNS(null, key, String(value));
+				}
+			}
+		}
+		return el;
+	},
+	writable: true,
+	configurable: true
+});
+
+Object.defineProperty(SVGElement.prototype, "scale", {
+	value(scalex: number, scaley: number, x: number, y: number) {
+		this.setAttribute("transform",
+			`translate(${-(scalex - 1) * x},${-(scaley - 1) * y}) scale(${scalex},${scaley}) `)
+		return this;
+	}
+});
+
+Object.defineProperty(SVGElement.prototype, "mouseup", {
+	value(fn: () => void) {
+		this.addEventListener('mouseup', fn);
+		return this;
+	}
+});
+
+
+Object.defineProperty(Array.prototype, "attr", {
+	value<T extends SVGElement>(this: T[], attr: SVGAttributes<T>) {
+		return this.map(el => el.attr(attr));
+	},
+	writable: true,
+	configurable: true
+});
+
+Object.defineProperty(Array.prototype, "scale", {
+	value<T extends SVGElement>(this: T[], scalex: number, scaley: number, x: number, y: number) {
+		return this.map(el => el.scale(scalex, scaley, x, y));
+	},
+	writable: true,
+	configurable: true
+});
+
+
+
+
+
 let sizeCache = {};
 class Svg {
 	svg?: SvgInHtml;
@@ -23,6 +88,7 @@ class Svg {
 		this.svg = createSvg() as unknown as SvgInHtml;
 		this.currentGroup = [];
 		wrapper.appendChild(this.svg);
+		this.parentElement = wrapper.parentElement;
 	}
 
 	clear() {
@@ -320,7 +386,7 @@ class Svg {
 		return g;
 	};
 
-	path(attr: any): SVGPathElement {
+	path(attr?: any): SVGPathElement {
 		var el = document.createElementNS(svgNS, "path") as SVGPathElement;
 		for (var key in attr) {
 			if (attr.hasOwnProperty(key)) {
@@ -359,7 +425,7 @@ class Svg {
 		let el = document.createElementNS(svgNS, 'line') as SVGLineElement;
 		let keys = Object.keys(attr)
 		for (let i = 0; i < keys.length; i++)
-			el.setAttribute(keys[i], attr[keys[i]].toString());
+			el.setAttribute(keys[i].toString(), attr[keys[i]].toString());
 		this.prepend(el);
 		return el;
 	};
@@ -418,3 +484,4 @@ function createSvg(): SVGElement {
 
 
 //export default Svg;
+

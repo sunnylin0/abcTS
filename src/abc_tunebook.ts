@@ -1,4 +1,4 @@
-﻿//    abc_tunebook.js: splits a string representing ABC Music Notation into individual tunes.
+﻿//    abc_tokenizer.js: tokenizes an ABC Music Notation string to support abc_parse.
 //    Copyright (C) 2010 Paul Rosen (paul at paulrosen dot net)
 //
 //    This program is free software: you can redistribute it and/or modify
@@ -14,11 +14,13 @@
 //    You should have received a copy of the GNU General Public License
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-/*global Class */
-/*extern AbcTuneBook */
+/*extern AbcTokenizer */
 
-/*global Class */
-/*extern AbcTuneBook */
+// this is a series of functions that get a particular element out of the passed stream.
+// the return is the number of characters consumed, so 0 means that the element wasn't found.
+// also returned is the element found. This may be a different length because spaces may be consumed that aren't part of the string.
+// The return structure for most calls is { len: num_chars_consumed, token: str }
+
 interface TuneInfo {
 	abc: string;      // The ABC notation string for the tune
 	startPos: number; // The starting character position in the original book string
@@ -60,7 +62,7 @@ class AbcTuneBook {
 			const endIndex = tune.abc.indexOf('\n\n');
 			if (endIndex > 0)
 				tune.abc = tune.abc.substring(0, endIndex);  // 保持原处理逻辑‌:ml-citation{ref="3" data="citationList"}
-			tune.abc += directives;
+				tune.abc = directives + tune.abc;
 		});
 	}
 }

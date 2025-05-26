@@ -115,12 +115,12 @@
 
 class MultilineVars {
 	iChar: number;
-	key: { regularKey: KeySignature };
+	key: { regularKey?: KeySignature };
 	meter: MeterElement;
 	hasMainTitle: boolean;
 	default_length: number;
 	tempo: TempoInfo;
-	clef: { type: string, middle: number };
+	clef: ClefElement;
 	next_note_duration: number;
 	start_new_line: boolean;
 	is_in_header: boolean;
@@ -139,6 +139,12 @@ class MultilineVars {
 	inTextBlock: boolean;
 	textBlock: string;
 	barNumbers: number;
+	inEnding: boolean;
+	inTie: boolean;
+	inTieChord: any;
+
+	barNumOnNextNote: number
+	vocalfont: Font;
 	reset() {
 		for (let property in this) {
 			if (this.hasOwnProperty(property) && typeof this[property] !== "function") {
@@ -146,12 +152,12 @@ class MultilineVars {
 			}
 		}
 		this.iChar = 0;
-		this.key = { extraAccidentals: [] };
-		this.meter = { type: 'specified', value: [{ num: '4', den: '4' }] };	// if no meter is specified, there is an implied one.
-		this.origMeter = { type: 'specified', value: [{ num: '4', den: '4' }] };	// this is for new voices that are created after we set the meter.
+		this.key = { accidentals: [] };
+		this.meter = { type: 'specified', value: [{ num: '4', den: '4' }] };
+		this.origMeter = { type: 'specified', value: [{ num: '4', den: '4' }] };
 		this.hasMainTitle = false;
 		this.default_length = 0.125;
-		this.clef = { type: 'treble', middle: 6 };
+		this.clef = { type: 'treble', verticalPos: 0 };
 		this.next_note_duration = 0;
 		this.start_new_line = true;
 		this.is_in_header = true;
@@ -164,7 +170,10 @@ class MultilineVars {
 		this.currBarNumber = 1;
 		this.inTextBlock = false;
 		this.textBlock = "";
-		this.score_is_present = false;	// Can't have original V: lines when there is the score directive
+		this.score_is_present = false;
+		this.inEnding = false;
+		this.inTie = false;
+		this.inTieChord = {};
 	}
 };
 
@@ -173,17 +182,17 @@ class AbcParse {
 	tune: AbcTune;
 	tokenizer: AbcTokenizer;
 	multilineVars: MultilineVars;
+	header: AbcParseHeader;
+
 	pitches = { A: 5, B: 6, C: 0, D: 1, E: 2, F: 3, G: 4, a: 12, b: 13, c: 7, d: 8, e: 9, f: 10, g: 11 };
 	rests = { x: 'invisible', y: 'spacer', z: 'rest' };
-	private header: AbcParseHeader;
-
 	legalAccents = ["trill", "lowermordent", "uppermordent", "mordent", "pralltriller", "accent",
 		"emphasis", "fermata", "invertedfermata", "tenuto", "0", "1", "2", "3", "4", "5", "+", "wedge",
 		"open", "thumb", "snap", "turn", "roll", "breath", "shortphrase", "mediumphrase", "longphrase",
 		"segno", "coda", "D.S.", "D.C.", "fine", "crescendo(", "crescendo)", "diminuendo(", "diminuendo)",
-		"p", "pp", "f", "ff", "mf", "ppp", "pppp", "fff", "ffff", "sfz", "repeatbar", "repeatbar2", "slide",
+		"p", "pp", "f", "ff", "mf", "mp", "ppp", "pppp", "fff", "ffff", "sfz", "repeatbar", "repeatbar2", "slide",
 		"upbow", "downbow"];
-
+	accentPsuedonyms = [["/", "slide"], ["<", "accent"], [">", "accent"], ["tr", "trill"]];
 	constructor() {
 		this.tune = new AbcTune();
 		this.tokenizer = new AbcTokenizer();
@@ -192,19 +201,17 @@ class AbcParse {
 	}
 	getTune() {
 		return this.tune;
-	};
-	getWarnings() {
-		return this.multilineVars.warnings;
-	};
+	}
+	getWarnings() { return this.multilineVars.warnings; };
 
-	private addWarning(str: string) {
+	addWarning(str: string) {
 		if (!this.multilineVars.warnings) {
 			this.multilineVars.warnings = [];
 		}
 		this.multilineVars.warnings.push(str);
 	};
 
-	private warn(str: string, line: string, col_num: number) {
+	warn(str: string, line: string, col_num: number) {
 		let bad_char = line[col_num];
 		if (bad_char === ' ') {
 			bad_char = "SPACE";
@@ -214,13 +221,12 @@ class AbcParse {
 		this.addWarning(`Music Line:${this.tune.getNumLines()}:${col_num + 1}: ${str}: ${clean_line}`);
 	};
 
-
-
 	private letter_to_chord(line: string, i: number) {
 		if (line[i] === '"') {
 			let chord = this.tokenizer.getBrackettedSubstring(line, i, 5);
 			if (!chord[2])
 				this.warn("Missing the closing quote while parsing the chord symbol", line, i);
+
 			// If it starts with ^, then the chord appears above.
 			// If it starts with _ then the chord appears below.
 			// (note that the 2.0 draft standard defines them as not chords, but annotations and also defines < > and @.)
@@ -235,8 +241,7 @@ class AbcParse {
 			return chord;
 		}
 		return [0, ""];
-	};
-
+	}
 
 	private letter_to_accent(line: string, i: number) {
 		let macro = this.multilineVars.macros[line[i]];
@@ -246,10 +251,12 @@ class AbcParse {
 				macro = macro.substring(1);
 			if (macro[macro.length - 1] === '!' || macro[macro.length - 1] === '+')
 				macro = macro.substring(0, macro.length - 1);
-			if (this.legalAccents.includes(macro))
+			if (this.legalAccents.detect(function (acc) {
+				return (macro === acc);
+			}))
 				return [1, macro];
-
 		}
+
 		switch (line[i]) {
 			case '.': return [1, 'staccato'];
 			case 'u': return [1, 'upbow'];
@@ -261,10 +268,20 @@ class AbcParse {
 				// Be sure that the accent is recognizable.
 				if (ret[1].length > 0 && (ret[1][0] === '^' || ret[1][0] === '_'))
 					ret[1] = ret[1].substring(1);	// TODO-PER: The test files have indicators forcing the orniment to the top or bottom, but that isn't in the standard. We'll just ignore them.
-
-				if (this.legalAccents.includes(ret[1])) {
+				if (this.legalAccents.detect(function (acc) {
+					return (ret[1] === acc);
+				}))
 					return ret;
-				}
+
+				if (this.accentPsuedonyms.detect(function (acc) {
+					if (ret[1] === acc[0]) {
+						ret[1] = acc[1];
+						return true;
+					} else
+						return false;
+				}))
+					return ret;
+
 				// We didn't find the accent in the list, so consume the space, but don't return an accent.
 				// Although it is possible that ! was used as a line break, so accept that.
 				if (line[i] === '!' && (ret[0] === 1 || line[i + ret[0] - 1] !== '!'))
@@ -281,9 +298,7 @@ class AbcParse {
 		return [0, 0];
 	};
 
-
-
-	letter_to_spacer(line: string, i: number) {
+	private letter_to_spacer(line: string, i: number) {
 		let start = i;
 		while (this.tokenizer.isWhiteSpace(line[i])) {
 			i++;
@@ -295,11 +310,10 @@ class AbcParse {
 	// the number of the repeat
 	// and the number of characters used up
 	// if 0 is returned, then the next element was not a bar line
-	letter_to_bar(line: string, curr_pos: number) {
+	private letter_to_bar(line: string, curr_pos: number) {
 		let ret = this.tokenizer.getBarLine(line, curr_pos);
-		if (ret.len === 0) {
+		if (ret.len === 0)
 			return [0, ""];
-		}
 		if (ret.warn) {
 			this.warn(ret.warn, line, curr_pos);
 			return [ret.len, ""];
@@ -309,12 +323,10 @@ class AbcParse {
 		// A repeated ending is all of the characters 1,2,3,4,5,6,7,8,9,0,-, and comma
 		// It can also optionally start with '[', which is ignored.
 		// Also, it can have white space before the '['.
-		let ws = 0;
-		for (ws = 0; ws < line.length; ws++) {
-			if (line[curr_pos + ret.len + ws] !== ' ') {
+		let ws
+		for (ws = 0; ws < line.length; ws++)
+			if (line[curr_pos + ret.len + ws] !== ' ')
 				break;
-			}
-		}
 		let orig_bar_len = ret.len;
 		if (line[curr_pos + ret.len + ws] === '[') {
 			ret.len += ws + 1;
@@ -324,32 +336,31 @@ class AbcParse {
 				return [ret.len + ending[0], ret.token, ending[1]];
 			}
 		}
-		let retRep = this.tokenizer.getTokenOf(line.substring(curr_pos + ret.len), "1234567890-,");
-		if (retRep.len === 0) {
+		const retRep = this.tokenizer.getTokenOf(line.substring(curr_pos + ret.len), "1234567890-,");
+		if (retRep.len === 0 || retRep.token[0] === '-')
 			return [orig_bar_len, ret.token];
-		}
 
 		return [ret.len + retRep.len, ret.token, retRep.token];
 	};
 
-	letter_to_open_slurs_and_triplets(line: string, i: number): { consumed?: number; } {
+	private letter_to_open_slurs_and_triplets(line: string, i: number) {
 		// consume spaces, and look for all the open parens. If there is a number after the open paren,
 		// that is a triplet. Otherwise that is a slur. Collect all the slurs and the first triplet.
-		let ret: ABCElement = {};
+		let ret: any = {};
 		let start = i;
 		while (line[i] === '(' || this.tokenizer.isWhiteSpace(line[i])) {
 			if (line[i] === '(') {
 				if (i + 1 < line.length && (line[i + 1] >= '2' && line[i + 1] <= '9')) {
-					if (ret.triplet !== undefined)
+					if (ret.triplet !== undefined) {
 						this.warn("Can't nest triplets", line, i);
-					else {
-						ret.triplet = line[i + 1] - '0';
+					} else {
+						ret.triplet = line[i + 1].toNumber() - '0'.toNumber();
 						if (i + 2 < line.length && line[i + 2] === ':') {
 							// We are expecting "(p:q:r" or "(p:q" or "(p::r" we are only interested in the first number (p) and the number of notes (r)
 							// if r is missing, then it is equal to p.
 							if (i + 3 < line.length && line[i + 3] === ':') {
 								if (i + 4 < line.length && (line[i + 4] >= '1' && line[i + 4] <= '9')) {
-									ret.num_notes = line[i + 4] - '0';
+									ret.num_notes = line[i + 4].toNumber() - '0'.toNumber();
 									i += 3;
 								} else
 									this.warn("expected number after the two colons after the triplet to mark the duration", line, i);
@@ -357,7 +368,7 @@ class AbcParse {
 								// ignore this middle number
 								if (i + 4 < line.length && line[i + 4] === ':') {
 									if (i + 5 < line.length && (line[i + 5] >= '1' && line[i + 5] <= '9')) {
-										ret.num_notes = line[i + 5] - '0'.toNumber();
+										ret.num_notes = line[i + 5].toNumber() - '0'.toNumber();
 										i += 4;
 									}
 								} else {
@@ -365,11 +376,12 @@ class AbcParse {
 									i += 3;
 								}
 							} else
-								warn("expected number after the triplet to mark the duration", line, i);
+								this.warn("expected number after the triplet to mark the duration", line, i);
 						}
 					}
 					i++;
-				} else {
+				}
+				else {
 					if (ret.startSlur === undefined)
 						ret.startSlur = 1;
 					else
@@ -382,7 +394,7 @@ class AbcParse {
 		return ret;
 	};
 
-	addWords(line: Voice[], words: string) {
+	private addWords(line: NoteElement[], words: string): boolean {
 		if (!line) {
 			this.warn("Can't add words before the first line of music", line, 0);
 			return;
@@ -391,7 +403,7 @@ class AbcParse {
 		if (words[words.length - 1] !== '-') {
 			words += ' ';	// Just makes it easier to parse below, since every word has a divider after it.
 		}
-		let word_list = [];
+		let word_list: any = [];
 		// first make a list of words from the string we are passed. A word is divided on either a space or dash.
 		let last_divider = 0;
 		let replace = false;
@@ -399,9 +411,8 @@ class AbcParse {
 			let word = words.substring(last_divider, i).trim();
 			last_divider = i + 1;
 			if (word.length > 0) {
-				if (replace) {
+				if (replace)
 					word = word.replace(/~/g, ' ');
-				}
 				let div = words[i];
 				if (div !== '_' && div !== '-') {
 					div = ' ';
@@ -412,6 +423,7 @@ class AbcParse {
 			}
 			return false;
 		};
+
 		for (let i = 0; i < words.length; i++) {
 			switch (words[i]) {
 				case ' ':
@@ -420,7 +432,7 @@ class AbcParse {
 					break;
 				case '-':
 					if (!addWord(i) && word_list.length > 0) {
-						word_list[word_list.length - 1].divider = '-';
+						word_list.last().divider = '-';
 						word_list.push({ skip: true, to: 'next' });
 					}
 					break;
@@ -443,26 +455,17 @@ class AbcParse {
 		}
 
 		let inSlur = false;
-		line.split('').forEach((el, index) => {
+		for (let el of line) {
 			if (word_list.length !== 0) {
 				if (word_list[0].skip) {
 					switch (word_list[0].to) {
-						case 'next':
-							if (el.el_type === 'note' && el.pitches !== null && !inSlur)
-								word_list.shift();
-							break;
-						case 'slur':
-							if (el.el_type === 'note' && el.pitches !== null)
-								word_list.shift();
-							break;
-						case 'bar':
-							if (el.el_type === 'bar')
-								word_list.shift();
-							break;
+						case 'next': if (el.el_type === 'note' && el.pitches !== null && !inSlur) word_list.shift(); break;
+						case 'slur': if (el.el_type === 'note' && el.pitches !== null) word_list.shift(); break;
+						case 'bar': if (el.el_type === 'bar') word_list.shift(); break;
 					}
 				} else {
 					if (el.el_type === 'note' && el.rest === undefined && !inSlur) {
-						let lyric = word_list.shift();
+						const lyric = word_list.shift();
 						if (el.lyric === undefined) {
 							el.lyric = [lyric];
 						} else {
@@ -471,10 +474,10 @@ class AbcParse {
 					}
 				}
 			}
-		});
+		};
 	};
 
-	getBrokenRhythm(line: string, index: number) {
+	private getBrokenRhythm(line: string, index: number) {
 		switch (line[index]) {
 			case '>':
 				if (index < line.length - 1 && line[index + 1] === '>')	// double >>
@@ -493,14 +496,13 @@ class AbcParse {
 	};
 
 	// TODO-PER: make this a method in el.
-	addEndBeam(el: any) {
-		if (el.duration !== undefined && el.duration < 0.25) {
+	private addEndBeam(el: ABCBeamElem) {
+		if (el.duration !== undefined && el.duration < 0.25)
 			el.end_beam = true;
-		}
 		return el;
 	};
 
-	getCoreNote(line: string, index: number, el: any, canHaveBrokenRhythm: boolean) {
+	private getCoreNote(line: string, index: number, el: any, canHaveBrokenRhythm: boolean) {
 		const isComplete = (state: string) => {
 			return (state === 'octave' || state === 'duration' || state === 'broken_rhythm' || state === 'end_slur');
 		};
@@ -508,26 +510,30 @@ class AbcParse {
 		let state = 'startSlur';
 		let durationSetByPreviousNote = false;
 		while (true) {
-			switch (line[index]) {
+			switch (line.charAt(index)) {
 				case '(':
 					if (state === 'startSlur') {
-						if (el.startSlur === undefined)
+						if (el.startSlur === undefined) {
 							el.startSlur = 1;
-						else
+						} else {
 							el.startSlur++;
+						}
 					} else if (isComplete(state)) {
-						el.endChar = index;
-						return el;
+						el.endChar = index; return el;
+					} else {
+						return null;
 					}
-					else return null;
 					break;
 				case ')':
 					if (isComplete(state)) {
-						if (el.endSlur === undefined)
+						if (el.endSlur === undefined) {
 							el.endSlur = 1;
-						else
+						} else {
 							el.endSlur++;
-					} else return null;
+						}
+					} else {
+						return null;
+					}
 					break;
 				case '^':
 					if (state === 'startSlur') {
@@ -539,8 +545,9 @@ class AbcParse {
 					} else if (isComplete(state)) {
 						el.endChar = index;
 						return el;
-					} else
+					} else {
 						return null;
+					}
 					break;
 				case '_':
 					if (state === 'startSlur') {
@@ -552,8 +559,9 @@ class AbcParse {
 					} else if (isComplete(state)) {
 						el.endChar = index;
 						return el;
-					} else
+					} else {
 						return null;
+					}
 					break;
 				case '=':
 					if (state === 'startSlur') {
@@ -562,8 +570,9 @@ class AbcParse {
 					} else if (isComplete(state)) {
 						el.endChar = index;
 						return el;
-					} else
+					} else {
 						return null;
+					}
 					break;
 				case 'A':
 				case 'B':
@@ -580,16 +589,15 @@ class AbcParse {
 				case 'f':
 				case 'g':
 					if (state === 'startSlur' || state === 'sharp2' || state === 'flat2' || state === 'pitch') {
-						el.pitch = this.pitches[line[index]];
+						el.pitch = this.pitches[line.charAt(index)];
 						state = 'octave';
-						// At this point we have a valid note. The rest is optional. Set the duration in case we don't get one below
 						if (canHaveBrokenRhythm && this.multilineVars.next_note_duration !== 0) {
 							el.duration = this.multilineVars.next_note_duration;
 							this.multilineVars.next_note_duration = 0;
 							durationSetByPreviousNote = true;
-						} else
+						} else {
 							el.duration = this.multilineVars.default_length;
-
+						}
 					} else if (isComplete(state)) {
 						el.endChar = index;
 						return el;
@@ -621,7 +629,7 @@ class AbcParse {
 				case 'y':
 				case 'z':
 					if (state === 'startSlur') {
-						el.rest = { type: this.rests[line[index]] };
+						el.rest = { type: this.rests[line.charAt(index)] };
 						// There shouldn't be some of the properties that notes have. If some sneak in due to bad syntax in the abc file,
 						// just nix them here.
 						delete el.accidental;
@@ -660,12 +668,14 @@ class AbcParse {
 				case '/':
 					if (state === 'octave' || state === 'duration') {
 						let fraction = this.tokenizer.getFraction(line, index);
-						if (!durationSetByPreviousNote) {
+						if (!durationSetByPreviousNote)
 							el.duration = el.duration * fraction.value;
-						}
+						// TODO-PER: We can test the returned duration here and give a warning if it isn't the one expected.
 						el.endChar = fraction.index;
-						while (fraction.index < line.length && (this.tokenizer.isWhiteSpace(line[fraction.index]) || line[fraction.index] === '-')) {
-							if (line[fraction.index] === '-') {
+						while (fraction.index < line.length &&
+							(this.tokenizer.isWhiteSpace(line.charAt(fraction.index)) ||
+								line.charAt(fraction.index) === '-')) {
+							if (line.charAt(fraction.index) === '-') {
 								el.startTie = true;
 							} else {
 								el = this.addEndBeam(el);
@@ -689,13 +699,14 @@ class AbcParse {
 						// This is the first character, so it must have been meant for the previous note. Correct that here.
 						this.tune.addTieToLastNote();
 						el.endTie = true;
-					} else if (state === 'octave' || state === 'duration' || state === 'end_slur') {
+					} else if (state === 'octave' ||
+						state === 'duration' ||
+						state === 'end_slur') {
 						el.startTie = true;
 						if (!durationSetByPreviousNote && canHaveBrokenRhythm) {
 							state = 'broken_rhythm';
 						} else {
-							// Peek ahead to the next character. If it is a space, then we have an end beam.
-							if (this.tokenizer.isWhiteSpace(line[index + 1])) {
+							if (this.tokenizer.isWhiteSpace(line.charAt(index + 1))) {
 								this.addEndBeam(el);
 							}
 							el.endChar = index + 1;
@@ -712,28 +723,33 @@ class AbcParse {
 				case '\t':
 					if (isComplete(state)) {
 						el.end_beam = true;
-						// look ahead to see if there is a tie
-						while (index < line.length && (this.tokenizer.isWhiteSpace(line[index]) || line[index] === '-')) {
-							if (line[index] === '-')
+						while (index < line.length &&
+							(this.tokenizer.isWhiteSpace(line.charAt(index)) ||
+								line.charAt(index) === '-')) {
+							if (line.charAt(index) === '-') {
 								el.startTie = true;
-
+							}
 							index++;
 						}
 						el.endChar = index;
-						if (!durationSetByPreviousNote && canHaveBrokenRhythm && (line[index] === '<' || line[index] === '>')) {
+						if (!durationSetByPreviousNote && canHaveBrokenRhythm &&
+							(line.charAt(index) === '<' ||
+								line.charAt(index) === '>')) {
 							index--;
 							state = 'broken_rhythm';
-						} else
+						} else {
 							return el;
-					} else
+						}
+					} else {
 						return null;
+					}
 					break;
 				case '>':
 				case '<':
 					if (isComplete(state)) {
 						if (canHaveBrokenRhythm) {
-							let br2 = this.getBrokenRhythm(line, index);
-							index += br2[0] - 1;	// index gets incremented below, so we'll let that happen
+							const br2 = this.getBrokenRhythm(line, index);
+							index += br2[0] - 1;
 							this.multilineVars.next_note_duration = br2[2] * el.duration;
 							el.duration = br2[1] * el.duration;
 							state = 'end_slur';
@@ -763,18 +779,18 @@ class AbcParse {
 			}
 		}
 		return null;
-	}
+	};
 
-	startNewLine() {
-		let params: ParamsOther = { startChar: -1, endChar: -1 };
+	private startNewLine() {
+		const params: ParamsOther = { startChar: -1, endChar: - 1 };
 		if (this.multilineVars.partForNextLine.length) {
 			params.part = this.multilineVars.partForNextLine;
 		}
 		params.clef = this.multilineVars.currentVoice &&
-			this.multilineVars.staves[this.multilineVars.currentVoice.staffNum].clef !== undefined ?
-			this.multilineVars.staves[this.multilineVars.currentVoice.staffNum].clef :
-			this.multilineVars.clef;
-		params.key = Object.assign({}, this.multilineVars.key);
+			this.multilineVars.staves[this.multilineVars.currentVoice.staffNum].clef !== undefined
+			? this.multilineVars.staves[this.multilineVars.currentVoice.staffNum].clef
+			: this.multilineVars.clef;
+		params.key = this.header.deepCopyKey(this.multilineVars.key.accidentals);
 		this.header.addPosToKey(params.clef, params.key);
 		if (this.multilineVars.meter !== null) {
 			if (this.multilineVars.currentVoice) {
@@ -785,10 +801,9 @@ class AbcParse {
 				this.multilineVars.staves[this.multilineVars.currentVoice.staffNum].meter = null;
 			} else {
 				params.meter = this.multilineVars.meter;
-				this.multilineVars.meter = null;
 			}
+			this.multilineVars.meter = null;
 		} else if (this.multilineVars.currentVoice && this.multilineVars.staves[this.multilineVars.currentVoice.staffNum].meter) {
-			// Make sure that each voice gets the meter marking.
 			params.meter = this.multilineVars.staves[this.multilineVars.currentVoice.staffNum].meter;
 			this.multilineVars.staves[this.multilineVars.currentVoice.staffNum].meter = null;
 		}
@@ -799,15 +814,25 @@ class AbcParse {
 			params.vocalfont = this.multilineVars.vocalfont;
 		}
 		if (this.multilineVars.currentVoice) {
-			let staff = this.multilineVars.staves[this.multilineVars.currentVoice.staffNum];
-			if (staff.brace) params.brace = staff.brace;
-			if (staff.bracket) params.bracket = staff.bracket;
-			if (staff.connectBarLines) params.connectBarLines = staff.connectBarLines;
-			if (staff.name) params.name = staff.name[this.multilineVars.currentVoice.index];
-			if (staff.subname) params.subname = staff.subname[this.multilineVars.currentVoice.index];
-			if (this.multilineVars.currentVoice.stem)
+			const staff = this.multilineVars.staves[this.multilineVars.currentVoice.staffNum];
+			if (staff.brace) {
+				params.brace = staff.brace;
+			}
+			if (staff.bracket) {
+				params.bracket = staff.bracket;
+			}
+			if (staff.connectBarLines) {
+				params.connectBarLines = staff.connectBarLines;
+			}
+			if (staff.name) {
+				params.name = staff.name[this.multilineVars.currentVoice.index];
+			}
+			if (staff.subname) {
+				params.subname = staff.subname[this.multilineVars.currentVoice.index];
+			}
+			if (this.multilineVars.currentVoice.stem) {
 				params.stem = this.multilineVars.currentVoice.stem;
-
+			}
 		}
 		this.tune.startNewLine(params);
 
@@ -815,19 +840,18 @@ class AbcParse {
 		if (this.multilineVars.currentVoice === undefined ||
 			(this.multilineVars.currentVoice.staffNum === this.multilineVars.staves.length - 1 &&
 				this.multilineVars.staves[this.multilineVars.currentVoice.staffNum].numVoices - 1 === this.multilineVars.currentVoice.index)) {
-			if (this.multilineVars.barNumbers === 0)
+			if (this.multilineVars.barNumbers === 0) {
 				this.multilineVars.barNumOnNextNote = this.multilineVars.currBarNumber;
+			}
 		}
 	};
 
-	letter_to_grace(line: string, i: number): [number, any] {
-		// Grace notes are an array of: startslur, note, endslur, space; where note is accidental, pitch, duration
-		if (line[i] === '{') {
-			// fetch the gracenotes string and consume that into the array
+	private letter_to_grace(line: string, i: number) {
+		if (line.charAt(i) === '{') {
 			const gra = this.tokenizer.getBrackettedSubstring(line, i, 1, '}');
-			if (!gra[2])
+			if (!gra[2]) {
 				this.warn("Missing the closing '}' while parsing grace note", line, i);
-
+			}
 
 			const gracenotes: any = [];
 			let ii = 0;
@@ -841,27 +865,29 @@ class AbcParse {
 						note.endTie = true;
 						inTie = false;
 					}
-					if (note.startTie)
+					if (note.startTie) {
 						inTie = true;
+					}
 
 					ii = note.endChar;
 					delete note.endChar;
 				} else {
-					// We shouldn't get anything but notes or a space here, so report an error
-					if (gra[1][ii] === ' ') {
-						if (gracenotes.length > 0)
+					if (gra[1].charAt(ii) === ' ') {
+						if (gracenotes.length > 0) {
 							gracenotes[gracenotes.length - 1].end_beam = true;
-					} else
-						this.warn("Unknown character '" + gra[1][ii] + "' while parsing grace note", line, i);
+						}
+					} else {
+						this.warn("Unknown character '" + gra[1].charAt(ii) + "' while parsing grace note", line, i);
+					}
 					ii++;
 				}
 			}
-			if (gracenotes.length)
+			if (gracenotes.length) {
 				return [gra[0], gracenotes];
-
+			}
 		}
 		return [0];
-	}
+	};
 
 	//
 	// Parse line of music
@@ -920,27 +946,27 @@ class AbcParse {
 	// double-quote: chord symbol
 	// less-than, greater-than, slash: duration
 	// back-tick, space, tab: space
-	nonDecorations = "ABCDEFGabcdefg[]|^_{";	// use this to prescreen so we don't have to look for a decoration at every note.
+	private nonDecorations = "ABCDEFGabcdefg|_{";
 
 
-	parseRegularMusicLine(line: string): void {
+	private parseRegularMusicLine(line: string): void {
 		this.header.resolveTempo();
+		//multilineVars.havent_set_length = false;	// To late to set this now.
 		this.multilineVars.is_in_header = false;	// We should have gotten a key header by now, but just in case, this is definitely out of the header.
 		let i = 0;
 		let startOfLine = this.multilineVars.iChar;
-
-		// Skip leading whitespaces and ignore lines with only a comment
+		// see if there is nothing but a comment on this line. If so, just ignore it. A full line comment is optional white space followed by %
 		while (this.tokenizer.isWhiteSpace(line[i]) && i < line.length)
 			i++;
 
 		if (i === line.length || line[i] === '%')
 			return;
 
-
+		let delayStartNewLine = this.multilineVars.start_new_line;
 		this.multilineVars.start_new_line = true;
 		let tripletNotesLeft = 0;
-		let inTie = false;
-		let inTieChord: { [key: number]: boolean } = {};
+		//let inTie = false;
+		//let inTieChord: { [key: number]: boolean } = {};
 
 		// Check for a header field at the start of the line
 		const retHeader = this.header.letter_to_body_header(line, i);
@@ -964,9 +990,9 @@ class AbcParse {
 				//multilineVars.start_new_line = false;
 			} else {
 				// Wait until here to actually start the line because we know we're past the inline statements.
-				if (this.multilineVars.start_new_line) {
+				if (delayStartNewLine) {
 					this.startNewLine();
-					this.multilineVars.start_new_line = false;
+					delayStartNewLine = false;
 				}
 				// We need to decide if the following characters are a bar-marking or a note-group.
 				// Unfortunately, that is ambiguous. Both can contain chord symbols and decorations.
@@ -1039,15 +1065,22 @@ class AbcParse {
 						// Attach the grace note to an invisible note
 						el.rest = { type: 'spacer' };
 						el.duration = 0.125; // TODO-PER: I don't think the duration of this matters much, but figure out if it does.
-						this.tune.appendElement('note', -1, -1, el);
+						this.tune.appendElement('note', startOfLine + i, startOfLine + i + ret[0], el);
 						el = {};
 					}
-					const bar = { type: ret[1] };
+					let bar:BarElement = { type: ret[1] };
 					if (bar.type.length === 0) {
 						this.warn("Unknown bar type", line, i);
 					} else {
+						if (this.multilineVars.inEnding && bar.type !== 'bar_thin') {
+							bar.endEnding = true;
+							this.multilineVars.inEnding = false;
+						}
 						if (ret[2]) {
-							bar.ending = ret[2];
+							bar.startEnding = ret[2];
+							if (this.multilineVars.inEnding)
+								bar.endEnding = true;
+							this.multilineVars.inEnding = true;
 						}
 						if (el.decoration !== undefined) {
 							bar.decoration = el.decoration;
@@ -1067,6 +1100,8 @@ class AbcParse {
 					i += ret[0];
 				} else {
 					// This is definitely a note group
+					//
+					// Look for as many open slurs and triplets as there are. (Note: only the first triplet is valid.)
 					ret = this.letter_to_open_slurs_and_triplets(line, i);
 					if (ret.consumed > 0) {
 						if (ret.startSlur !== undefined) {
@@ -1102,12 +1137,12 @@ class AbcParse {
 									el.pitches.push(chordNote);
 								delete chordNote.duration;
 
-								if (inTieChord[el.pitches.length]) {
+								if (this.multilineVars.inTieChord[el.pitches.length]) {
 									chordNote.endTie = true;
-									inTieChord[el.pitches.length] = undefined;
+									this.multilineVars.inTieChord[el.pitches.length] = undefined;
 								}
 								if (chordNote.startTie) {
-									inTieChord[el.pitches.length] = true;
+									this.multilineVars.inTieChord[el.pitches.length] = true;
 								}
 								i = chordNote.endChar;
 								delete chordNote.endChar;
@@ -1124,9 +1159,9 @@ class AbcParse {
 										this.multilineVars.next_note_duration = 0;
 									}
 
-									if (inTie) {
+									if (this.multilineVars.inTie) {
 										el.pitches.forEach(pitch => { pitch.endTie = true; });
-										inTie = false;
+										this.multilineVars.inTie = false;
 									}
 
 									if (tripletNotesLeft > 0) {
@@ -1137,13 +1172,13 @@ class AbcParse {
 									}
 
 									if (el.startSlur !== undefined) {
-										el.pitches.forEach(pitch => {
+										for (let pitch of el.pitches) {
 											if (pitch.startSlur === undefined) {
 												pitch.startSlur = el.startSlur;
 											} else {
 												pitch.startSlur += el.startSlur;
 											}
-										});
+										}
 										delete el.startSlur;
 									}
 
@@ -1155,17 +1190,17 @@ class AbcParse {
 												this.addEndBeam(el);
 												break;
 											case ')':
-												el.pitches.forEach(pitch => {
+												for (let pitch of el.pitches) {
 													if (pitch.endSlur === undefined) {
 														pitch.endSlur = 1;
 													} else {
 														pitch.endSlur++;
 													}
-												});
+												}
 												break;
 											case '-':
 												el.pitches.forEach(pitch => { pitch.startTie = true; });
-												inTie = true;
+												this.multilineVars.inTie = true;
 												break;
 											case '>':
 											case '<':
@@ -1220,7 +1255,7 @@ class AbcParse {
 						const el2: any = {};
 						const core = this.getCoreNote(line, i, el2, true);
 						if (el.endTie !== undefined) {
-							inTie = true;
+							this.multilineVars.inTie = true;
 						}
 						if (core !== null) {
 							if (core.pitch !== undefined) {
@@ -1250,16 +1285,16 @@ class AbcParse {
 							if (core.graceNotes !== undefined) el.graceNotes = core.graceNotes;
 
 							delete el.startSlur;
-							if (inTie) {
+							if (this.multilineVars.inTie) {
 								if (el.pitches !== undefined) {
 									el.pitches[0].endTie = true;
 								} else {
 									el.rest.endTie = true;
 								}
-								inTie = false;
+								this.multilineVars.inTie = false;
 							}
 							if (core.startTie || el.startTie)
-								inTie = true;
+								this.multilineVars.inTie = true;
 
 							i = core.endChar;
 
@@ -1278,7 +1313,7 @@ class AbcParse {
 								el.barNumber = this.multilineVars.barNumOnNextNote;
 								this.multilineVars.barNumOnNextNote = null;
 							}
-							this.tune.appendElement('note', startOfLine + i, startOfLine + 1, el);
+							this.tune.appendElement('note', startOfLine + startI, startOfLine + i, el);
 							el = {};
 						}
 					}
@@ -1293,21 +1328,18 @@ class AbcParse {
 			}
 		}
 	}
-	parseLine(line: string): void {
-		const ret = this.header.parseHeader(line);
-		if (ret.regular) {
+	private parseLine(line: string): void {
+		let ret = this.header.parseHeader(line);
+		let switches: any;
+		if (ret.regular)
 			this.parseRegularMusicLine(ret.str);
-		}
-		if (ret.newline) {
+		if (ret.newline)
 			this.startNewLine();
-		}
-		if (ret.words) {
+		if (ret.words)
 			this.addWords(this.tune.getCurrentVoice(), line.substring(2));
-		}
-		if (ret.recurse) {
+		if (ret.recurse)
 			this.parseLine(ret.str);
-		}
-	}
+	};
 
 	parse(strTune: string): void {
 		this.tune.reset();
@@ -1320,30 +1352,37 @@ class AbcParse {
 		strTune = strTune.replace(/\n\\.*\n/g, "\n"); // get rid of latex commands.
 		strTune = strTune.replace(/\\([ \t]*)\n/g, "$1 \x12"); // take care of line continuations right away, but keep the same number of characters
 		const lines = strTune.split('\n');
-		if (lines[lines.length - 1].length === 0) {
+		if (lines.last().length === 0) {
 			lines.pop();
 		}
-
-		lines.forEach(line => {
+		let switches;
+		for (let line of lines) {
+			if (switches) {
+				if (switches.header_only && this.multilineVars.is_in_header === false)
+					throw "normal_abort";
+				if (switches.stop_on_warning && this.multilineVars.warnings)
+					throw "normal_abort";
+			}
 			if (this.multilineVars.is_in_history) {
-				if (line[1] === ':') {
+				if (line.charAt(1) === ':') {
 					this.multilineVars.is_in_history = false;
 					this.parseLine(line);
-				} else {
+				} else
 					this.tune.addMetaText("history", this.tokenizer.translateString(this.tokenizer.stripComment(line)));
-				}
 			} else if (this.multilineVars.inTextBlock) {
 				if (line.startsWith("%%endtext")) {
 					this.tune.addMetaText("textBlock", this.multilineVars.textBlock);
 					this.multilineVars.inTextBlock = false;
-				} else {
-					this.multilineVars.textBlock += ' ' + line;
 				}
-			} else {
+				else
+					this.multilineVars.textBlock += ' ' + line;
+			} else
 				this.parseLine(line);
-			}
 			this.multilineVars.iChar += line.length + 1;
-		});
+		}
 		this.tune.cleanUp();
+	} catch(err) {
+		if (err !== "normal_abort")
+			throw err;
 	}
-}
+};

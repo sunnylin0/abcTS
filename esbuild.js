@@ -2,19 +2,25 @@
 const fs = require("fs-extra");
 const { build } = require("./node_modules/esbuild/lib/main");
 
-
 var config = {
 	entryPoints: [
-		"./src/abc_parse.ts",
+		"./src/proto.ts",
+		"./src/sprintf.ts",
+		"./src/string_extension.ts",
 		"./src/abc_glyphs.ts",
-		"./src/abc_tunebook.ts",
-		"./src/abc_write.ts",
 		"./src/abc_graphelements.ts",
-		"./src/abc_tokenizer.ts",
-		"./src/abc_tune.ts",
-		"./src/abc_tunebook.ts",
 		"./src/abc_layout.ts",
+		"./src/abc_write.ts",
+		"./src/abc_tunebook.ts",
 		"./src/abc_parse_header.ts",
+		"./src/abc_tune.ts",
+		"./src/abc_tokenizer.ts",
+		"./src/abc_parse.ts",
+		"./src/abc_midiwriter.ts",
+		"./src/svg.ts",
+		"./src/abc_editor.ts",
+		"./src/abc_plugin.ts",
+
 		"./src/abc_parser_lint.ts",
 		"./src/application.ts",
 		"./src/Maestro_500.js",
@@ -22,12 +28,11 @@ var config = {
 		"./src/play_embedded.ts",
 		//"./src/raphael-patched.js",
 		"./src/scalefont.ts",
-		"./src/sprintf.ts",
 		"./src/wav_generator.ts",
-		"./src/svg.ts",
-		"./src/string_extension.ts",
 	],
 	bundle: false,
+	legalComments:"inline",
+	//legalComments: 'eof',
 	outdir: './dist'
 };
 

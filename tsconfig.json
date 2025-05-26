@@ -23,5 +23,5 @@
       "node"
     ]
   },
-  "include": [ "src/**.ts", "src/**.d.ts", "types/**/*.d.ts" ]
+  "include": [ "src/**.ts", "src/**.d.ts", "types/**/*.d.ts", "tmp/abc_p_gem.ts" ]
 }

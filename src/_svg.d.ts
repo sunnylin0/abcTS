@@ -1,4 +1,49 @@
 ﻿//declare var svgNS: string;
+declare interface SVGElement {
+	translate(x: number, y: number): SVGElement;
+	//attr(attr: any): SVGElement;
+	attr<T extends SVGElement>(this: T, attributes: SVGAttributes<T>): T;
+	scale<T extends SVGElement>(scalex: number, scaley: number, x: number, y: number): T;
+	mouseup(handler: (event: MouseEvent) => void);
+}
+
+interface SVGAttributes<T extends SVGElement = SVGElement> {
+	[key: string]: any;
+	path?: T extends SVGPathElement ? (string | number[]) : never;
+	klass?: string;
+	fill?: string;
+	stroke?: string;
+	transform?: string;
+}
+interface Array<T extends SVGElement> {
+	attr<U extends T>(this: U[], attributes: SVGAttributes<U>): U[];
+	scale<U extends T>(scalex: number, scaley: number, x: number, y: number): U;
+}
+
+//interface SVGAttributes<T extends SVGElement = SVGElement> {
+//	path?: T extends SVGPathElement ? string | number[] : never;
+//	klass?: string;
+//	fill?: string;
+//	stroke?: string;
+//	transform?: string;
+//	[key: string]: any;
+//}
+
+//interface SVGTextElement extends SVGElement {
+//	attr<U extends SVGTextElement>(this: U, attributes: SVGAttributes<U> & { text?: string }): U;
+//}
+
+//interface SVGPathElement extends SVGElement {
+//	attr<U extends SVGPathElement>(this: U, attributes: SVGAttributes<U> & { d?: string }): U;
+//}
+
+//interface SVGReactElement extends SVGElement {
+//	attr<U extends SVGReactElement>(this: U, attributes: SVGAttributes<U> & { reactProp?: any }): U;
+//}
+
+
+
+
 
 declare interface Size {
 	width: number;
@@ -44,62 +89,26 @@ interface GroupOptions {
 	prepend?: boolean;
 }
 
-//declare class Svg {
-//	svg?: SVGElement;
-//	currentGroup?: SVGElement[];
-
-//	constructor(wrapper: HTMLElement);
-
-//	clear(): void;
-
-//	setTitle(title: string): void;
-
-//	setResponsiveWidth(w: number, h: number): void;
-
-//	setSize(w: number, h: number): void;
-
-//	setAttribute(attr: string, value: string): void;
-
-//	setScale(scale: number): void;
-
-//	insertStyles(styles: string): void;
-
-//	setParentStyles(attr: { [key: string]: string }): void;
-
-//	rect(attr: RectAttributes): SVGPathElement;
-
-//	dottedLine(attr: { x1: number; y1: number; x2: number; y2: number; stroke: string; }): SVGLineElement;
-
-//	rectBeneath(attr: RectAttributes): SVGRectElement;
-
-//	text(x: number, y: number, text: string, attr?: , target?: SVGElement): SVGTextElement;
-
-//	guessWidth(text: string, attr: TextAttributes): Size;
-
-//	createDummySvg(): SVGElement;
-
-//	getTextSize(text: string | number, attr: TextAttributes, el?: SVGTextElement): Size;
-
-//	openGroup(options?: GroupOptions): SVGGElement;
-
-//	closeGroup(): SVGGElement | null;
-
-//	path(attr: PathAttributes): SVGPathElement;
-
-//	pathToBack(attr: PathAttributes): SVGPathElement;
-
-//	lineToBack(attr: { [key: string]: string | number }): SVGLineElement;
-
-//	append(el: SVGElement): void;
-
-//	prepend(el: SVGElement): void;
-
-//	setAttributeOnElement(el: SVGElement, attr: { [key: string]: string | number }): void;
-
-//	moveElementToChild(parent: SVGElement, child: SVGElement): void;
-//}
-
 declare function constructHLine(x1: number, y1: number, x2: number): string;
 declare function constructVLine(x1: number, y1: number, y2: number): string;
 declare function createSvg(): SVGElement;
 
+
+
+(function () {
+'use strict'; 
+	var cookieTemp = "";
+	// 监听document里面的cookie 进行set操作 出现关键字v的时候进行debugger 
+	Object.defineProperty(document, 'cookie', {
+		//设置 
+		set: function (val) {
+			if (val.indexOf('v') != -1) {
+				debugger;
+			}
+			return val;
+		},
+		get: function () {
+			return cookieTemp;
+		},
+	})
+})();
