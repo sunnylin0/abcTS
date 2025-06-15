@@ -28,7 +28,6 @@ function str_repeat(i: any, m: number): string {
 }
 
 
-
 function sprintf(format: string, ...args: (string | number)[]): string {
 	let i = 0;
 	let f = format;
@@ -96,8 +95,9 @@ function sprintf(format: string, ...args: (string | number)[]): string {
 	}
 	return o.join('');
 }
-
+// 将sprintf挂载到全局
+(window as any).sprintf = sprintf;
 
 // 測試
-// console.log(sprintf("Hello, %s! You have %d unread messages.", "Alice", 5)); // 輸出: Hello, Alice! You have 5 unread messages.
-// console.log(sprintf("Binary: %b, Hex: %x, Octal: %o", 255, 255, 255)); // 輸出: Binary: 11111111, Hex: ff, Octal: 377
+//console.log(sprintf("Hello, %s! You have %d unread messages.", "Alice", 5)); // 輸出: Hello, Alice! You have 5 unread messages.
+//console.log(sprintf("Binary: %b, Hex: %x, Octal: %o", 255, 255, 255)); // 輸出: Binary: 11111111, Hex: ff, Octal: 377

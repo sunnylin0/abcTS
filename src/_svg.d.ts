@@ -1,4 +1,5 @@
-﻿//declare var svgNS: string;
+﻿
+
 declare interface SVGElement {
 	translate(x: number, y: number): SVGElement;
 	//attr(attr: any): SVGElement;
@@ -19,29 +20,6 @@ interface Array<T extends SVGElement> {
 	attr<U extends T>(this: U[], attributes: SVGAttributes<U>): U[];
 	scale<U extends T>(scalex: number, scaley: number, x: number, y: number): U;
 }
-
-//interface SVGAttributes<T extends SVGElement = SVGElement> {
-//	path?: T extends SVGPathElement ? string | number[] : never;
-//	klass?: string;
-//	fill?: string;
-//	stroke?: string;
-//	transform?: string;
-//	[key: string]: any;
-//}
-
-//interface SVGTextElement extends SVGElement {
-//	attr<U extends SVGTextElement>(this: U, attributes: SVGAttributes<U> & { text?: string }): U;
-//}
-
-//interface SVGPathElement extends SVGElement {
-//	attr<U extends SVGPathElement>(this: U, attributes: SVGAttributes<U> & { d?: string }): U;
-//}
-
-//interface SVGReactElement extends SVGElement {
-//	attr<U extends SVGReactElement>(this: U, attributes: SVGAttributes<U> & { reactProp?: any }): U;
-//}
-
-
 
 
 
@@ -93,22 +71,3 @@ declare function constructHLine(x1: number, y1: number, x2: number): string;
 declare function constructVLine(x1: number, y1: number, y2: number): string;
 declare function createSvg(): SVGElement;
 
-
-
-(function () {
-'use strict'; 
-	var cookieTemp = "";
-	// 监听document里面的cookie 进行set操作 出现关键字v的时候进行debugger 
-	Object.defineProperty(document, 'cookie', {
-		//设置 
-		set: function (val) {
-			if (val.indexOf('v') != -1) {
-				debugger;
-			}
-			return val;
-		},
-		get: function () {
-			return cookieTemp;
-		},
-	})
-})();

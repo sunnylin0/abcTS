@@ -1,4 +1,5 @@
-﻿
+﻿import { Svg } from "./svg";
+
 interface GlyphsData {
 	[key: string]: {
 		d: ([command: string, ...params: number[]])[];
@@ -7,7 +8,7 @@ interface GlyphsData {
 	};
 }
 
-class ABCGlyphs {
+export class ABCGlyphs {
 
 	private glyphs: GlyphsData;
 

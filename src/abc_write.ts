@@ -14,6 +14,12 @@
 //    You should have received a copy of the GNU General Public License
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import { ABCGlyphs } from "./abc_glyphs";
+import { ABCAbsoluteElement, ABCRelativeElement } from "./abc_graphelements";
+import { ABCLayout } from "./abc_layout";
+import { AbcTune } from "./abc_tune";
+import { Svg } from "./svg";
+import "./sprintf"
 
 /*global Math, sprintf, ABCGlyphs, ABCLayout*/
 /*extern ABCPrinter, AbcSpacing */
@@ -193,15 +199,7 @@ interface AbcTuneLine {
 //declare const ABCGlyphs: any; // External declaration for ABCGlyphs
 //declare const ABCLayout: any; // External declaration for ABCLayout
 
-interface AbcSpacing {
-	FONTEM: number;
-	FONTSIZE: number;
-	STEP: number;
-	SPACE: number;
-	TOPNOTE: number;
-	STAVEHEIGHT: number;
-	MARGINLEFT: number;
-}
+
 
 //interface Paper {
 //	path(): any;
@@ -267,7 +265,7 @@ interface AbcSpacing {
 //}
 // 定义AbcSpacing对象及其属性
 
-class AbcSpacing {
+export class AbcSpacing {
 	static FONTEM = 360;
 	static FONTSIZE = 30;
 	static STEP = AbcSpacing.FONTSIZE * 93 / 720;
@@ -276,7 +274,7 @@ class AbcSpacing {
 	static STAVEHEIGHT = 100;
 	static MARGINLEFT = 15;
 }
-class ABCPrinter {
+export class ABCPrinter {
 	y: number;
 	width: number;
 	paper: Svg;
@@ -615,9 +613,11 @@ class ABCPrinter {
 		if (extraText.length > 0) {
 			text2 = this.paper.text(AbcSpacing.MARGINLEFT, this.y + 25, extraText.join("\n")).attr({ "text-anchor": "start", "font-family": "serif", "font-size": 13 });
 		}
-		const height = text2.getBBox().height;
-		text2.translate(0, height / 2);
-
+		const height = 0
+		if (text2) {
+			text2.getBBox().height;
+			text2.translate(0, height / 2);
+		}
 
 		this.paper.setSize(maxwidth + 50, this.y + 30 + height);
 
@@ -638,172 +638,4 @@ class ABCPrinter {
 		this.paper.text(this.width / 2, this.y, abcline.subtitle).attr({ "text-anchor": "middle", "font-size": 16 });
 	}
 }
-
-
-
-
-
-
-let asd = {
-	"Object_other_treble": {
-		"type": "treble",
-		"verticalPos": 0
-	},
-	"Object_other": {
-		"accidentals": [{
-			"acc": "sharp",
-			"note": "f",
-			"verticalPos": 10
-		},
-		{
-			"acc": "sharp",
-			"note": "c",
-			"verticalPos": 7
-		}],
-		"duration": [0.5],
-		"bpm": 60
-	},
-	"Object_other_specified": {
-		"type": "specified",
-		"value": [{
-			"num": "4",
-			"den": "4"
-		}]
-	},
-	"Object_bar": {
-		"type": "bar_thin_thick",
-		"el_type": "bar",
-	},
-	"Object_note": {
-		"pitches": [{
-			"pitch": 5,
-			"verticalPos": 5
-		}],
-		"duration": 0.375,
-		"el_type": "note",
-	
-	
-	},
-	"Object_other_common_time": { "type": "common_time" }
-}
-
-let aaa3 = {
-	"Object_other_treble": {
-		"type": "treble",
-		"verticalPos": 0
-	},
-	"Object_other": {
-		"accidentals": [[],
-		[]],
-		"duration": [0.5],
-		"bpm": 60
-	},
-	"Object_other_specified": {
-		"type": "specified",
-		"value": [[]]
-	},
-	"Object_bar": {
-		"type": "bar_thin_thick",
-		"el_type": "bar",
-		"startChar": 749,
-		"endChar": 751,
-		"startEnding": "3",
-		"endEnding": true
-	},
-	"Object_note": {
-		"pitches": [[],
-			null,
-			null,
-			null,
-		{
-			"pitch": 10,
-			"endSlur": 1,
-			"verticalPos": 10
-		}],
-		"duration": 0.375,
-		"el_type": "note",
-		"startChar": 743,
-		"endChar": 749,
-		"startBeam": true,
-		"gracenotes": [[]],
-		"endBeam": true,
-		"decoration": ["roll"],
-		"chord": [],
-		"rest": [],
-		"lyric": [null],
-		"startTriplet": 3,
-		"endTriplet": true,
-		"startSlur": [1],
-		"endSlur": [2]
-	},
-	"Object_other_common_time": { "type": "common_time" }
-}
-
-//let asd2 = {
-//	"Object_other_treble": {
-//		"type": "treble",
-//		"verticalPos": 0
-//	},
-//	"Object_other": {
-//		"accidentals": [{
-//			"acc": "sharp",
-//			"note": "f",
-//			"verticalPos": 10
-//		},
-//		{
-//			"acc": "sharp",
-//			"note": "c",
-//			"verticalPos": 7
-//		}],
-//		"duration": [0.5],
-//		"bpm": 60
-//	},
-//	"Object_other_specified": {
-//		"type": "specified",
-//		"value": [{
-//			"num": "4",
-//			"den": "4"
-//		}]
-//	},
-//	"Object_bar": {
-//		"type": "bar_thin_thick",
-//		"el_type": "bar",
-//		"startChar": 688,
-//		"endChar": 690,
-//		"startEnding": "2",
-//		"endEnding": true
-//	},
-//	"Object_note": {
-//		"pitches": [{
-//			"pitch": 5,
-//			"verticalPos": 5
-//		}],
-//		"duration": 0.375,
-//		"el_type": "note",
-//		"startChar": 686,
-//		"endChar": 688,
-//		"startBeam": true,
-//		"gracenotes": [{
-//			"pitch": 8,
-//			"duration": 0.125,
-//			"verticalPos": 8
-//		}],
-//		"endBeam": true,
-//		"decoration": ["f"],
-//		"chord": {
-//			"name": "DC",
-//			"position": "above"
-//		},
-//		"startTriplet": 6,
-//		"endTriplet": true,
-//		"rest": { "type": "rest" },
-//		"startSlur": [1],
-//		"endSlur": [1],
-//		"lyric": [{
-//			"syllable": "ss",
-//			"divider": " "
-//		}]
-//	},
-//	"Object_other_common_time": { "type": "common_time" }
-//}
 

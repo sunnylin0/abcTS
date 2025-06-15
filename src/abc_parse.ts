@@ -14,6 +14,11 @@
 //    You should have received a copy of the GNU General Public License
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import { ABCBeamElem } from "./abc_graphelements";
+import { AbcParseHeader } from "./abc_parse_header";
+import { AbcTokenizer } from "./abc_tokenizer";
+import { AbcTune } from "./abc_tune";
+
 /*global Class */
 /*global AbcParseHeader, AbcTokenizer, AbcTune */
 /*extern AbcParse */
@@ -113,7 +118,7 @@
 //	barNumbers: number;
 //}
 
-class MultilineVars {
+export class MultilineVars {
 	iChar: number;
 	key: { regularKey?: KeySignature };
 	meter: MeterElement;
@@ -178,7 +183,7 @@ class MultilineVars {
 };
 
 
-class AbcParse {
+export class AbcParse {
 	tune: AbcTune;
 	tokenizer: AbcTokenizer;
 	multilineVars: MultilineVars;

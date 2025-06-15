@@ -1,5 +1,16 @@
-﻿// 定义 EditArea 类
-class EditArea {
+﻿import { ABCMidiWriter } from "./abc_midiwriter";
+import { AbcParse } from "./abc_parse";
+import { AbcTune } from "./abc_tune";
+import { AbcTuneBook } from "./abc_tunebook";
+import { ABCPrinter } from "./abc_write";
+import { Svg } from "./svg";
+
+import "./string_extension";
+import "./proto";
+import "./sprintf";
+
+// 定义 EditArea 类
+export class EditArea {
 	textarea: HTMLTextAreaElement;
 	changelistener: { fireChanged: () => void }
 	constructor(textareaid: string) {
@@ -51,7 +62,7 @@ class EditArea {
 }
 
 // 定义 ABCEditor 类
-class ABCEditor {
+export class ABCEditor {
 	editarea: EditArea;
 	div: HTMLElement;
 	mididiv?: HTMLElement;
@@ -63,8 +74,8 @@ class ABCEditor {
 	bIsPaused: boolean;
 	timerId: number | null;
 	printer: ABCPrinter;
-	tune;
-	svg;
+	tune:AbcTune;
+	svg:Svg;
 
 	constructor(editarea: string | EditArea, params: {
 		canvas_id?: string,
@@ -192,3 +203,8 @@ class ABCEditor {
 			this.updateRendering();
 	};
 }
+
+let edit = {aa:3,bb:11}
+let abc = "string hi hi"
+
+export {AbcParse,AbcTune,ABCPrinter,Svg }

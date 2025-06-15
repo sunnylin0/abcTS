@@ -31,7 +31,7 @@ interface ABCPluginOptions {
 	hide_text: string;
 }
 
-class ABCPlugin {
+export class ABCPlugin {
 	show_midi: boolean;
 	hide_abc: boolean;
 	render_before: boolean;

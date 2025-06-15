@@ -26,7 +26,7 @@ interface TuneInfo {
 	startPos: number; // The starting character position in the original book string
 }
 
-class AbcTuneBook {
+export class AbcTuneBook {
 	tunes: TuneInfo[];
 
 	constructor(book: string) {

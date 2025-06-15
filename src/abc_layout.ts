@@ -14,6 +14,10 @@
 //    You should have received a copy of the GNU General Public License
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import { ABCGlyphs } from "./abc_glyphs";
+import { ABCAbsoluteElement, ABCBeamElem, ABCEndingElem, ABCRelativeElement, ABCStaffGroupElement, ABCTieElem, ABCTripletElem, ABCVoiceElement } from "./abc_graphelements";
+import { AbcSpacing } from "./abc_write";
+
 /*global ABCVoiceElement */
 /*global ABCRelativeElement */
 /*global ABCAbsoluteElement */
@@ -114,7 +118,7 @@
 // 	constructor(anchor1: ABCRelativeElement, anchor2?: ABCRelativeElement, isAbove?: boolean);
 // }
 
-function getDuration(elem: ABCElement): number {
+export function getDuration(elem: ABCElement): number {
 	let d = 0;
 	if (elem) {
 		if (elem.duration)
@@ -125,12 +129,12 @@ function getDuration(elem: ABCElement): number {
 	return d;
 }
 
-function getDurlog(duration: number): number {
+export function getDurlog(duration: number): number {
 	return Math.floor(Math.log(duration) / Math.log(2));
 }
 
 // ABCLayout 类定义
-class ABCLayout {
+export class ABCLayout {
 	glyphs: ABCGlyphs;
 	y: number;
 	isBagpipes: boolean;

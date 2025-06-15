@@ -31,7 +31,7 @@ let abcParser: AbcParse = null;
 
 // This function takes a string representing an ABC tune book, and a callback routine, and it parses the string
 // and calls the callback routine for each tune it finds. If a tune is parsed in error, then the callback is called with null.
-function processAbc(params) {
+export function processAbc(params) {
 	var strAbc = params.tunebook;
 	var fnCallback = params.fnCallback;
 	var ret = [];

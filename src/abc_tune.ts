@@ -14,6 +14,8 @@
 //    You should have received a copy of the GNU General Public License
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import { ABCBeamElem } from "./abc_graphelements";
+
 /*extern AbcTune */
 
 //declare class AbcTune {
@@ -310,7 +312,7 @@
 //	addMetaText(key: string, value: string): void;
 //}
 
-class AbcTune {
+export class AbcTune {
 	version: string = "1.0.0";
 	metaText: MetaText = {};
 	formatting: Formatting = {};

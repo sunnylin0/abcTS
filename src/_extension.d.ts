@@ -20,7 +20,7 @@ declare interface String {
 //declare global {
 declare interface Object {
 	/** 克隆对象 */
-	clone<T>(this: T): T;
+	clone<T>(this: T, source: T): T;
 	/** 获取对象的所有可枚举属性键 */
 	keys<T>(this: T): Array<keyof T>;
 }

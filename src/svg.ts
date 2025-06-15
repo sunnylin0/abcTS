@@ -4,82 +4,10 @@
 
 const svgNS = "http://www.w3.org/2000/svg";
 
-Object.defineProperty(SVGElement.prototype, "translate", {
-	value(x: number, y: number) {
-		const dx = this.getAttribute("x").toNumber() + x
-		const dy = this.getAttribute("y").toNumber() + y
-		if (!dx) this.setAttribute("x", dx.toString());
-		if (!dy) this.setAttribute("y", dy.toString());
-		return this;
-	}
-});
-
-Object.defineProperty(SVGElement.prototype, "attr", {
-	value<T extends SVGElement>(this: T, attr: SVGAttributes<T>) {
-		const el = this;
-		for (const key in attr) {
-			if (Object.prototype.hasOwnProperty.call(attr, key)) {
-				const value = attr[key];
-				if (value === undefined) continue;
-
-				if (key === 'path') {
-					const pathValue = Array.isArray(value)
-						? value.join().replace(/,/g, ' ')
-						: String(value).replace(/,/g, ' ');
-					el.setAttributeNS(null, 'd', pathValue);
-				}
-				else if (key === 'klass') {
-					el.setAttributeNS(null, 'class', String(value));
-				}
-				else {
-					el.setAttributeNS(null, key, String(value));
-				}
-			}
-		}
-		return el;
-	},
-	writable: true,
-	configurable: true
-});
-
-Object.defineProperty(SVGElement.prototype, "scale", {
-	value(scalex: number, scaley: number, x: number, y: number) {
-		this.setAttribute("transform",
-			`translate(${-(scalex - 1) * x},${-(scaley - 1) * y}) scale(${scalex},${scaley}) `)
-		return this;
-	}
-});
-
-Object.defineProperty(SVGElement.prototype, "mouseup", {
-	value(fn: () => void) {
-		this.addEventListener('mouseup', fn);
-		return this;
-	}
-});
-
-
-Object.defineProperty(Array.prototype, "attr", {
-	value<T extends SVGElement>(this: T[], attr: SVGAttributes<T>) {
-		return this.map(el => el.attr(attr));
-	},
-	writable: true,
-	configurable: true
-});
-
-Object.defineProperty(Array.prototype, "scale", {
-	value<T extends SVGElement>(this: T[], scalex: number, scaley: number, x: number, y: number) {
-		return this.map(el => el.scale(scalex, scaley, x, y));
-	},
-	writable: true,
-	configurable: true
-});
-
-
-
 
 
 let sizeCache = {};
-class Svg {
+export class Svg {
 	svg?: SvgInHtml;
 	parentElement?: HTMLElement;	//父容器
 	dummySvg?: SVGElement; //臨時 SVG

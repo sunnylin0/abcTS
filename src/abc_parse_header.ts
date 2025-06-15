@@ -14,6 +14,10 @@
 //    You should have received a copy of the GNU General Public License
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import { MultilineVars } from "./abc_parse";
+import { AbcTokenizer } from "./abc_tokenizer";
+import { AbcTune } from "./abc_tune";
+
 /*extern AbcParseHeader */
 
 
@@ -33,7 +37,7 @@ var key5flat: KeySignature = { acc: 'flat', note: 'G' };
 var key6flat: KeySignature = { acc: 'flat', note: 'c' };
 var key7flat: KeySignature = { acc: 'flat', note: 'f' };
 
-class AbcParseHeader {
+export class AbcParseHeader {
 	private tokenizer: AbcTokenizer;
 	private warn: (message: string, line: string, start: number) => void;
 	private multilineVars: MultilineVars

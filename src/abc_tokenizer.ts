@@ -71,7 +71,7 @@
 // }
 
 
-class AbcTokenizer {
+export class AbcTokenizer {
 	// 跳过空格
 	skipWhiteSpace(str: string): number {
 		for (let i = 0; i < str.length; i++) {

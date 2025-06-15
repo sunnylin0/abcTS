@@ -26,7 +26,7 @@
 declare const jsonSchema: JSONSchema.Schema; // Assume JSONSchema is a validation library, need a declaration for TypeScript
 
 
-class AbcParserLint {
+export class AbcParserLint {
 	decorationList;
 	tempoProperties;
 	fontType;

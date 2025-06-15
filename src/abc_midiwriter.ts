@@ -1,4 +1,6 @@
-﻿// 设置元素属性的函数
+﻿import { AbcTune } from "./abc_tune";
+
+// 设置元素属性的函数
 function setAttributes(elm: HTMLElement, attrs: { [key: string]: string }): HTMLElement {
 	for (const attr in attrs) {
 		elm.setAttribute(attr, attrs[attr]);
@@ -7,7 +9,7 @@ function setAttributes(elm: HTMLElement, attrs: { [key: string]: string }): HTML
 }
 
 // Midi 类定义
-class Midi {
+export class Midi {
 	tracks: string[] = [];
 	track: string = "%%0";
 	first: boolean = true;
@@ -153,7 +155,7 @@ function toDurationHex(n: number): string {
 //	note?: string;
 //}
 
-class ABCMidiWriter {
+export class ABCMidiWriter {
 	options: any;
 	parent: HTMLElement;
 	scale: number[];
@@ -164,7 +166,7 @@ class ABCMidiWriter {
 	qpm: number;
 	program: number;
 	midi: Midi; // Assuming Midi is some type defined elsewhere
-	abctune: ABCTune;
+	abctune: AbcTune;
 	baseduration: number;
 	baraccidentals: number[];
 	accidentals: number[];

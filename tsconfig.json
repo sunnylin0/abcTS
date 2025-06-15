@@ -4,24 +4,37 @@
     //非常好用的 ex: import {*} from '*/command/addevele'
     //但 storybook 看不懂要在 .storybook/main.js 設定
     "paths": {
-      "@/*": [ "./src/*" ],
-      "@@/*": [ "./src/stories/score/*" ]
+      "@/*": [ "./src/*" ]
     },
-    //"declaration": true,  //设置生成 *.d.ts 文件的目录
-    //"declarationMap": true,//每个 *.d.js 文件生成对应的 *.d.js.map(sourcemap) 文件
-    //"experimentalDecorators": true,//仅仅生成 *.d.js 文件
-    //"strict": true,
-    "skipLibCheck": true, /* Skip type checking all .d.ts files. */
+    "experimentalDecorators": true,
+    "skipLibCheck": true,
     //"target": "es5",
     "outDir": "./build",
     "allowJs": true, //編譯 *.js 文件 , 要多 "outDir" 屬性才不會有 TS5055 問題
+    "strict": true,
+    "esModuleInterop": true,
     "sourceMap": true,
+    "jsx": "react",
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    //"jsx": "react-jsx",
+    ////"declaration": true,  //设置生成 *.d.ts 文件的目录
+    ////"declarationMap": true,//每个 *.d.js 文件生成对应的 *.d.js.map(sourcemap) 文件
+    ////"experimentalDecorators": true,//仅仅生成 *.d.js 文件
+    //"strict": true,
+    //"skipLibCheck": true, /* Skip type checking all .d.ts files. */
+    //"target": "es5",
+    //"outDir": "./build",
+    //"allowJs": true, //編譯 *.js 文件 , 要多 "outDir" 屬性才不會有 TS5055 問題
+    //"sourceMap": true,
     "allowSyntheticDefaultImports": true, /* 允許從沒有默認導出的模塊中默認導入。 這不會影響代碼發出，只會影響類型檢查。 */
-    "experimentalDecorators": true,
-    "esModuleInterop": true, /* 通過為所有導入創建命名空間對象，啟用 CommonJS 和 ES 模塊之間的發射互操作性。 暗示“allowSyntheticDefaultImports”。 */
+    "strictPropertyInitialization": false, // TS2564 初始化未赋值错误
+    //"experimentalDecorators": true,
+    //"esModuleInterop": true, /* 通過為所有導入創建命名空間對象，啟用 CommonJS 和 ES 模塊之間的發射互操作性。 暗示“allowSyntheticDefaultImports”。 */
     "types": [
       "node"
     ]
-  },
-  "include": [ "src/**.ts", "src/**.d.ts", "types/**/*.d.ts", "tmp/abc_p_gem.ts" ]
+  }
+ // "include": ["node_modules/**", "src/**.ts", "src/**.d.ts","muse/**.ts", "types/**/*.d.ts" ]
 }

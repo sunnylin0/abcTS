@@ -2,6 +2,12 @@
 declare function str_repeat(i: any, m: number): string;
 declare function sprintf(format: string, ...args: (string | number)[]): string;
 
+
+//declare global {
+//	function sprintf(format: string, ...args: (string | number)[]): string;
+//}
+
+
 interface Window {
 	authenticity_token: string;
 }
@@ -570,4 +576,14 @@ interface MidiMark {
 	staff?: number;
 	voice?: number;
 	pos?: number;
+}
+
+interface AbcSpacing {
+	FONTEM: number;
+	FONTSIZE: number;
+	STEP: number;
+	SPACE: number;
+	TOPNOTE: number;
+	STAVEHEIGHT: number;
+	MARGINLEFT: number;
 }

@@ -15,11 +15,14 @@
 //    You should have received a copy of the GNU General Public License
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import { getDurlog } from "./abc_layout";
+import { ABCPrinter, AbcSpacing } from "./abc_write";
+
 /*global ABCPrinter, sprintf, AbcSpacing, getDurlog */
 /*extern  ABCVoiceElement ABCRelativeElement ABCAbsoluteElement ABCBeamElem ABCEndingElem ABCTripletElem ABCTieElem ABCStaffGroupElement*/
 
 
-class ABCStaffGroupElement {
+export class ABCStaffGroupElement {
 	voices: ABCVoiceElement[] = [];
 	staffs: number[] = [];
 	spacingunits: number = 0;
@@ -156,7 +159,7 @@ class ABCStaffGroupElement {
 	}
 }
 
-class ABCVoiceElement {
+export class ABCVoiceElement {
 	children: ABCAbsoluteElement[] = [];
 	beams: ABCBeamElem[] = [];
 	otherchildren: (ABCTieElem | ABCTripletElem)[] = []; // ties, slurs, triplets
@@ -277,7 +280,7 @@ class ABCVoiceElement {
 	}
 }
 
-class ABCAbsoluteElement {
+export class ABCAbsoluteElement {
 	abcelem: ABCElement;
 	duration: number;
 	minspacing: number = 0;
@@ -361,7 +364,7 @@ class ABCAbsoluteElement {
 	}
 }
 
-class ABCRelativeElement {
+export class ABCRelativeElement {
 	x: number = 0;
 	c: string | null = "";
 	dx: number = 0;
@@ -432,7 +435,7 @@ class ABCRelativeElement {
 	}
 }
 
-class ABCEndingElem {
+export class ABCEndingElem {
 	text: string; // text to be displayed top left
 	anchor1: ABCRelativeElement; // must have a .x property or be null (means starts at the "beginning" of the line - after keysig)
 	anchor2: ABCRelativeElement; // must have a .x property or be null (means ends at the end of the line)
@@ -466,7 +469,7 @@ class ABCEndingElem {
 		printer.paper.path().attr({ path: pathString, stroke: "#000000", fill: "none" });
 	};
 }
-class ABCTieElem {
+export class ABCTieElem {
 	anchor1: ABCRelativeElement; // must have a .x and a .pitch, and a .parent property or be null (means starts at the "beginning" of the line - after keysig)
 	anchor2: ABCRelativeElement; // must have a .x and a .pitch property or be null (means ends at the end of the line)
 	above: boolean; // true if the arc curves above
@@ -521,7 +524,7 @@ class ABCTieElem {
 	}
 }
 
-class ABCTripletElem {
+export class ABCTripletElem {
 	number: number;
 	anchor1: ABCRelativeElement; // must have a .x and a .parent property or be null (means starts at the "beginning" of the line - after keysig)
 	anchor2: ABCRelativeElement; // must have a .x property or be null (means ends at the end of the line)
@@ -585,7 +588,7 @@ class ABCTripletElem {
 	}
 }
 
-class ABCBeamElem {
+export class ABCBeamElem {
 	dy: number;
 	isflat: boolean;
 	isgrace: boolean;
