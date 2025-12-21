@@ -52,3 +52,4 @@ export default tseslint.config({
   },
 })
 ```
+這是五線譜軟體 資料由 const tune = abcParser.getTune(); 取得， 在進入 This.printer.printABC(tune);(abc_write.ts) 繪出五線譜 ．請改成 react (abc_react_write.ts) a.可以滑鼠編輯(插入音符，刪除音符，調整音符) b.有 store

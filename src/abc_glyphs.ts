@@ -17,6 +17,10 @@ export class ABCGlyphs {
 	}
 
 
+	getGlyph(name: string) {
+		return this.glyphs[name];
+	}
+
 	printSymbol(x: number, y: number, symb: string, paper: Svg): SVGPathElement {
 		if (!this.glyphs[symb]) return null;
 		let pathArray = this.glyphs[symb].d;
