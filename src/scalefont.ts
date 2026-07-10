@@ -1,93 +1,91 @@
-﻿var Raphael: Raphael;
+var Raphael: Raphael;
 
-Raphael.fn.toRelative = function (pathArray: any[] | string): any[] {
-  const R = this.raphael;
-  const push = "push";
-  const length = "length";
-  const proto = "prototype";
-  const lowerCase = String[proto].toLowerCase;
-  const toString = "toString";
+if (typeof Raphael !== 'undefined' && Raphael) {
+  Raphael.fn.toRelative = function (pathArray: any[] | string): any[] {
+    const R = this.raphael;
+    const push = "push";
+    const length = "length";
+    const proto = "prototype";
+    const lowerCase = String[proto].toLowerCase;
+    const toString = "toString";
 
-  if (!R.is(pathArray, "array") || !R.is(pathArray && pathArray[0], "array")) {// rough assumption
-    pathArray = R.parsePathString(pathArray);
-  }
+    if (!R.is(pathArray, "array") || !R.is(pathArray && pathArray[0], "array")) {// rough assumption
+      pathArray = R.parsePathString(pathArray);
+    }
 
-  const res: any[] = [];
-  let x = 0,
-    y = 0,
-    mx = 0,
-    my = 0,
-    start = 0;
+    const res: any[] = [];
+    let x = 0,
+      y = 0,
+      mx = 0,
+      my = 0,
+      start = 0;
 
-  if (pathArray[0][0] == "M") {
-    x = pathArray[0][1];
-    y = pathArray[0][2];
-    mx = x;
-    my = y;
-    start++;
-    res[push](["M", x, y]);
-  }
+    if (pathArray[0][0] === "M") {
+      x = +pathArray[0][1];
+      y = +pathArray[0][2];
+      mx = x;
+      my = y;
+      start = 1;
+      res[push](["M", x, y]);
+    }
 
-  for (let i = start, ii = pathArray[length]; i < ii; i++) {
-    const r: any[] = (res[i] = []);
-    const pa = pathArray[i];
+    for (let i = start, ii = pathArray[length]; i < ii; i++) {
+      const r: any[] = res[i] = [];
+      const cmd = pathArray[i][0];
 
-    if (pa[0] != lowerCase.call(pa[0])) {
-      r[0] = lowerCase.call(pa[0]);
-      switch (r[0]) {
-        case "a":
-          r[1] = pa[1];
-          r[2] = pa[2];
-          r[3] = pa[3];
-          r[4] = pa[4];
-          r[5] = pa[5];
-          r[6] = +(pa[6] - x).toFixed(3);
-          r[7] = +(pa[7] - y).toFixed(3);
+      if (cmd !== lowerCase.call(cmd)) {
+        r[0] = lowerCase.call(cmd);
+        switch (r[0]) {
+          case "a":
+            r[1] = pathArray[i][1];
+            r[2] = pathArray[i][2];
+            r[3] = pathArray[i][3];
+            r[4] = pathArray[i][4];
+            r[5] = pathArray[i][5];
+            r[6] = pathArray[i][6] - x;
+            r[7] = pathArray[i][7] - y;
+            break;
+          case "v":
+            r[1] = pathArray[i][1] - y;
+            break;
+          case "h":
+            r[1] = pathArray[i][1] - x;
+            break;
+          default:
+            for (let j = 1, jj = pathArray[i][length]; j < jj; j++) {
+              r[j] = pathArray[i][j] - (j % 2 ? x : y);
+            }
+        }
+      } else {
+        res[i] = [].concat(pathArray[i]);
+        if (cmd === "m") {
+          mx = pathArray[i][1] + x;
+          my = pathArray[i][2] + y;
+        }
+      }
+
+      const len = res[i][length];
+      switch (res[i][0]) {
+        case "z":
+          x = mx;
+          y = my;
+          break;
+        case "h":
+          x += +res[i][len - 1];
           break;
         case "v":
-          r[1] = +(pa[1] - y).toFixed(3);
-          break;
-        case "m":
-          mx = pa[1];
-          my = pa[2];
+          y += +res[i][len - 1];
           break;
         default:
-          for (let j = 1, jj = pa[length]; j < jj; j++) {
-            r[j] = +(pa[j] - (j % 2 ? x : y)).toFixed(3);
-          }
-      }
-    } else {
-      res[i] = [];
-      if (pa[0] == "m") {
-        mx = pa[1] + x;
-        my = pa[2] + y;
-      }
-      for (let k = 0, kk = pa[length]; k < kk; k++) {
-        res[i][k] = pa[k];
+          x += +res[i][len - 2];
+          y += +res[i][len - 1];
       }
     }
 
-    const len = res[i][length];
-    switch (res[i][0]) {
-      case "z":
-        x = mx;
-        y = my;
-        break;
-      case "h":
-        x += +res[i][len - 1];
-        break;
-      case "v":
-        y += +res[i][len - 1];
-        break;
-      default:
-        x += +res[i][len - 2];
-        y += +res[i][len - 1];
-    }
-  }
-
-  res[toString] = R._path2string;
-  return res;
-};
+    res[toString] = R._path2string;
+    return res;
+  };
+}
 
 function scale_font(font: Font, size: number, raphael: Raphael): void {
   const scale = size / font.face["units-per-em"];

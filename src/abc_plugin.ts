@@ -66,7 +66,7 @@ class ABCPlugin {
 		this.errors = "";
 		const elems = this.getABCContainingElements(rootElement);
 		const self = this;
-		const divs = elems.map(elem => self.convertToDivs(elem));
+		const divs = elems.map(elem => self.convertToDivs(elem)).filter((div): div is HTMLElement => div !== null);
 		this.auto_render = divs.length <= this.auto_render_threshold;
 		divs.forEach(elem => self.render(elem, elem.getAttribute("data-abctext")));
 	}
@@ -83,7 +83,9 @@ class ABCPlugin {
 					includeself = true;
 				}
 			} else if (node.nodeType === Node.ELEMENT_NODE) {
-				recurse(node);
+				for (let i = 0; i < node.childNodes.length; i++) {
+					recurse(node.childNodes[i]);
+				}
 			}
 		}
 

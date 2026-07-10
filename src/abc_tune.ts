@@ -1,4 +1,4 @@
-﻿//    abc_tune.ts: a computer usable internal structure representing one tune.
+//    abc_tune.ts: a computer usable internal structure representing one tune.
 //    Copyright (C) 2010 Paul Rosen (paul at paulrosen dot net)
 //
 //    This program is free software: you can redistribute it and/or modify
@@ -577,9 +577,9 @@ class AbcTune {
 		pushNote(hashParams);
 	}
 
-	appendStartingElement(type: string, startChar?: number, endChar?: number, hashParams2: ABCElement) {
+	appendStartingElement(type: string, startChar?: number, endChar?: number, hashParams2?: ABCElement) {
 		// Clone the object because it will be sticking around for the next line and we don't want the extra fields in it.
-		let hashParams = { ...hashParams2 };
+		let hashParams = hashParams2 ? { ...hashParams2 } : {} as any;
 		// These elements should not be added twice, so if the element exists on this line without a note or bar before it, just replace the staff version.
 		let voice = this.lines[this.lineNum].staff[this.staffNum].voices[this.voiceNum];
 		for (let i = 0; i < voice.length; i++) {

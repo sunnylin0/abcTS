@@ -294,7 +294,7 @@ class AbcParseHeader {
 			return { foundClef: true };
 		}
 
-		let ret:KeySigElement  = {};
+		let ret: KeySigElement = {};
 
 		const retPitch = this.tokenizer.getKeyPitch(str);
 		if (retPitch.len > 0) {
@@ -443,7 +443,7 @@ class AbcParseHeader {
 			case "botmargin":
 			case "botspace":
 			case "composerspace":
-			case "indent":
+			//	case "indent":
 			case "leftmargin":
 			case "linesep":
 			case "musicspace":
@@ -924,7 +924,7 @@ class AbcParseHeader {
 		return null;
 	};
 
-	calcTempo(relTempo: { duration: number[] }): { duration: number[] } { 
+	calcTempo(relTempo: { duration: number[] }): { duration: number[] } {
 		const dur = this.multilineVars.default_length ? this.multilineVars.default_length : 1;
 		for (let i = 0; i < relTempo.duration.length; i++) {
 			relTempo.duration[i] = dur * relTempo.duration[i];
@@ -1190,7 +1190,7 @@ class AbcParseHeader {
 		Z: 'transcription'
 	};
 
-	parseHeader(line: string): { recurse?: boolean, str?: string , newline?: boolean , regular?: boolean, words?: boolean } { 
+	parseHeader(line: string): { recurse?: boolean, str?: string, newline?: boolean, regular?: boolean, words?: boolean } {
 		if (line.startsWith('%%')) {
 			const err = this.addDirective(line.substring(2));
 			if (err) this.warn(err, line, 2);

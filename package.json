@@ -1,20 +1,17 @@
-﻿{
+{
 	"name": "abcts",
 	"version": "1.0.0",
 	"description": "",
 	"author": "sunny lin",
 	"license": "MIT",
 	"scripts": {
-		"dev": "node esbuild.js",
-		"m1": "ts-migrate  -- --help abcjs --s 'bbar'",
-		"m2": " ts-migrate -- rename './abcjs'",
-		"m3": "ts-migrate -- --help",
-		"m4": "ts-migrate -- rename \"file.js\"",
-		"i1": "npm run ts-migrate --init abcjs"
+		"dev": "vite",
+		"build": "vite build"
 	},
 	"devDependencies": {
-		"ts-migrate": "^0.1.35",
-		"typescript": "4.1.5"
+		"typescript": "4.1.5",
+		"vite": "^6.2.0",
+		"vite-plugin-commonjs": "^0.10.4"
 	},
 	"dependencies": {
 		"@types/fs-extra": "^11.0.4",
