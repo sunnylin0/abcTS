@@ -189,10 +189,10 @@ export class ABCMidiWriter {
 	getStaff(): Staff {
 		return this.getLine().staff[this.mark.voice];
 	}
-	getVoice(): NoteElement[] {
+	getVoice(): NOTES_Element[] {
 		return this.getStaff().voices[this.mark.voice];
 	};
-	getElem(): NoteElement {// ABCElement {
+	getElem(): NOTES_Element {
 		return this.getVoice()[this.mark.pos];
 	}
 

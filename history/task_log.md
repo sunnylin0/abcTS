@@ -67,3 +67,97 @@
 ### 驗收條件 (Acceptance Criteria)
 - `index.ts` 中所有 TS 類別與變數皆已更換為具名載入且無型別紅線。
 - `pnpm run build` 與 `pnpm run dev` 正常運作無解析錯誤。
+
+---
+## [2026-07-19 17:15:00] 分析 ABCJS 專案架構與渲染機制
+
+### 目標 (Objectives)
+- 分析 `workspace.html` 的 ABC 渲染結構、數據傳遞與各模組職責，並針對專案提供重構與優化建議。
+
+### 需求 (Requirements)
+1. 深入分析 `select` 下拉選單中樂譜參數如何傳遞至 ABC AST，並繪製成 SVG 的流向。
+2. 梳理各 TS/JS 檔案在系統中的定位、職責與各自渲染的 DOM 元件。
+3. 撰寫一份結構化、易於理解的專案架構分析報告。
+
+### 驗收條件 (Acceptance Criteria)
+- 完成 `analysis_results.md` 分析報告並交付使用者。
+
+---
+## [2026-07-19 17:25:00] 解決 ABCElement 與 NoteElement 型別衝突
+
+### 目標 (Objectives)
+- 重構並解決 `src/all.d.ts` 中 `ABCElement` 與 `NoteElement` 因欄位定義不一致所引起的型別衝突。
+
+### 需求 (Requirements)
+1. 梳理 `ABCElement` 與 `NoteElement` 重疊的屬性，如 `decoration`、`gracenotes`、`pitches`、`chord`、`startSlur`、`endSlur`。
+2. 統一修改其型別，確保兩者互相相容且與專案邏輯一致（如 `chord` 改為 `Chord` 物件，連音線 `startSlur`/`endSlur` 改為 `number | number[]` 以相容前後期轉換）。
+3. 確保 `abc_graphelements.ts`、`abc_layout.ts`、`abc_tune.ts`、`abc_parse.ts`、`abc_midiwriter.ts` 不再有因上述兩者不相容而產生的型別衝突。
+
+### 驗收條件 (Acceptance Criteria)
+- 修改 `src/all.d.ts` 中的介面宣告。
+- `pnpm run build` 與開發伺服器均正常運作。
+
+---
+## [2026-07-20 01:50:00] abc_parse.ts & abc_tune.ts 型別精煉與 any 清理
+
+### 目標 (Objectives)
+- 分析 `abc_parse.ts:L910` 變數 `el` 之設計意圖並對其強型別化，清除並重構 `abc_parse.ts` 與 `abc_tune.ts` 內的大量 `any` 宣告，全面提昇代碼型別安全與健壯性。
+
+### 需求 (Requirements)
+1. 經分析 `el` 在 `abc_parse.ts` 內的生命週期，確認其主要承載 Note 元素屬性並被傳入 `appendElement`，將其型別明確改為 `ABCElement`。
+2. 尋找並清除 `abc_parse.ts` 和 `abc_tune.ts` 中的 `any` 型別：
+   - 清除並重構 `abc_tune.ts` 裡的 `hp`、`cleanUpSlursInLine` 的 `obj` 與 `num`、`appendStartingElement` 的 `hashParams`、`setCurrentStaff` 的 `opt`。
+   - 在 `all.d.ts` 內定義 `ParseStaff` 與 `ParseVoice` 介面，以替換 `abc_parse.ts` 內 `staves`、`voices`、`currentVoice` 和 `inTieChord` 等處的 `any` 宣告。
+   - 將 `letter_to_open_slurs_and_triplets`、`addWords`、`letter_to_grace` 內的變數（如 `ret`、`word_list`、`gracenotes`）完全強型別化。
+
+### 驗收條件 (Acceptance Criteria)
+- 清理所有指定 `any` 宣告。
+- `pnpm run build` 通過無誤。
+
+---
+## [2026-07-20 02:00:00] ABCElement & NoteElement 繼承結構重構與優化
+
+### 目標 (Objectives)
+- 重構 `ABCElement` 與 `NoteElement` 的宣告，消除欄位重複定義，建立清晰的 TypeScript 繼承階層。
+
+### 需求 (Requirements)
+1. 讓 `ABCElement` 繼承 `ElementBase`，並移除 `ABCElement` 中手寫重複的 `startChar`、`endChar` 屬性。
+2. 讓 `NoteElement` 直接繼承 `ABCElement`，並鎖定其 `el_type?: "note"`。
+3. 移除 `NoteElement` 內部與 `ABCElement` 100% 重複的屬性定義，使代碼精簡，防止未來型別不同步。
+4. 確保 `abc_parse.ts`、`abc_tune.ts` 等使用到這些型別的程式碼能完美編譯。
+
+### 驗收條件 (Acceptance Criteria)
+- `NoteElement` 的定義成功簡化為只鎖定 `el_type?: "note"`。
+- `pnpm run build` 建置成功通過。
+
+---
+## [2026-07-20 02:05:00] 精煉 all.d.ts 下屬元素繼承關係與隱患修正
+
+### 目標 (Objectives)
+- 分析 `all.d.ts` 內各元素型別的屬性一致性，解決其在 `abc_tune.ts`、`abc_parse.ts`、`abc_layout.ts` 與 `abc_write.ts` 內的潜在型別隱患。
+
+### 需求 (Requirements)
+1. 經排查，找出 `BarElement.startEnding?: boolean` 與 `RestElement.chord?: string` 的歷史遺留錯誤宣告，將其修正為正確的 `string` 與 `Chord` 物件型別。
+2. 讓 `RestElement`、`BarElement`、`ClefElement`、`KeySigElement` 與 `MeterElement` 全部統一直接繼承 `ABCElement`。
+3. 確保專案中這 4 個核心檔案能安全編譯，達成型別的完全對齊。
+
+### 驗收條件 (Acceptance Criteria)
+- `RestElement` 等元素均正確繼承 `ABCElement`。
+- `pnpm run build` 通過無誤。
+
+---
+## [2026-07-20 02:10:00] 修復 abc_tune.ts 中的型別紅線與重大邏輯隱患
+
+### 目標 (Objectives)
+- 清理 `abc_tune.ts` 內的 IDE 警告紅線，消除潛在的型別安全盲區。
+
+### 需求 (Requirements)
+1. 修復 `cleanUpSlursInLine` 呼叫傳入 `ABCLine` 而非其下聲部（`NoteElement[]`）的重大邏輯錯誤。
+2. 修正 `fixClefPlacement(el)` 判定中使用 `el.type === 'clef'` 為 `el.el_type === 'clef'`，並使用轉型確保型別匹配。
+3. 將 `potentialStartBeam` 與 `potentialEndBeam` 型別自 `ABCBeamElem` 糾正為 `ABCElement`。
+4. 解除 `appendElement` 的 `hashParams?: ABCElement` 的可選型別造成可能為 `undefined` 的警告。
+5. 確保 TypeScript 編譯無誤。
+
+### 驗收條件 (Acceptance Criteria)
+- `abc_tune.ts` 內的所有紅線消除。
+- `pnpm run build` 通過。

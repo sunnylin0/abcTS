@@ -98,3 +98,125 @@
 ### 風險評估 (Risks & Mitigations)
 - 更改正則可能會影響打包拼接的檔案解析。
   - *對策*：運行 `pnpm run build` 確認 UMD bundle 包含全部 class 且大小正常。
+
+---
+## [2026-07-19 17:15:00] 分析 ABCJS 專案架構與渲染機制
+
+### 步驟與技術方案 (Step-by-step Technical Plans)
+1. **源碼研讀與追蹤**
+   - 從前端 HTML (`workspace.html`) 到核心控制器 (`abc_editor.ts`)，追蹤數據綁定與 Debounce 渲染邏輯。
+   - 分析 AST 解析管道，梳理 `abc_tunebook.ts`、`abc_tokenizer.ts`、`abc_parse.ts` 與 `abc_tune.ts` 的職責。
+   - 梳理繪圖引擎與排版佈局的互動（`abc_layout.ts`、`svg.ts`、`abc_glyphs.ts` 與 `abc_write.ts`）。
+2. **輸出分析成果**
+   - 建立並撰寫 `analysis_results.md`，提供完整的功能對照表、樂譜參數傳遞時序流、模組職責以及針對效能、架構與音訊播放器的優化建議。
+
+### 影響檔案 (Affected Files)
+- `analysis_results.md` (新增)
+
+### 風險評估 (Risks & Mitigations)
+- 無代碼修改風險。
+
+---
+## [2026-07-19 17:25:00] 解決 ABCElement 與 NoteElement 型別衝突
+
+### 步驟與技術方案 (Step-by-step Technical Plans)
+1. **分析兩介面的欄位衝突**
+   - `chord`: `NoteElement` 與 `BarElement` 宣告為 `string`，而 `ABCElement` 宣告為 `Chord`。
+     - *方案*：依據 `abc_parse.ts` 中和弦解析的邏輯 `el.chord = { name: ..., position: ... }`，將所有 `chord` 統一改為 `Chord` 介面型別。
+   - `decoration`: `NoteElement` 使用 `Decoration[]`，而 `ABCElement` 使用 `string[]`。
+     - *方案*：將所有的裝飾線 `decoration` 統一改為 `string[]` 以提供最大相容性。
+   - `gracenotes`: `NoteElement` 使用 `NoteElement[]`，而 `ABCElement` 與 `Voice_Staff_voices` 使用 `GraceNote[]`。
+     - *方案*：考慮到裝飾音同樣擁有完整音符屬性與計算，將兩者統一修改為 `NoteElement[]`。
+   - `pitches`: `NoteElement` 使用硬編碼的 inline 物件陣列，而 `ABCElement` 使用 `Pitch[]`。
+     - *方案*：統一改為 `Pitch[]`。
+   - `startSlur` / `endSlur`: 因為在 `abc_tune.ts` 的 `cleanUp` 執行前後，這兩個屬性會從 `number` 被轉換成 `number[]`。
+     - *方案*：在 `Pitch`、`NoteElement` 和 `ABCElement` 介面中將其類型統一為 `number | number[]`。
+
+### 影響檔案 (Affected Files)
+- `src/all.d.ts` (修改)
+
+### 風險評估 (Risks & Mitigations)
+- 變更欄位型別可能導致其他檔案有新的 TS 錯誤。
+  - *對策*：運行 `pnpm run build` 確認打包編譯無任何語法與構建問題。
+
+---
+## [2026-07-20 01:50:00] abc_parse.ts & abc_tune.ts 型別精煉與 any 清理
+
+### 步驟與技術方案 (Step-by-step Technical Plans)
+1. **分析 `el` 型別**：
+   - 經分析，`el` 被廣泛用於接收 note 和 bar 解析後的特質屬性，最終在 1248 行被寫入為樂譜的元素。其目標參數型別為 `ABCElement`。因此將 `el` 從 `any` 提升為 `ABCElement`。
+2. **重構 `all.d.ts` 定義專屬解析介面**：
+   - 定義 `ParseStaff` 與 `ParseVoice` 以承載解析器專用的屬性結構，解除 `staves: any[]` 和 `voices: { [key: string]: any }` 的泛型限制。
+   - 定義 `SlursAndTriplets` 介面，以精確表示連音與三連音解析函數 `letter_to_open_slurs_and_triplets` 的傳回型別。
+3. **消除 `abc_tune.ts` 與 `abc_parse.ts` 內的 any 宣告**：
+   - 清理 `pushNote(hp)` 裡的 `any`，並對 `pitches` & `gracenotes` 屬性賦值增加預防性 Fallback (型別防禦)。
+   - 清理 `addEndSlur` 與 `addStartSlur` 內的 `any`。
+   - 將 `word_list: any` 更換為 `Lyric[]`，將 `gracenotes: any` 更換為 `NoteElement[]`。
+
+### 影響檔案 (Affected Files)
+- `src/all.d.ts` (修改)
+- `src/abc_tune.ts` (修改)
+- `src/abc_parse.ts` (修改)
+
+### 風險評估 (Risks & Mitigations)
+- 泛型改強型別可能帶來額外的屬性缺漏報錯。
+  - *對策*：在 TypeScript 編譯期進行全面的 `pnpm run build` 打包與語法靜態檢查。
+
+---
+## [2026-07-20 02:00:00] ABCElement & NoteElement 繼承結構重構與優化
+
+### 步驟與技術方案 (Step-by-step Technical Plans)
+1. **建立繼承鏈**：
+   - 將 `ABCElement` 聲明修改為 `interface ABCElement extends ElementBase`。
+   - 自 `ABCElement` 內刪除已在 `ElementBase` 中宣告的 `startChar?: number` 與 `endChar?: number`。
+2. **極簡化 `NoteElement` 定義**：
+   - 將 `NoteElement` 修改為 `interface NoteElement extends ABCElement`。
+   - 將 `accidental?: NoteAccidental` 與 `verticalPos?: number` 欄位移至 `ABCElement` 中，確保屬性全集覆蓋。
+   - 清空 `NoteElement` 內部重複的所有屬性，僅保留 `el_type?: "note"`。
+3. **驗證相容性**：
+   - 運行 TypeScript 項目編譯測試。
+
+### 影響檔案 (Affected Files)
+- `src/all.d.ts` (修改)
+
+### 風險評估 (Risks & Mitigations)
+- 無編譯風險，屬性集與修改前 100% 等價。
+
+---
+## [2026-07-20 02:05:00] 精煉 all.d.ts 下屬元素繼承關係與隱患修正
+
+### 步驟與技術方案 (Step-by-step Technical Plans)
+1. **排查隱性衝突**：
+   - `BarElement.startEnding` 原宣告為 `boolean`，但程式實際賦值與 `abc_layout` 排版使用的是 `string`。
+   - `RestElement.chord` 原宣告為 `string`，但程式內部和弦統一以 `{ name, position }` 物件（即 `Chord`）傳遞。
+2. **統一繼承主幹**：
+   - 將 `RestElement`、`BarElement`、`ClefElement`、`KeySigElement`、`MeterElement` 改為繼承自 `ABCElement`。
+   - 藉由繼承，自動收納與對齊了 `ABCElement` 中早已正確定義的 `startEnding?: string`、`chord?: Chord`、`decoration?: string[]` 等共用屬性。
+   - 清除各子元素中重複且過時的屬性宣告。
+3. **編譯測試**：
+   - 執行建置，確保渲染及播音代碼無報錯。
+
+### 影響檔案 (Affected Files)
+- `src/all.d.ts` (修改)
+
+### 風險評估 (Risks & Mitigations)
+- 無編譯風險。
+
+---
+## [2026-07-20 02:10:00] 修復 abc_tune.ts 中的型別紅線與重大邏輯隱患
+
+### 步驟與技術方案 (Step-by-step Technical Plans)
+1. **修正邏輯與引數錯誤**：
+   - 將 `cleanUp` 內的 `cleanUpSlursInLine(this.lines[this.lineNum])` 改為 `cleanUpSlursInLine(this.lines[this.lineNum].staff[this.staffNum].voices[this.voiceNum])`，確保 slur 清理邏輯實際在聲部陣列上被執行。
+   - 修正 clef 判定屬性 `el.type` 為 `el.el_type`，並使用 `as unknown as ClefElement` 型別斷言以消除 IDE 對 `fixClefPlacement(el)` 參數的報錯。
+2. **修正變數型別混淆**：
+   - 修正 `potentialStartBeam` 與 `potentialEndBeam` 的型別為 `ABCElement`，因為這兩者是 Note 實體而非 Beam 圖形元素。
+   - 修正 `getDuration(el)` 參數型別為 `ABCElement`。
+3. **消除 Optional 造成的 Undefined 報錯**：
+   - 在 `appendElement` 內以 `hashParams2 || {}` 進行賦值，保證 `hashParams` 不是 `undefined`。
+
+### 影響檔案 (Affected Files)
+- `src/abc_tune.ts` (修改)
+
+### 風險評估 (Risks & Mitigations)
+- 改動涉及變數型別對齊與重構，無破壞性變更，已成功編譯。

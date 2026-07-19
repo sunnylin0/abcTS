@@ -390,7 +390,7 @@ export class ABCPrinter {
 
 		let maxwidth = this.width;
 		for (let line = 0; line < abctune.lines.length; line++) {
-			const abcline = abctune.lines[line];
+			const abcline:ABCLine = abctune.lines[line];
 			if (abcline.staff) {
 				const staffgroup: ABCStaffGroupElement = this.layouter.printABCLine(abcline.staff, this.y);
 				let newspace: number = this.space;

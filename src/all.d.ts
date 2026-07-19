@@ -26,14 +26,14 @@ interface ParamsOther {
 	rest?: boolean;
 
 
-	clef: ClefElement;
+	clef?: ClefElement;
 	key?: KeySigElement;
 	stem?: 'up' | 'down';
 	part?: string;
 	meter?: MeterElement;
 	name?: string;
 	subname?: string;
-	vocalfont?: string;
+	vocalfont?: Font;
 	bracket?: boolean;
 	brace?: boolean;
 	connectBarLines?: string;
@@ -72,7 +72,8 @@ type ElementType =
 	| "key-sig"
 	| "meter"
 	| "key"
-	| "part";
+	| "part"
+	| "stem";
 
 type NoteAccidental = "none" | "dbl_flat" | "flat" | "natural" | "sharp" | "dbl_sharp";
 //type NoteAccidental = 'flat' | 'natural' | 'sharp' | 'dblsharp' | 'dblflat' | 'quarterflat' | 'quartersharp'
@@ -255,62 +256,27 @@ interface ElementBase {
 	endChar?: number;
 }
 
-interface RestElement extends ElementBase {
+interface RestElement extends ABCElement {
 	el_type?: "rest";
-	duration?: number;
-	chord?: string;
 }
 
-interface NoteElement extends ElementBase {
+interface NoteElement extends ABCElement {
 	el_type?: "note";
-	accidental?: NoteAccidental;
-	pitch?: number;
-	duration?: number;
-	chord?: string;
-	end_beam?: boolean;
-	lyric?: Lyric[];
-	startTie?: boolean;
-	endTie?: boolean;
-	startTriplet?: number;
-	endTriplet?: boolean;
-	decoration?: Decoration[];
-	gracenotes?: NoteElement[];
-	pitches?: {
-		pitch: number;
-		verticalPos: number;
-		startTie?: boolean;
-		endTie?: boolean;
-		endSlur?: number[];
-		startSlur?: number[];
-	}[];
-	endSlur?: number;
-	startSlur?: number;
-	averagepitch?: number;
-	verticalPos?: number;
-
 }
 
-interface BarElement extends ElementBase {
+interface BarElement extends ABCElement {
 	el_type?: "bar";
 	type?: BarType;
 	number?: number;
-	startEnding?: boolean;
-	endEnding?: boolean;
-	decoration?: Decoration;
-	chord?: string;
-	//start_first_ending?: boolean;
-	//start_second_ending?: boolean;
-	//end_first_ending?: boolean;
-	//end_second_ending?: boolean;
 }
 
-interface ClefElement extends ElementBase {
+interface ClefElement extends ABCElement {
 	el_type?: "clef";
 	type?: ClefType;
 	verticalPos: number;
 }
 
-interface KeySigElement extends ElementBase {
+interface KeySigElement extends ABCElement {
 	el_type?: "key";
 	num?: number;
 	dir?: KeySigDir;
@@ -322,12 +288,10 @@ interface KeySigElement extends ElementBase {
 	extraAccidentals?: any[];
 }
 
-interface MeterElement extends ElementBase {
+interface MeterElement extends ABCElement {
 	el_type?: "meter";
 	type?: MeterType;
 	value?: { num?: number; den?: number }[];
-	//num?: number;
-	//den?: number;
 }
 
 interface TempoElement extends ElementBase {
@@ -338,7 +302,12 @@ interface TempoElement extends ElementBase {
 	postString?: string;
 }
 
+interface Notes_el_Type {
+	//集合了所有音符元素的类型
+	el_type?: ElementType;
+}
 
+type NOTES_Element = NotesEl_Type | NoteElement | RestElement | BarElement | ClefElement | KeySigElement | MeterElement | TempoElement | null;
 
 interface MetaText {
 	tempo?: Tempo;
@@ -375,8 +344,8 @@ interface Pitch {
 	duration?: number;
 	startTie?: boolean;
 	endTie?: boolean;
-	startSlur?: number;
-	endSlur?: number;
+	startSlur?: number | number[];
+	endSlur?: number | number[];
 	verticalPos?: number;
 	printer_shift?: string
 }
@@ -389,63 +358,25 @@ interface GraceNote {
 
 
 
-interface ABCStaff {
-	bracket?: string;
-	brace?: string;
-	connectBarLines?: string;
-	title?: string[];
-	clef?: { type: string, pitch?: number };
-	key?: { regularKey?: { acc: string, num: number }, extraAccidentals?: { acc: string, note: string }[] };
-	meter?: { type: string, value?: { num: string, den: string }[] };
-	voices: ABCElement[][];
-}
-
-
-
-//interface ABCElement {
-//	el_type: string;
-//	duration?: number;
-//	pitches?: {
-//		pitch: number, accidental?: string, duration?: number, startTie?: boolean, endTie?: boolean, startSlur?: number, endSlur?: number,
-//		printer_shift?: string
-//	}[];
-//	rest?: { type: string };
-//	lyric?: { syllable: string, divider: string }[];
-//	gracenotes?: { pitch: number, accidental?: string }[];
-//	decoration?: string[];
-//	barNumber?: string;
-//	startTriplet?: boolean;
-//	endTriplet?: boolean;
-//	direction?: string;
-//	startBeam?: boolean;
-//	endBeam?: boolean;
-//	averagepitch?: number;
-//}
-
-
-
 //type AbcElement = RestElement | NoteElement | BarElement | ClefElement | KeySigElement | MeterElement;
-interface ABCElement {
+interface ABCElement extends ElementBase {
 	accidentals?: { acc?: string, note?: string, verticalPos?: number }[],
 
-	el_type?: string;
 	type?: string;
 	pitches?: Pitch[];
 	rest?: { type: string };
 	chord?: Chord;
 	barNumber?: string;
-	startChar?: number;
-	endChar?: number;
 	startEnding?: string,
 	endEnding?: boolean,
 	duration?: number;
 	bpm?: number;
 	decoration?: string[];
-	gracenotes?: GraceNote[];
+	gracenotes?: NOTES_Element[];
 	lyric?: Lyric[];
 
-	startSlur?: number;
-	endSlur?: number;
+	startSlur?: number | number[];
+	endSlur?: number | number[];
 
 	startTriplet?: number;
 	endTriplet?: boolean;
@@ -453,7 +384,7 @@ interface ABCElement {
 	startBeam?: boolean;
 	endBeam?: boolean;
 
-	//end_beam?: boolean;
+	end_beam?: boolean;
 	title?: string;
 	direction?: string;
 
@@ -465,6 +396,8 @@ interface ABCElement {
 	stem?: 'up' | 'down';
 	minpitch?: number;
 	maxpitch?: number;
+	accidental?: NoteAccidental;
+	verticalPos?: number;
 }
 
 
@@ -473,14 +406,14 @@ interface Voice_Staff_voices {
 	startChar?: number;
 	endChar?: number;
 	pitches?: Pitch[];
-	gracenotes?: GraceNote[];
+	gracenotes?: NOTES_Element[];
 	end_beam?: boolean;
 
 	// 其他潜在属性...
 }
 
 interface Staff {
-	voices: NoteElement[][];
+	voices: NOTES_Element[][];
 	clef?: ClefElement;
 	key?: KeySigElement;
 	meter?: MeterElement;
@@ -489,7 +422,35 @@ interface Staff {
 	bracket?: boolean;
 	brace?: boolean;
 	connectBarLines?: string;
-	// 其他潜在属性...
+}
+
+/** 僅存在於 abc_parse.ts 與 abc_parse_header.ts */
+interface ParseStaff {
+	clef?: ClefElement;
+	key?: KeySigElement;
+	meter?: MeterElement;
+	numVoices?: number;
+	connectBarLines?: string;
+	bracket?: string;
+	brace?: string;
+	vocalfont?: string;
+	name?: string[];
+	subname?: string[];
+}
+
+interface ParseVoice {
+	staffNum: number;
+	index: number;
+	name?: string;
+	subname?: string;
+	stem?: 'up' | 'down';
+}
+
+interface SlursAndTriplets {
+	triplet?: number;
+	num_notes?: number;
+	startSlur?: number;
+	consumed: number;
 }
 
 interface StaffInfo {

@@ -1,4 +1,4 @@
-﻿//    abc_parse.js: parses a string representing ABC Music Notation into a usable internal structure.
+//    abc_parse.js: parses a string representing ABC Music Notation into a usable internal structure.
 //    Copyright (C) 2010 Paul Rosen (paul at paulrosen dot net)
 //
 //    This program is free software: you can redistribute it and/or modify
@@ -62,9 +62,9 @@ export class MultilineVars {
 	warnings: string[];
 	titlecaps: boolean;
 	score_is_present: boolean;
-	staves: any[];
-	voices: { [key: string]: any };
-	currentVoice: any;
+	staves: ParseStaff[];
+	voices: { [key: string]: ParseVoice };
+	currentVoice?: ParseVoice;
 	macros: { [key: string]: string };
 	origMeter: any;
 	currBarNumber: number;
@@ -73,7 +73,7 @@ export class MultilineVars {
 	barNumbers: number;
 	inEnding: boolean;
 	inTie: boolean;
-	inTieChord: any;
+	inTieChord: { [key: number]: boolean };
 
 	barNumOnNextNote: number
 	vocalfont: Font;
@@ -275,10 +275,10 @@ export class AbcParse {
 		return [ret.len + retRep.len, ret.token, retRep.token];
 	};
 
-	private letter_to_open_slurs_and_triplets(line: string, i: number) {
+	private letter_to_open_slurs_and_triplets(line: string, i: number): SlursAndTriplets {
 		// consume spaces, and look for all the open parens. If there is a number after the open paren,
 		// that is a triplet. Otherwise that is a slur. Collect all the slurs and the first triplet.
-		let ret: any = {};
+		let ret: SlursAndTriplets = { consumed: 0 };
 		let start = i;
 		while (line[i] === '(' || this.tokenizer.isWhiteSpace(line[i])) {
 			if (line[i] === '(') {
@@ -326,7 +326,7 @@ export class AbcParse {
 		return ret;
 	};
 
-	private addWords(line: NoteElement[], words: string): void {
+	private addWords(line: NOTES_Element[], words: string): void {
 		if (!line) {
 			this.warn("Can't add words before the first line of music", line, 0);
 			return;
@@ -335,7 +335,7 @@ export class AbcParse {
 		if (words.charAt(words.length - 1) !== '-') {
 			words += ' ';	// Just makes it easier to parse below, since every word has a divider after it.
 		}
-		let word_list: any = [];
+		let word_list: Lyric[] = [];
 		// first make a list of words from the string we are passed. A word is divided on either a space or dash.
 		let last_divider: number = 0;
 		let replace: boolean = false;
@@ -428,13 +428,13 @@ export class AbcParse {
 	};
 
 	// TODO-PER: make this a method in el.
-	private addEndBeam(el: ABCBeamElem) {
+	private addEndBeam(el: ABCElement) {
 		if (el.duration !== undefined && el.duration < 0.25)
 			el.end_beam = true;
 		return el;
 	};
 
-	private getCoreNote(line: string, index: number, el: any, canHaveBrokenRhythm: boolean) {
+	private getCoreNote(line: string, index: number, el: ABCElement, canHaveBrokenRhythm: boolean): ABCElement | null {
 		const isComplete = (state: string): boolean => {
 			return (state === 'octave' || state === 'duration' || state === 'broken_rhythm' || state === 'end_slur');
 		};
@@ -778,20 +778,20 @@ export class AbcParse {
 		}
 	};
 
-	private letter_to_grace(line: string, i: number): [number, string, boolean?] {
+	private letter_to_grace(line: string, i: number): [number, NOTES_Element[] | string, boolean?] {
 		if (line.charAt(i) === '{') {
 			const gra: [number, string, boolean] = this.tokenizer.getBrackettedSubstring(line, i, 1, '}');
 			if (!gra[2]) {
 				this.warn("Missing the closing '}' while parsing grace note", line, i);
 			}
 
-			const gracenotes: any = [];
+			const gracenotes: NOTES_Element[] = [];
 			let ii = 0;
 			let inTie = false;
 			while (ii < gra[1].length) {
 				const note = this.getCoreNote(gra[1], ii, {}, false);
 				if (note !== null) {
-					gracenotes.push(note);
+					gracenotes.push(note as NOTES_Element);
 
 					if (inTie) {
 						note.endTie = true;
@@ -907,7 +907,7 @@ export class AbcParse {
 			// TODO-PER: Handle inline headers
 		}
 
-		let el: any = {};
+		let el: ABCElement = {};
 
 		while (i < line.length) {
 			const startI = i;
@@ -981,7 +981,7 @@ export class AbcParse {
 							ret = this.letter_to_grace(line, i);
 							// TODO-PER: Be sure there aren't already grace notes defined. That is an error.
 							if (ret[0] > 0) {
-								el.gracenotes = ret[1];
+								el.gracenotes = ret[1] as NOTES_Element[];
 								i += ret[0];
 							} else {
 								break;
@@ -1184,7 +1184,7 @@ export class AbcParse {
 						}
 					} else {
 						// Single pitch
-						const el2: any = {};
+						const el2: ABCElement = {};
 						const core = this.getCoreNote(line, i, el2, true);
 						if (el.endTie !== undefined) {
 							this.multilineVars.inTie = true;

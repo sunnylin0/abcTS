@@ -52,7 +52,7 @@ export class ABCLayout {
 	s: number; // 目前樂譜行號
 	v: number; // 當前聲部號
 	voice: ABCVoiceElement;
-	abcline: NoteElement[];
+	abcline: NOTES_Element[];
 	pos: number;
 	partstartelem: ABCEndingElem;
 	startlimitelem;
@@ -94,13 +94,13 @@ export class ABCLayout {
 		this.partstartelem = this.endingsbyvoice[this.getCurrentVoiceId()];
 	}
 
-	getElem(): NoteElement {
+	getElem(): NOTES_Element {
 		if (this.abcline.length <= this.pos)
 			return null;
 		return this.abcline[this.pos];
 	}
 
-	getNextElem(): NoteElement {
+	getNextElem(): NOTES_Element {
 		if (this.abcline.length <= this.pos + 1)
 			return null;
 		return this.abcline[this.pos + 1];
@@ -140,7 +140,7 @@ export class ABCLayout {
 		}
 	}
 
-	printABCVoice(abcline: NoteElement[]): void {
+	printABCVoice(abcline: NOTES_Element[]): void {
 		this.popCrossLineElems();
 		this.stemdir = (this.isBagpipes) ? "down" : null;
 		this.abcline = abcline;

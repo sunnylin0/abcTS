@@ -39,3 +39,40 @@
 - 在 `src/index.ts` 中以具名 `import { ... }` 導入所有 TS 變數與類別，消除了 IDE 的 TypeScript 型別紅線。
 - 保留 `declare const JSONSchema: any;` 以正確宣告純 JS 資源（無 `export` 聲明）。
 - 升級 `vite.config.ts` 中的 `importRegex` 正規表達式，使其完美相容具名導入的靜態拼接。
+
+---
+## [2026-07-19] 完成專案架構與渲染機制分析 (v1.2.2)
+- 撰寫並發布專案分析報告 `analysis_results.md`，分析 `workspace.html` 渲染流程、`<select>` 資料流、各模組檔案定位與 DOM 渲染職責，並針對混合架構、效能優化與音訊合成模組提出改進建議。
+
+---
+## [2026-07-19] 解決 ABCElement 與 NoteElement 全域型別衝突 (v1.2.3)
+- 重構並對齊 `src/all.d.ts` 中的 `ABCElement`、`NoteElement`、`BarElement` 和 `Pitch` 介面屬性型別。
+- 統一將 `chord` 聲明為 `Chord` 物件（有 `name` 與 `position` 屬性），解決和弦型別衝突。
+- 統一將裝飾音 `gracenotes` 聲明為 `NoteElement[]` 以允許其擁有完整音符屬性。
+- 將 `startSlur` 與 `endSlur` 聲明為 `number | number[]`，以相容解析前後期的連音線資料型別。
+- 統一將 `decoration` 屬性型別對齊為 `string[]`。
+
+---
+## [2026-07-20] 修正 abc_parse.ts & abc_tune.ts 型別安全性與 any 清除 (v1.2.4)
+- 分析 `abc_parse.ts` 內 `el` 變數在編譯期與執行期的核心地位，將其明確重構為 `ABCElement` 型別。
+- 於 `all.d.ts` 追加 `ParseStaff`、`ParseVoice`、`SlursAndTriplets` 強型別介面定義，徹底清除 `staves: any[]`、`voices: { [key: string]: any }` 等不精確之 `any` 宣告。
+- 全面修復 `abc_tune.ts` 與 `abc_parse.ts` 內數十處參數、變數之 `any` 型別限制，為其添加健全的型別保護及型別斷言。
+
+---
+## [2026-07-20] 重構優化 ABCElement 與 NoteElement 繼承結構 (v1.2.5)
+- 重構 `ABCElement` 使其繼承 `ElementBase`，移除重複宣告的定位欄位（`startChar` / `endChar`）。
+- 讓 `NoteElement` 直接繼承 `ABCElement`，移除多達 20 餘行完全重複的屬性欄位聲明，確保型別高內聚與極簡化。
+- 專案打包構建 `pnpm run build` 通過，確認無任何 TypeScript 編譯退化（Regression）。
+
+---
+## [2026-07-20] 精煉全域元素型別繼承關係與隱患修正 (v1.2.6)
+- 排查出 `BarElement.startEnding` 實為 `string`（非 `boolean`）以及 `RestElement.chord` 實為 `Chord` 物件（非 `string`），並於全域型別宣告中予以修正。
+- 重構並對齊 `src/all.d.ts`，讓 `RestElement`、`BarElement`、`ClefElement`、`KeySigElement` 與 `MeterElement` 全部繼承 `ABCElement`。
+- 清除各子介面內重複冗餘宣告，成功通過四大核心檔案（`abc_tune.ts`, `abc_parse.ts`, `abc_layout.ts`, `abc_write.ts`）的建置編譯測試。
+
+---
+## [2026-07-20] 清理 abc_tune.ts 內的型別紅線與邏輯修復 (v1.2.7)
+- 修正 `cleanUpSlursInLine` 的實參傳遞，將原本傳入 `ABCLine` 改為傳入聲部對應的 `NoteElement[]`，修復了連音線清理未實際執行的潛在 Bug。
+- 修正 `fixClefPlacement` 對 `el.type` 欄位的錯誤判定為 `el.el_type`，並配合強型別做轉型處理。
+- 將 `potentialStartBeam` 與 `potentialEndBeam` 型別自 `ABCBeamElem` 糾正為 `ABCElement`，解決 Beam 標記時的屬性缺失警告。
+- 對 `appendElement` 的 `hashParams2` 做防禦性初始化，避免 `undefined` 引起的屬性賦值錯誤。

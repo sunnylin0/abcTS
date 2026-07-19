@@ -31,8 +31,8 @@ export class AbcTune {
 	voiceNum: number = 0;
 	/** 當前行 編號 */
 	lineNum: number = 0;
-	potentialStartBeam: ABCBeamElem;
-	potentialEndBeam: ABCBeamElem;
+	potentialStartBeam: ABCElement;
+	potentialEndBeam: ABCElement;
 	/** 重置AbcTune物件的狀態 */
 	reset() {
 		this.version = "1.0.0";
@@ -80,20 +80,22 @@ export class AbcTune {
 			});
 		}
 
-		function cleanUpSlursInLine(voiceList: NoteElement[]) {
+		function cleanUpSlursInLine(voiceList: NOTES_Element[]) {
 			let currSlur = 0;
 
-			function addEndSlur(obj: any, num: number) {
+			function addEndSlur(obj: NOTES_Element | Pitch, num: number | number[]) {
 				obj.endSlur = [];
-				for (let i = 0; i < num; i++) {
+				const count = typeof num === 'number' ? num : num.length;
+				for (let i = 0; i < count; i++) {
 					obj.endSlur.push(currSlur);
 					if (currSlur > 0) --currSlur;
 				}
 			}
 
-			function addStartSlur(obj: any, num: number) {
+			function addStartSlur(obj: NOTES_Element | Pitch, num: number | number[]) {
 				obj.startSlur = [];
-				for (let i = 0; i < num; i++) {
+				const count = typeof num === 'number' ? num : num.length;
+				for (let i = 0; i < count; i++) {
 					++currSlur;
 					obj.startSlur.push(currSlur);
 				}
@@ -164,11 +166,11 @@ export class AbcTune {
 						fixClefPlacement(this.lines[this.lineNum].staff[this.staffNum].clef);
 					}
 					for (this.voiceNum = 0; this.voiceNum < this.lines[this.lineNum].staff[this.staffNum].voices.length; this.voiceNum++) {
-						cleanUpSlursInLine(this.lines[this.lineNum]);
+						cleanUpSlursInLine(this.lines[this.lineNum].staff[this.staffNum].voices[this.voiceNum]);
 						for (let j = 0; j < this.lines[this.lineNum].staff[this.staffNum].voices[this.voiceNum].length; j++) {
 							let el = this.lines[this.lineNum].staff[this.staffNum].voices[this.voiceNum][j];
-							if (el.type === 'clef') {
-								fixClefPlacement(el);
+							if (el.el_type === 'clef') {
+								fixClefPlacement(el as unknown as ClefElement);
 							}
 						}
 					}
@@ -186,11 +188,11 @@ export class AbcTune {
 	* 取得目前行的最後一個對話。
 	* @returns 最後一個通訊元素，如果不存在則傳回 null。
 	*/
-	getLastNote(): NoteElement | null {
+	getLastNote(): NOTES_Element | null {
 		if (this.lines[this.lineNum] && this.lines[this.lineNum].staff &&
 			this.getCurrentStaff() && this.getCurrentVoice()) {
 			for (let i = this.getCurrentVoice().length - 1; i >= 0; i--) {
-				const el = this.getCurrentVoice()[i];
+				const el: NOTES_Element = this.getCurrentVoice()[i];
 				if (el.el_type === 'note') {
 					return el;
 				}
@@ -204,7 +206,7 @@ export class AbcTune {
 	*/
 	addTieToLastNote(): boolean {
 		// TODO-PER: if this is a chord, which note?
-		let el = this.getLastNote();
+		let el: NOTES_Element = this.getLastNote();
 		if (el && el.pitches[0]) {
 			el.pitches[0].startTie = true;
 			return true;
@@ -216,7 +218,7 @@ export class AbcTune {
 	* @param el 元素物件。
 	* @returns 持續時間，如果不存在則傳回 {} 。
 	*/
-	getDuration(el: NoteElement): number {
+	getDuration(el: ABCElement): number {
 		if (el.duration)
 			return el.duration;
 		return;
@@ -237,19 +239,19 @@ export class AbcTune {
 	* @param endChar 結束字元。
 	* @param hashParams 包含元素詳細資訊的雜湊參數。
 	*/
-	appendElement(type: string, startChar: number, endChar: number, hashParams?: ABCElement) {
-
+	appendElement(type: ElementType, startChar: number, endChar: number, hashParams2?: ABCElement) {
+		let hashParams: ABCElement = hashParams2 || {};
 		let This = this;
-		function pushNote(hp: NoteElement) {
+		function pushNote(hp: ABCElement) {
 			if (hp.pitches !== undefined) {
 				let mid = This.lines[This.lineNum].staff[This.staffNum].clef?.verticalPos ?? 0;
-				hp.pitches.forEach(p => p.verticalPos = p.pitch - mid);
+				hp.pitches.forEach(p => p.verticalPos = (p.pitch ?? 0) - mid);
 			}
 			if (hp.gracenotes !== undefined) {
 				let mid2 = This.lines[This.lineNum].staff[This.staffNum].clef?.verticalPos ?? 0;
-				hp.gracenotes.forEach(p => p.verticalPos = p.pitch - mid2);
+				hp.gracenotes.forEach(p => p.verticalPos = (p.pitch ?? 0) - mid2);
 			}
-			This.lines[This.lineNum].staff[This.staffNum].voices[This.voiceNum].push(hp);
+			This.lines[This.lineNum].staff[This.staffNum].voices[This.voiceNum].push(hp as NOTES_Element);
 		}
 
 		hashParams.el_type = type;
@@ -312,9 +314,9 @@ export class AbcTune {
 	* @param endChar 結束字元。
 	* @param hashParams 包含元素詳細資訊的雜湊參數。
 	*/
-	appendStartingElement(type: string, startChar?: number, endChar?: number, hashParams2?: ABCElement) {
+	appendStartingElement(type: ElementType, startChar?: number, endChar?: number, hashParams2?: ABCElement) {
 		// Clone the object because it will be sticking around for the next line and we don't want the extra fields in it.
-		let hashParams = hashParams2 ? { ...hashParams2 } : {} as any;
+		let hashParams: ABCElement = hashParams2 ? { ...hashParams2 } : {};
 		// These elements should not be added twice, so if the element exists on this line without a note or bar before it, just replace the staff version.
 		let voice = this.lines[this.lineNum].staff[this.staffNum].voices[this.voiceNum];
 		for (let i = 0; i < voice.length; i++) {
@@ -322,14 +324,14 @@ export class AbcTune {
 				hashParams.el_type = type;
 				hashParams.startChar = startChar;
 				hashParams.endChar = endChar;
-				voice.push(hashParams);
+				voice.push(hashParams as NOTES_Element);
 				return;
 			}
 			if (voice[i].el_type === type) {
 				hashParams.el_type = type;
 				hashParams.startChar = startChar;
 				hashParams.endChar = endChar;
-				voice[i] = hashParams;
+				voice[i] = hashParams as NOTES_Element;
 				return;
 			}
 		}
@@ -371,7 +373,7 @@ export class AbcTune {
 	* @param voice 聲部物件。
 	* @returns 如果包含音符則傳回 true，否則傳回 false。
 	*/
-	containsNotes(voice: NoteElement[]): boolean {
+	containsNotes(voice: NOTES_Element[]): boolean {
 		return voice.some(v => v.el_type === 'note' ||
 			v.el_type === 'bar');
 	}
@@ -397,7 +399,7 @@ export class AbcTune {
 		let This = this;
 		this.closeLine();
 
-		function createVoice(params: ABCElement) {
+		function createVoice(params: ParamsOther) {
 			This.lines[This.lineNum].staff[This.staffNum].voices[This.voiceNum] = [];
 			if (This.isFirstLine(This.lineNum)) {
 				if (params.name) {
@@ -418,7 +420,7 @@ export class AbcTune {
 				if (This.lines[This.lineNum].staff[This.staffNum].voices[0] !== undefined) {
 					var found = false;
 					for (var i = 0; i < This.lines[This.lineNum].staff[This.staffNum].voices[0].length; i++) {
-						if (This.lines[This.lineNum].staff[This.staffNum].voices[0].el_type === 'stem')
+						if (This.lines[This.lineNum].staff[This.staffNum].voices[0][i].el_type === 'stem')
 							found = true;
 					}
 					if (!found) {
@@ -493,7 +495,7 @@ export class AbcTune {
 	* 取得目前聲部。
 	* @returns 目前聲部對象，如果不存在則傳回null。
 	*/
-	getCurrentVoice(): NoteElement[] {
+	getCurrentVoice(): NOTES_Element[] {
 		if (this.lines[this.lineNum] !== undefined &&
 			this.lines[this.lineNum].staff[this.staffNum] !== undefined &&
 			this.lines[this.lineNum].staff[this.staffNum].voices[this.voiceNum] !== undefined)
@@ -501,7 +503,7 @@ export class AbcTune {
 		else return null;
 	};
 	/** 設定目前 Staff */
-	setCurrentStaff(opt: any): Staff {
+	setCurrentStaff(opt: Staff): Staff {
 		if (this.lines[this.lineNum] !== undefined &&
 			this.getCurrentStaff() !== undefined)
 			return this.lines[this.lineNum].staff[this.staffNum] = opt;

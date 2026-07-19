@@ -21,12 +21,15 @@ importers:
         specifier: ^11.3.0
         version: 11.3.6
     devDependencies:
+      '@types/node':
+        specifier: ^26.1.1
+        version: 26.1.1
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
       vite:
         specifier: ^6.2.0
-        version: 6.4.3(@types/node@26.1.0)(lightningcss@1.32.0)
+        version: 6.4.3(@types/node@26.1.1)(lightningcss@1.32.0)
       vite-plugin-commonjs:
         specifier: ^0.10.4
         version: 0.10.4
@@ -366,8 +369,8 @@ packages:
   '@types/jsonfile@6.1.4':
     resolution: {integrity: sha512-D5qGUYwjvnNNextdU59/+fI+spnwtTFmyQP0h+PfIOSkNfpU6AOICUOkm4i0OnSk+NyjdPJrxCDro0sJsWlRpQ==}
 
-  '@types/node@26.1.0':
-    resolution: {integrity: sha512-O0A1G3xPGy4w7AgQdAQYUlQ+BKk2Oovw8eRpofyp5KdBZULnbe+WqaOVNrm705SHphCiG4XHsACrSmPu1f+Kgw==}
+  '@types/node@26.1.1':
+    resolution: {integrity: sha512-nxAkRSVkN1Y0JC1W8ky/fTfkGsMmcrRsbx+3XoZE+rMOX71kLYTV7fLXpqud1GpbpP5TuffXFqfX7fH2GgZREw==}
 
   acorn@8.17.0:
     resolution: {integrity: sha512-xRQbDb9BnwDafYNn6Vwl839DYVjqXYb1XVGtWAZ1kcDc6iwAL4hg3B1dZlRiuENFeO2H53gFG3in621AdERVAg==}
@@ -936,17 +939,17 @@ snapshots:
   '@types/fs-extra@11.0.4':
     dependencies:
       '@types/jsonfile': 6.1.4
-      '@types/node': 26.1.0
+      '@types/node': 26.1.1
 
   '@types/json-schema@4.0.0':
     dependencies:
-      '@types/node': 26.1.0
+      '@types/node': 26.1.1
 
   '@types/jsonfile@6.1.4':
     dependencies:
-      '@types/node': 26.1.0
+      '@types/node': 26.1.1
 
-  '@types/node@26.1.0':
+  '@types/node@26.1.1':
     dependencies:
       undici-types: 8.3.0
 
@@ -1268,7 +1271,7 @@ snapshots:
       fast-glob: 3.3.3
       magic-string: 0.30.21
 
-  vite@6.4.3(@types/node@26.1.0)(lightningcss@1.32.0):
+  vite@6.4.3(@types/node@26.1.1)(lightningcss@1.32.0):
     dependencies:
       esbuild: 0.25.12
       fdir: 6.5.0(picomatch@4.0.5)
@@ -1277,6 +1280,6 @@ snapshots:
       rollup: 4.62.2
       tinyglobby: 0.2.17
     optionalDependencies:
-      '@types/node': 26.1.0
+      '@types/node': 26.1.1
       fsevents: 2.3.3
       lightningcss: 1.32.0
