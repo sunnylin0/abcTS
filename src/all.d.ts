@@ -2,6 +2,10 @@
 declare function str_repeat(i: any, m: number): string;
 declare function sprintf(format: string, ...args: (string | number)[]): string;
 
+interface Array<T> {
+	last(): T;
+}
+
 interface Window {
 	authenticity_token: string;
 }
@@ -34,8 +38,8 @@ interface ParamsOther {
 	name?: string;
 	subname?: string;
 	vocalfont?: Font;
-	bracket?: boolean;
-	brace?: boolean;
+	bracket?: string;
+	brace?: string;
 	connectBarLines?: string;
 
 	direction?: string;
@@ -73,10 +77,10 @@ type ElementType =
 	| "meter"
 	| "key"
 	| "part"
-	| "stem";
+	| "stem"
+	| "tempo";
 
-type NoteAccidental = "none" | "dbl_flat" | "flat" | "natural" | "sharp" | "dbl_sharp";
-//type NoteAccidental = 'flat' | 'natural' | 'sharp' | 'dblsharp' | 'dblflat' | 'quarterflat' | 'quartersharp'
+type NoteAccidental = 'flat' | 'natural' | 'sharp' | 'dblsharp' | 'dblflat' | 'quarterflat' | 'quartersharp' | 'none';
 type BarType =
 	| "bar_thin"
 	| "bar_thin_thick"
@@ -96,7 +100,7 @@ type Decoration = "upbow" | "downbow" | "accent";
 
 type KeySignature = {
 	num?: number;
-	acc?: "sharp" | "sharps" | "flat";
+	acc?: "sharp" | "sharps" | "flat" | "natural" | "dblsharp" | "dblflat" | "quarterflat" | "quartersharp";
 	note?: string;
 };
 type DurationInfo = [number, number, number?]; // [charactersConsumed, duration, nextNoteDuration?]
@@ -132,7 +136,7 @@ interface MetaTextInfo {
 interface TempoInfo {
 	multiplier?: number;
 	bpm?: number;
-	duration?: number;
+	duration?: number[];
 }
 
 interface BBox {
@@ -284,6 +288,7 @@ interface KeySigElement extends ABCElement {
 	accidentals?: {
 		acc?: 'sharp' | 'dblsharp' | 'natural' | 'flat' | 'dblflat' | 'quarterflat' | 'quartersharp';
 		note?: 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g';
+		verticalPos?: number;
 	}[];
 	extraAccidentals?: any[];
 }
@@ -291,7 +296,7 @@ interface KeySigElement extends ABCElement {
 interface MeterElement extends ABCElement {
 	el_type?: "meter";
 	type?: MeterType;
-	value?: { num?: number; den?: number }[];
+	value?: { num?: string; den?: string }[];
 }
 
 interface TempoElement extends ElementBase {
@@ -335,7 +340,9 @@ interface Chord {
 
 interface Lyric {
 	syllable?: string;
-	divider?: ' ' | '-' | '_';
+	divider?: string;
+	skip?: boolean;
+	to?: 'next' | 'slur' | 'bar';
 }
 
 interface Pitch {
@@ -364,9 +371,15 @@ interface ABCElement extends ElementBase {
 
 	type?: string;
 	pitches?: Pitch[];
-	rest?: { type: string };
+	rest?: {
+		type: string;
+		endSlur?: number | number[];
+		endTie?: boolean;
+		startSlur?: number | number[];
+		startTie?: boolean;
+	};
 	chord?: Chord;
-	barNumber?: string;
+	barNumber?: number | string;
 	startEnding?: string,
 	endEnding?: boolean,
 	duration?: number;
@@ -418,14 +431,15 @@ interface Staff {
 	key?: KeySigElement;
 	meter?: MeterElement;
 	title?: string[];
-	vocalfont?: string;
-	bracket?: boolean;
-	brace?: boolean;
+	vocalfont?: Font;
+	bracket?: string;
+	brace?: string;
 	connectBarLines?: string;
 }
 
 /** 僅存在於 abc_parse.ts 與 abc_parse_header.ts */
 interface ParseStaff {
+	index?: number;
 	clef?: ClefElement;
 	key?: KeySigElement;
 	meter?: MeterElement;
@@ -436,14 +450,17 @@ interface ParseStaff {
 	vocalfont?: string;
 	name?: string[];
 	subname?: string[];
+	spacing_below_offset?: string;
+	verticalPos?: number;
 }
 
 interface ParseVoice {
-	staffNum: number;
-	index: number;
+	staffNum?: number;
+	index?: number;
 	name?: string;
 	subname?: string;
 	stem?: 'up' | 'down';
+	suppressChords?: boolean;
 }
 
 interface SlursAndTriplets {

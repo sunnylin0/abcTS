@@ -220,3 +220,100 @@
 
 ### 風險評估 (Risks & Mitigations)
 - 改動涉及變數型別對齊與重構，無破壞性變更，已成功編譯。
+
+---
+## [2026-07-20 04:30:00] 修復 abc_parse.ts 內與 all.d.ts 的型別紅線與大小寫/拼寫錯誤
+
+### 步驟與技術方案 (Step-by-step Technical Plans)
+1. **修正全域型別不一致 (all.d.ts)**：
+   - 擴充 `Lyric` 介面，使其支援 `skip?: boolean` 與 `to?: 'next' | 'slur' | 'bar'` 屬性。
+   - 修正 `NoteAccidental` 列舉，移去底線，統一為：`'flat' | 'natural' | 'sharp' | 'dblsharp' | 'dblflat' | 'quarterflat' | 'quartersharp' | 'none'`。
+   - 修正 `ParamsOther` 內 `bracket` 與 `brace` 的型別為 `string`，與 `Staff` 一致。
+   - 擴展 `ABCElement` 中 `rest` 的定義，以支援 slur 與 tie 連線。
+   - 修正 `barNumber` 型別為 `number | string`。
+2. **修復 abc_parse.ts 的拼寫與型別宣告**：
+   - 修改 `MultilineVars.key` 型別為 `KeySigElement`。
+   - 將 size-effect 的 `grace_notes` 與 `graceNotes` 修正為小寫 `gracenotes`。
+   - 在 `pitch.startSlur`、`pitch.endSlur` 等自增/加法算式上，以型別斷言指明其在解析當下的 `number` 型別。
+
+### 影響檔案 (Affected Files)
+- `src/all.d.ts` (修改)
+- `src/abc_parse.ts` (修改)
+
+### 風險評估 (Risks & Mitigations)
+- 屬於型別對齊與拼寫糾正，無破壞性變更，已成功編譯打包。
+
+---
+## [2026-07-20 04:35:00] 統一與對齊 deepCopyKey、addPosToKey 及 startNewLine 的型別簽章
+
+### 步驟與技術方案 (Step-by-step Technical Plans)
+1. **修正 AbcParseHeader 輔助方法型別**：
+   - 將 `deepCopyKey` 的參數改為音符陣列，返回型別定義為 `KeySigElement`。
+   - 將 `addPosToKey` 和 `fixKey` 的調號參數由強約束的 `{ accidentals: ... }` 放寬為 `KeySigElement`，以適配 `params.key` 的輸入。
+2. **統一 startNewLine 介面簽章**：
+   - 在 `abc_tune.ts` 中將 `startNewLine` 的參數由行內展開型別改為使用全域 `ParamsOther`，使 `abc_parse.ts` 調用時的 `params: ParamsOther` 不再產生 any 型別衝突。
+
+### 影響檔案 (Affected Files)
+- `src/abc_parse_header.ts` (修改)
+- `src/abc_tune.ts` (修改)
+
+### 風險評估 (Risks & Mitigations)
+- 纯型別定義修正，已通過 `npx tsc --noEmit` 驗證。
+
+---
+## [2026-07-20 04:42:00] 修復 M: (Meter) 拍號與 origMeter 的型別宣告
+
+### 步驟與技術方案 (Step-by-step Technical Plans)
+1. **修正 MeterElement 屬性定義**：
+   - 由於拍號可能包含括號等字串型態的複雜表示，且解析器本身也提取出 token 字串來做賦值，因此在 `all.d.ts` 內將 `MeterElement.value` 中的 `num` 與 `den` 型別自 `number` 更改為 `string`。
+2. **清除 MultilineVars 剩餘的 any 欄位**：
+   - 將 `abc_parse.ts` 內 `origMeter` 的 `any` 型別指定為 `MeterElement | null`。
+
+### 影響檔案 (Affected Files)
+- `src/all.d.ts` (修改)
+- `src/abc_parse.ts` (修改)
+
+### 風險評估 (Risks & Mitigations)
+- 屬於型別修正，已通過 `npx tsc --noEmit` 驗證。
+
+---
+## [2026-07-20 04:45:00] 修復 abc_parse_header.ts 中的模組與類別型別錯誤
+
+### 步驟與技術方案 (Step-by-step Technical Plans)
+1. **補齊模組導入**：
+   - 由於 `abc_parse_header.ts` 中使用了導出的模組類別 `AbcTokenizer` 與 `AbcTune`，在未導入的情況下，雖然全局編譯可解析，但在模組型編輯器中會報出 `Cannot find name` 紅色警報。因此在其頂部補上 `import { AbcTune } from "./abc_tune"` 與 `import { AbcTokenizer } from "./abc_tokenizer"`。
+2. **擴充 KeySignature 選項**：
+   - 於 `all.d.ts` 中為 `KeySignature.acc` 型別補齊支援 `"natural"`、`"dblsharp"`、`"dblflat"`、`"quarterflat"` 以及 `"quartersharp"`，消除調號定義不相符警告。
+3. **擴展全域 Array prototype 宣告**：
+   - 於 `all.d.ts` 全域宣告 `interface Array<T> { last(): T; }`，避免 IDE 對程式中大量使用的 `.last()` 方法發出型別警告。
+
+### 影響檔案 (Affected Files)
+- `src/abc_parse_header.ts` (修改)
+- `src/all.d.ts` (修改)
+
+### 風險評估 (Risks & Mitigations)
+- 屬於型別對齊與環境宣告修正，已通過實測並保證正常打包。
+
+---
+## [2026-07-20 04:52:00] 修復 abc_parse_header.ts 第二階段之類別與屬性型別錯誤
+
+### 步驟與技術方案 (Step-by-step Technical Plans)
+1. **補齊屬性結構與欄位**：
+   - 於 `all.d.ts` 內的 `KeySigElement.accidentals` 陣列元素補上 `verticalPos?: number;`。
+   - 於 `all.d.ts` 中的 `ParseStaff` 補上 `index`、`spacing_below_offset` 與 `verticalPos`，在 `ParseVoice` 中補上 `suppressChords`，以符合 header 解析時的物件操作。
+2. **清除 Header 標記的 Token 警告**：
+   - 在 `abc_parse_header.ts` 當中建立專門的 `HeaderToken` 介面，並在 tokenize 時將其轉型為 `HeaderToken[]`，確保其 properties 在編譯時是非選填且型別安全的。
+3. **對齊 TempoInfo 陣列宣告**：
+   - 由於 tempo 在計算乘積時使用陣列，將 `all.d.ts` 中的 `TempoInfo.duration` 修正為 `number[]`。
+4. **方法介面解耦與型別斷言**：
+   - 將 `abc_tune.ts` 中的 `appendElement` 第四個參數型別調整為 `NOTES_Element` 聯集。
+   - 於 `abc_parse_header.ts` 對 `appendElement` 的呼叫以 `as unknown as TempoElement` 進行斷言，解決 type-mismatch。
+
+### 影響檔案 (Affected Files)
+- `src/all.d.ts` (修改)
+- `src/abc_parse_header.ts` (修改)
+- `src/abc_tune.ts` (修改)
+- `src/abc_parse.ts` (修改)
+
+### 風險評估 (Risks & Mitigations)
+- 無功能邏輯破壞，僅提升型別覆蓋率，且 `pnpm run build` 通過。

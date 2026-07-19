@@ -74,7 +74,7 @@ function encodeHex(s: string): string {
 	let ret = "";
 	for (let i = 0; i < s.length; i += 2) {
 		ret += "%";
-		ret += s.substring(i, i+2);
+		ret += s.substring(i, i + 2);
 	}
 	return ret;
 }
@@ -277,7 +277,7 @@ export class ABCMidiWriter {
 		}
 	}
 
-	writeNote(elem: { startTriplet?: boolean, duration: number, pitches?: Pitch[], startTie?: boolean, endTie?: boolean }): void {
+	writeNote(elem: ABCElement): void {
 		if (elem.startTriplet) {
 			this.multiplier = 2 / 3;
 		}
@@ -333,7 +333,7 @@ export class ABCMidiWriter {
 		let skip: boolean = (elem.startEnding) ? true : false;
 		let setvisited: boolean = (repeat || skip);
 		let setrestart: boolean = (elem.type === "bar_left_repeat" || elem.type === "bar_dbl_repeat" || elem.type === "bar_thick_thin" || elem.type === "bar_thin_thick" || elem.type === "bar_thin_thin" || elem.type === "bar_right_repeat");
-     	let next = null;
+		let next = null;
 
 		if (this.isVisited()) {
 			next = this.getJumpMark();

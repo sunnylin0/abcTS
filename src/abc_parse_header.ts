@@ -1,4 +1,4 @@
-﻿//    abc_parse_header.js: parses a the header fields from a string representing ABC Music Notation into a usable internal structure.
+//    abc_parse_header.js: parses a the header fields from a string representing ABC Music Notation into a usable internal structure.
 //    Copyright (C) 2010 Paul Rosen (paul at paulrosen dot net)
 //
 //    This program is free software: you can redistribute it and/or modify
@@ -16,6 +16,15 @@
 
 /*extern AbcParseHeader */
 
+import { AbcTune } from "./abc_tune";
+import { AbcTokenizer } from "./abc_tokenizer";
+
+interface HeaderToken {
+	type: string;
+	token: string;
+	start: number;
+	end: number;
+}
 
 
 var key1sharp: KeySignature = { acc: 'sharp', note: 'f' };
@@ -217,36 +226,40 @@ export class AbcParseHeader {
 		return mid + oct;
 	}
 
-	deepCopyKey(key: { each: (callback: (acc: { acc: string, note: string }) => void) => void }): { accidentals: { acc: string, note: string } } {
-		const ret: { accidentals: { acc: string, note: string } } = { accidentals: [] };
-
-		for (let k of key) {
-			ret.accidentals.push(Object.assign({}, k));
-		};
+	deepCopyKey(key: { acc?: any, note?: any, verticalPos?: number }[]): KeySigElement {
+		const ret: KeySigElement = { accidentals: [] };
+		if (key) {
+			for (let k of key) {
+				ret.accidentals.push(Object.assign({}, k));
+			}
+		}
 		return ret;
 	}
 
 	private pitches: Record<PitchKey, number> = { A: 5, B: 6, C: 0, D: 1, E: 2, F: 3, G: 4, a: 12, b: 13, c: 7, d: 8, e: 9, f: 10, g: 11 };
 
-	addPosToKey(clef: { verticalPos: number }, key: { accidentals: { acc: string, note: string, verticalPos: number } }): void {
+	addPosToKey(clef: ClefElement, key: KeySigElement): void {
+		if (!clef || !key || !key.accidentals) return;
 		const mid = clef.verticalPos;
 		for (let acc of key.accidentals) {
-			let pitch = this.pitches[acc.note];
-			pitch -= mid;
-			acc.verticalPos = pitch;
+			let pitch = this.pitches[acc.note as PitchKey];
+			if (pitch !== undefined) {
+				pitch -= mid;
+				acc.verticalPos = pitch;
+			}
 		}
 		if (mid < -10) {
 			for (let acc of key.accidentals) {
-				acc.verticalPos -= 14;
+				acc.verticalPos! -= 14;
 			}
 		} else if (mid < -4) {
 			for (let acc of key.accidentals) {
-				acc.verticalPos -= 7;
+				acc.verticalPos! -= 7;
 			}
 		}
 	}
 
-	private fixKey(clef: { verticalPos: number }, key: { accidentals: { acc: string, note: string } }): { accidentals: { acc: string, note: string, verticalPos: number } } {
+	private fixKey(clef: ClefElement, key: KeySigElement): KeySigElement {
 		const fixedKey = Object.assign({}, key);
 		this.addPosToKey(clef, fixedKey);
 		return fixedKey;
@@ -348,7 +361,7 @@ export class AbcParseHeader {
 					if (!ret.accidentals) {
 						ret.accidentals = [];
 					}
-					ret.accidentals.push(retExtra.token);
+					ret.accidentals.push(retExtra.token as typeof ret.accidentals[number]);
 				}
 			}
 		}
@@ -410,7 +423,7 @@ export class AbcParseHeader {
 			return font;
 		};
 
-		const getChangingFont = (cmd: string, tokens: any): string|null => {
+		const getChangingFont = (cmd: string, tokens: any): string | null => {
 			if (tokens.length === 0) {
 				return "Directive \"" + cmd + "\" requires a font as a parameter.";
 			}
@@ -418,7 +431,7 @@ export class AbcParseHeader {
 			return null;
 		};
 
-		const getGlobalFont = (cmd: string, tokens: any): string|null => {
+		const getGlobalFont = (cmd: string, tokens: any): string | null => {
 			if (tokens.length === 0) {
 				return "Directive \"" + cmd + "\" requires a font as a parameter.";
 			}
@@ -426,11 +439,11 @@ export class AbcParseHeader {
 			return null;
 		};
 
-		const tokens = this.tokenizer.tokenize(str, 0, str.length);
+		const tokens = this.tokenizer.tokenize(str, 0, str.length) as HeaderToken[];
 		if (tokens.length === 0 || tokens[0].type !== 'alpha') return null;
-		let restOfString = str.substring(str.indexOf(tokens[0].token) + tokens[0].token.length);
+		let restOfString = str.substring(str.indexOf(tokens[0].token!) + tokens[0].token!.length);
 		restOfString = this.tokenizer.stripComment(restOfString);
-		const cmd = tokens.shift().token.toLowerCase();
+		const cmd = tokens.shift()!.token.toLowerCase();
 		let num: number;
 		let scratch = "";
 		switch (cmd) {
@@ -632,7 +645,7 @@ export class AbcParseHeader {
 			case "continuous":
 			case "nobarcheck":
 				// TODO-PER: Actually handle the parameters of these
-				this.tune.formatting[cmd] = restOfString;
+				(this.tune.formatting as Record<string, any>)[cmd] = restOfString;
 				break;
 			default:
 				return "Unknown directive: " + cmd;
@@ -816,10 +829,10 @@ export class AbcParseHeader {
 		}
 		const s = this.multilineVars.staves[this.multilineVars.voices[id].staffNum];
 		if (!this.multilineVars.score_is_present) {
-			s.numVoices++;
+			s.numVoices!++;
 		}
 		if (staffInfo.clef) {
-			s.clef = { type: staffInfo.clef, verticalPos: staffInfo.verticalPos };
+			s.clef = { type: staffInfo.clef as ClefType, verticalPos: staffInfo.verticalPos! };
 		}
 		if (staffInfo.spacing) {
 			s.spacing_below_offset = staffInfo.spacing;
@@ -940,8 +953,10 @@ export class AbcParseHeader {
 
 	calcTempo(relTempo: TempoInfo): TempoInfo {
 		const dur: number = this.multilineVars.default_length ? this.multilineVars.default_length : 1;
-		for (let i = 0; i < relTempo.duration.length; i++) {
-			relTempo.duration[i] = dur * relTempo.duration[i];
+		if (relTempo.duration) {
+			for (let i = 0; i < relTempo.duration.length; i++) {
+				relTempo.duration[i] = dur * relTempo.duration[i];
+			}
 		}
 		return relTempo;
 	};
@@ -1144,9 +1159,9 @@ export class AbcParseHeader {
 					if (e > 0) {
 						let tempo = this.setTempo(line, i + 3, e);
 						if (tempo.type === 'delaySet')
-							this.tune.appendElement('tempo', -1, -1, this.calcTempo(tempo.tempo));
+							this.tune.appendElement('tempo', -1, -1, this.calcTempo(tempo.tempo) as unknown as TempoElement);
 						else if (tempo.type === 'immediate')
-							this.tune.appendElement('tempo', -1, -1, tempo.tempo);
+							this.tune.appendElement('tempo', -1, -1, tempo.tempo as unknown as TempoElement);
 						return [e - i + 1 + ws, line.charAt(i + 1), line.substring(i + 3, e)];
 					}
 					break;
@@ -1196,8 +1211,8 @@ export class AbcParseHeader {
 					let e = line.indexOf('\x12', i + 2);
 					if (e === -1) e = line.length;
 					const tempo = this.setTempo(line, i + 2, e);
-					if (tempo.type === 'delaySet') this.tune.appendElement('tempo', -1, -1, this.calcTempo(tempo.tempo));
-					else if (tempo.type === 'immediate') this.tune.appendElement('tempo', -1, -1, tempo.tempo);
+					if (tempo.type === 'delaySet') this.tune.appendElement('tempo', -1, -1, this.calcTempo(tempo.tempo) as unknown as TempoElement);
+					else if (tempo.type === 'immediate') this.tune.appendElement('tempo', -1, -1, tempo.tempo as unknown as TempoElement);
 					return [e, line.charAt(i), line.substring(i + 2).trim()];
 				case "V:":
 					this.parseVoice(line, 2, line.length);

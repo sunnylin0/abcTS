@@ -239,17 +239,17 @@ export class AbcTune {
 	* @param endChar 結束字元。
 	* @param hashParams 包含元素詳細資訊的雜湊參數。
 	*/
-	appendElement(type: ElementType, startChar: number, endChar: number, hashParams2?: ABCElement) {
-		let hashParams: ABCElement = hashParams2 || {};
+	appendElement(type: ElementType, startChar: number, endChar: number, hashParams2?: NOTES_Element) {
+		let hashParams: NOTES_Element = hashParams2 || {};
 		let This = this;
-		function pushNote(hp: ABCElement) {
+		function pushNote(hp: NOTES_Element) {
 			if (hp.pitches !== undefined) {
 				let mid = This.lines[This.lineNum].staff[This.staffNum].clef?.verticalPos ?? 0;
-				hp.pitches.forEach(p => p.verticalPos = (p.pitch ?? 0) - mid);
+				hp.pitches.forEach((p: NOTES_Element) => p.verticalPos = (p.pitch ?? 0) - mid);
 			}
 			if (hp.gracenotes !== undefined) {
 				let mid2 = This.lines[This.lineNum].staff[This.staffNum].clef?.verticalPos ?? 0;
-				hp.gracenotes.forEach(p => p.verticalPos = (p.pitch ?? 0) - mid2);
+				hp.gracenotes.forEach((p: NOTES_Element) => p.verticalPos = (p.pitch ?? 0) - mid2);
 			}
 			This.lines[This.lineNum].staff[This.staffNum].voices[This.voiceNum].push(hp as NOTES_Element);
 		}
@@ -381,19 +381,7 @@ export class AbcTune {
 	* 開始新的一行。
 	* @param params 包含行參數的物件。
 	*/
-	startNewLine(params: {
-		clef: ClefElement;
-		key?: KeySigElement;
-		stem?: 'up' | 'down';
-		part?: string;
-		meter?: MeterElement;
-		name?: string;
-		subname?: string;
-		vocalfont?: string;
-		bracket?: boolean;
-		brace?: boolean;
-		connectBarLines?: string;
-	}): void {
+	startNewLine(params: ParamsOther): void {
 		// If the pointed to line doesn't exist, just create that. If the line does exist, but doesn't have any music on it, just use it.
 		// If it does exist and has music, then increment the line number. If the new element doesn't exist, create it.
 		let This = this;

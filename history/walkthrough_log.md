@@ -177,3 +177,81 @@
 
 ### 驗證與測試日誌 (Verification & Test Log)
 1. 執行 `pnpm run build` 成功建置。產出 UMD 格式的 `dist/abcjs-basic.js` (368.24 kB)，確保所有的重構均能無誤打包，專案的型別健全度與運行安全性再次大幅提升。
+
+---
+## [2026-07-20 04:30:00] 修復 abc_parse.ts 內與 all.d.ts 的型別紅線與大小寫/拼寫錯誤 (完成)
+
+### 變更摘要 (Change Summary)
+1. **修正全域型別不一致 (all.d.ts)**：
+   - 擴充 `Lyric` 介面，支援 `skip` 與 `to` 屬性。
+   - 修正 `NoteAccidental` 字串列舉，移除底線以適應程式碼實際的 `'dblsharp'` 等用法。
+   - 修正 `ParamsOther` 內 `brace` 與 `bracket` 型別為 `string`，解決與 `Staff` 物件不一致。
+   - 擴展休止符 `rest` 結構以支援 endSlur、endTie 等連線標記。
+2. **修復 `abc_parse.ts` 內的紅線**：
+   - 修正 `MultilineVars.key` 的型別。
+   - 統一 `grace_notes` 與 `graceNotes` 為 `gracenotes` 消除屬性拼寫錯誤。
+   - 於 L1111 與 L1129 之 slur 加法運算處添加型別斷言。
+
+### 驗證與測試日誌 (Verification & Test Log)
+1. 執行 `pnpm run build` 成功建置。
+2. 執行 `npx tsc --noEmit` 證實整個 `src` 目錄下的所有原始程式碼均已無任何 TypeScript 型別錯誤！
+
+---
+## [2026-07-20 04:35:00] 統一與對齊 deepCopyKey、addPosToKey 及 startNewLine 的型別簽章 (完成)
+
+### 變更摘要 (Change Summary)
+1. **修正 AbcParseHeader 輔助方法型別**：
+   - 修正了 `deepCopyKey` 的參數型別，以符合音符陣列，返回型別定義為 `KeySigElement`。
+   - 修正了 `addPosToKey` 與 `fixKey` 的第二參數，改為 `KeySigElement`，解決對接 `params.key` 時的結構型別不匹配。
+2. **統一 startNewLine 介面簽章**：
+   - 將 `abc_tune.ts` 中 `startNewLine` 的參數簽章統一重構為全域的 `ParamsOther`，消除程式碼在 `abc_parse.ts` (L769) 的型別紅線。
+
+### 驗證與測試日誌 (Verification & Test Log)
+1. 執行 `pnpm run build` 打包完全通過。
+2. 執行 `npx tsc --noEmit` 再次驗證 `src/` 底下 0 錯誤。
+
+---
+## [2026-07-20 04:42:00] 修復 M: (Meter) 拍號與 origMeter 的型別宣告 (完成)
+
+### 變更摘要 (Change Summary)
+1. **修正 `MeterElement` 定義**：
+   - 修正 `all.d.ts` 裡的 `MeterElement.value`，將其 `num` 與 `den` 由 `number` 修正為更能契合真實樂譜的 `string`，消除 L88、L89 及解析賦值時的型別不合警報。
+2. **清除 `abc_parse.ts` 內的 any 宣告**：
+   - 將 `MultilineVars.origMeter` 型別從 `any` 更改為更精確的 `MeterElement | null`。
+
+### 驗證與測試日誌 (Verification & Test Log)
+1. 執行 `pnpm run build` 打包通過。
+2. 執行 `npx tsc --noEmit` 驗證無 any 型別錯誤。
+
+---
+## [2026-07-20 04:45:00] 修復 abc_parse_header.ts 中的模組與類別型別錯誤 (完成)
+
+### 變更摘要 (Change Summary)
+1. **模組引入補齊**：
+   - 於 `abc_parse_header.ts` 頂部補入 `import { AbcTune } from "./abc_tune"` 與 `import { AbcTokenizer } from "./abc_tokenizer"`。
+2. **調號型別對齊**：
+   - 於 `all.d.ts` 將 `KeySignature.acc` 型別補齊對 `"natural"` 等多種 Accidental 型態的宣告支援。
+3. **擴展全域陣列原型宣告**：
+   - 於 `all.d.ts` 新增 `interface Array<T> { last(): T; }` 的全域擴充宣告。
+
+### 驗證與測試日誌 (Verification & Test Log)
+1. 執行 `pnpm run build` 通過。
+2. 執行 `npx tsc --noEmit` 驗證無任何 TS 型別錯誤。
+
+---
+## [2026-07-20 04:52:00] 修復 abc_parse_header.ts 第二階段之類別與屬性型別錯誤 (完成)
+
+### 變更摘要 (Change Summary)
+1. **補齊屬性結構與欄位**：
+   - 於 `all.d.ts` 的 `KeySigElement.accidentals` 中新增 `verticalPos?: number;`。
+   - 於 `all.d.ts` 中的 `ParseStaff` 補上 `index`、`spacing_below_offset`、`verticalPos`。
+   - 於 `all.d.ts` 中的 `ParseVoice` 補上 `suppressChords`，並將所有屬性轉為可選欄位。
+2. **重構指令 Token 的處理機制**：
+   - 定義 `HeaderToken` 介面，以 `as HeaderToken[]` 將 tokenize 後的物件進行型別強轉，使成員屬性皆具備安全之 string/number 型別。
+3. **對齊 Tempo 相關型別**：
+   - 將 `all.d.ts` 內的 `TempoInfo.duration` 調整為 `number[]`。
+   - 更新 `abc_tune.ts` 當中 `appendElement` 的參數型別為 `NOTES_Element`，並在 `abc_parse_header.ts` 當中對傳遞的 `TempoInfo` 以 `as unknown as TempoElement` 斷言。
+
+### 驗證與測試日誌 (Verification & Test Log)
+1. 執行 `pnpm run build` 通過。
+2. 執行 `npx tsc --noEmit` 驗證無任何 TS 型別錯誤。

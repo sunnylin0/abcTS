@@ -159,5 +159,90 @@
 5. 確保 TypeScript 編譯無誤。
 
 ### 驗收條件 (Acceptance Criteria)
-- `abc_tune.ts` 內的所有紅線消除。
+- `abc_tune.ts` 內的所有紅線消除.
+- `pnpm run build` 通過。
+
+---
+## [2026-07-20 04:30:00] 修復 abc_parse.ts 內與 all.d.ts 的型別紅線與大小寫/拼寫錯誤
+
+### 目標 (Objectives)
+- 清理 `abc_parse.ts` 內的 IDE 警告紅線，統一屬性大小寫與正確繼承欄位。
+
+### 需求 (Requirements)
+1. 修正 `MultilineVars.key` 型別為 `KeySigElement`，以適應 L87 的初始化。
+2. 擴充全域 `Lyric` 介面，支援 `skip?: boolean` 與 `to?: 'next' | 'slur' | 'bar'` 屬性，消除歌詞解析時的物件推入報錯。
+3. 修正 accidental 字串列舉在代碼中使用無底線格式（如 `'dblsharp'`），在 `all.d.ts` 的 `NoteAccidental` 予以統一。
+4. 修復大小寫不一致及拼寫錯誤，如將 `grace_notes` 與 `graceNotes` 全數修正為 `gracenotes`。
+5. 擴充 `rest` 型別定義，增加 `endSlur`、`endTie`、`startSlur`、`startTie` 等連線屬性。
+6. 修正 `brace` 與 `bracket` 型別在 `ParamsOther` 與 `Staff` 之間的不一致（皆改為 `string`）。
+7. 將 `pitch.startSlur`、`pitch.endSlur` 等 `++` / `+=` 運算添加合適的型別斷言。
+
+### 驗收條件 (Acceptance Criteria)
+- `abc_parse.ts` 與 `all.d.ts` 內無任何紅線。
+- `npx tsc --noEmit` 除外部依賴外，`src/` 底下 0 錯誤。
+- `pnpm run build` 通過。
+
+---
+## [2026-07-20 04:35:00] 統一與對齊 deepCopyKey、addPosToKey 及 startNewLine 的型別簽章
+
+### 目標 (Objectives)
+- 優化及對齊 `deepCopyKey`、`addPosToKey` 與 `startNewLine` 跨模組呼叫時的型別宣告。
+
+### 需求 (Requirements)
+1. 修正 `deepCopyKey` 的參數型別為 `{ acc?: any, note?: any, verticalPos?: number }[]`，回傳型別為 `KeySigElement`。
+2. 修正 `addPosToKey` 參數，將其傳入的 `key` 宣告為 `KeySigElement`。
+3. 修正 `startNewLine` 的參數簽章，直接採用全域的 `ParamsOther`，消除行參數散落各檔案重複宣告造成的型別不一致。
+
+### 驗收條件 (Acceptance Criteria)
+- `abc_parse.ts` 與 `abc_tune.ts` 間的型別呼叫對接無紅線。
+- `npx tsc --noEmit` 除外部依賴外，`src/` 底下 0 錯誤。
+- `pnpm run build` 通過。
+
+---
+## [2026-07-20 04:42:00] 修復 M: (Meter) 拍號與 origMeter 的型別宣告
+
+### 目標 (Objectives)
+- 修正拍號 `value.num` 與 `value.den` 型別定義，以適配字串賦值並移除 `origMeter` 的 `any` 宣告。
+
+### 需求 (Requirements)
+1. 將 `all.d.ts` 中的 `MeterElement.value` 屬性定義從數值 `number` 改為字串 `string`。
+2. 將 `abc_parse.ts` 內的 `origMeter` 型別從 `any` 修正為 `MeterElement | null`。
+
+### 驗收條件 (Acceptance Criteria)
+- `abc_parse.ts` (L87-L89) 對拍號賦值為 `'4'` 時無紅線報錯。
+- `npx tsc --noEmit` 除外部依賴外，`src/` 底下 0 錯誤。
+- `pnpm run build` 通過。
+
+---
+## [2026-07-20 04:45:00] 修復 abc_parse_header.ts 中的模組與類別型別錯誤
+
+### 目標 (Objectives)
+- 清除 `abc_parse_header.ts` 在編輯器中的所有紅色波浪虛線警告。
+
+### 需求 (Requirements)
+1. 在 `abc_parse_header.ts` 頂部加入 `import { AbcTune } from "./abc_tune"` 與 `import { AbcTokenizer } from "./abc_tokenizer"`，修復 IDE 無法解析外部導出類別的問題。
+2. 擴充 `KeySignature.acc` 型別支援 `"natural"`、`"dblsharp"` 等更多調號表示，避免屬性指派錯誤。
+3. 全域擴展 `Array<T>` 介面，宣告 `last(): T` 方法，修復陣列使用 `.last()` 時的 IDE 型別警報。
+
+### 驗收條件 (Acceptance Criteria)
+- IDE 內 `abc_parse_header.ts` 檔案內無 any 紅線。
+- `npx tsc --noEmit` 除外部依賴外，`src/` 底下 0 錯誤。
+- `pnpm run build` 通過。
+
+---
+## [2026-07-20 04:52:00] 修復 abc_parse_header.ts 第二階段之類別與屬性型別錯誤
+
+### 目標 (Objectives)
+- 清除 `abc_parse_header.ts` 當中因 index-signature 缺失、型別不相符、可選型別運算及屬性遺漏所引起的所有紅色波浪線警告。
+
+### 需求 (Requirements)
+1. 修正 `all.d.ts` 中 `KeySigElement.accidentals` 陣列元素定義，補上 `verticalPos?: number;` 欄位。
+2. 於 `abc_parse_header.ts` 中為 `HeaderToken` 宣告專用介面，並將指令 `tokens` 進行強型別轉換以清除其成員屬性（`type`、`token`）可能為 `undefined` 的波浪線。
+3. 修正 `all.d.ts` 中的 `ParseStaff` 與 `ParseVoice`，補上 `index`、`spacing_below_offset`、`verticalPos` 與 `suppressChords` 等屬性，使 voice/staff 初始化 `{}` 與賦值安全無虞。
+4. 修正 `all.d.ts` 中 `TempoInfo.duration` 定義為 `number[]`（陣列），修復其 `.length` 呼叫錯誤。
+5. 修改 `abc_tune.ts` 中的 `appendElement` 的第四個參數為 `NOTES_Element`，並在 `abc_parse_header.ts` 中呼叫時，將 `TempoInfo` 斷言為 `unknown as TempoElement` 以相容於聯集型別。
+
+### 驗收條件 (Acceptance Criteria)
+- 所有列舉行在編輯器內皆無紅線。
+- `npx tsc --noEmit` 除外部依賴外，`src/` 底下 0 錯誤。
 - `pnpm run build` 通過。

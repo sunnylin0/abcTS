@@ -39,15 +39,15 @@ import { AbcParseHeader } from "./abc_parse_header";
 //	const g: number;
 //}
 
-declare namespace rests {
-	const x: string;
-	const y: string;
-	const z: string;
+interface  Rests {
+	 x: string;
+	 y: string;
+	 z: string;
 }
 
 export class MultilineVars {
 	iChar: number;
-	key: { regularKey?: KeySignature };
+	key: KeySigElement;
 	meter: MeterElement;
 	hasMainTitle: boolean;
 	default_length: number;
@@ -66,7 +66,7 @@ export class MultilineVars {
 	voices: { [key: string]: ParseVoice };
 	currentVoice?: ParseVoice;
 	macros: { [key: string]: string };
-	origMeter: any;
+	origMeter: MeterElement | null;
 	currBarNumber: number;
 	inTextBlock: boolean;
 	textBlock: string;
@@ -116,8 +116,8 @@ export class AbcParse {
 	multilineVars: MultilineVars;
 	header: AbcParseHeader;
 
-	pitches = { A: 5, B: 6, C: 0, D: 1, E: 2, F: 3, G: 4, a: 12, b: 13, c: 7, d: 8, e: 9, f: 10, g: 11 };
-	rests = { x: 'invisible', y: 'spacer', z: 'rest' };
+	pitches: Record<PitchKey, number>  = { A: 5, B: 6, C: 0, D: 1, E: 2, F: 3, G: 4, a: 12, b: 13, c: 7, d: 8, e: 9, f: 10, g: 11 };
+	rests: Rests = { x: 'invisible', y: 'spacer', z: 'rest' };
 	legalAccents = ["trill", "lowermordent", "uppermordent", "mordent", "pralltriller", "accent",
 		"emphasis", "fermata", "invertedfermata", "tenuto", "0", "1", "2", "3", "4", "5", "+", "wedge",
 		"open", "thumb", "snap", "turn", "roll", "breath", "shortphrase", "mediumphrase", "longphrase",
@@ -409,7 +409,7 @@ export class AbcParse {
 		};
 	};
 
-	private getBrokenRhythm(line: string, index: number): number[]  {
+	private getBrokenRhythm(line: string, index: number): number[] {
 		switch (line[index]) {
 			case '>':
 				if (index < line.length - 1 && line[index + 1] === '>')	// double >>
@@ -448,7 +448,7 @@ export class AbcParse {
 						if (el.startSlur === undefined) {
 							el.startSlur = 1;
 						} else {
-							el.startSlur++;
+							(el.startSlur as number)++;
 						}
 					} else if (isComplete(state)) {
 						el.endChar = index; return el;
@@ -461,7 +461,7 @@ export class AbcParse {
 						if (el.endSlur === undefined) {
 							el.endSlur = 1;
 						} else {
-							el.endSlur++;
+							(el.endSlur as number)++;
 						}
 					} else {
 						return null;
@@ -521,7 +521,8 @@ export class AbcParse {
 				case 'f':
 				case 'g':
 					if (state === 'startSlur' || state === 'sharp2' || state === 'flat2' || state === 'pitch') {
-						el.pitch = this.pitches[line.charAt(index)];
+						const pitch: PitchKey = line.charAt(index) as PitchKey;
+						el.pitch = this.pitches[pitch];
 						state = 'octave';
 						if (canHaveBrokenRhythm && this.multilineVars.next_note_duration !== 0) {
 							el.duration = this.multilineVars.next_note_duration;
@@ -561,7 +562,7 @@ export class AbcParse {
 				case 'y':
 				case 'z':
 					if (state === 'startSlur') {
-						el.rest = { type: this.rests[line.charAt(index)] };
+						el.rest = { type: this.rests[line.charAt(index) as (keyof Rests)] };
 						// There shouldn't be some of the properties that notes have. If some sneak in due to bad syntax in the abc file,
 						// just nix them here.
 						delete el.accidental;
@@ -570,7 +571,7 @@ export class AbcParse {
 						delete el.endSlur;
 						delete el.endTie;
 						delete el.end_beam;
-						delete el.grace_notes;
+						delete el.gracenotes;
 						// At this point we have a valid note. The rest is optional. Set the duration in case we don't get one below
 						if (canHaveBrokenRhythm && this.multilineVars.next_note_duration !== 0) {
 							el.duration = this.multilineVars.next_note_duration;
@@ -1108,7 +1109,7 @@ export class AbcParse {
 											if (pitch.startSlur === undefined) {
 												pitch.startSlur = el.startSlur;
 											} else {
-												pitch.startSlur += el.startSlur;
+												(pitch.startSlur as number) += el.startSlur as number;
 											}
 										}
 										delete el.startSlur;
@@ -1126,7 +1127,7 @@ export class AbcParse {
 													if (pitch.endSlur === undefined) {
 														pitch.endSlur = 1;
 													} else {
-														pitch.endSlur++;
+														(pitch.endSlur as number)++;
 													}
 												}
 												break;
@@ -1214,7 +1215,7 @@ export class AbcParse {
 							if (core.chord !== undefined) el.chord = core.chord;
 							if (core.duration !== undefined) el.duration = core.duration;
 							if (core.decoration !== undefined) el.decoration = core.decoration;
-							if (core.graceNotes !== undefined) el.graceNotes = core.graceNotes;
+							if (core.gracenotes !== undefined) el.gracenotes = core.gracenotes;
 
 							delete el.startSlur;
 							if (this.multilineVars.inTie) {

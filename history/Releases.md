@@ -76,3 +76,37 @@
 - 修正 `fixClefPlacement` 對 `el.type` 欄位的錯誤判定為 `el.el_type`，並配合強型別做轉型處理。
 - 將 `potentialStartBeam` 與 `potentialEndBeam` 型別自 `ABCBeamElem` 糾正為 `ABCElement`，解決 Beam 標記時的屬性缺失警告。
 - 對 `appendElement` 的 `hashParams2` 做防禦性初始化，避免 `undefined` 引起的屬性賦值錯誤。
+
+---
+## [2026-07-20] 修復 abc_parse.ts 內與 all.d.ts 的型別與拼寫漏洞 (v1.2.8)
+- 擴充 `Lyric` 介面，支援 `skip` 與 `to` 欄位以支援解析。
+- 修正 `NoteAccidental` 移除底線，對齊無底線列舉值的實際代碼。
+- 修正 `ParamsOther` 內 `brace` 與 `bracket` 型別為 `string`。
+- 擴展休止符 `rest` 定義支援連線屬性。
+- 將 `grace_notes` 與 `graceNotes` 全部拼寫修正為專案通用的 `gracenotes`。
+- 新增 `abc_parse.ts` 內 slur 算式適當的型別斷言。
+
+---
+## [2026-07-20] 統一 deepCopyKey 與 startNewLine 型別對接 (v1.2.9)
+- 將 `deepCopyKey` 的參數型別修正為 `{ acc?: any, note?: any, verticalPos?: number }[]`，回傳型別為 `KeySigElement`。
+- 將 `addPosToKey` 與 `fixKey` 內的調號型別由 `{ accidentals: ... }` 放寬為 `KeySigElement`，適配 `params.key` 輸入。
+- 重構 `abc_tune.ts` 內的 `startNewLine` 簽章，改為直接接收 `ParamsOther`，消除 L769 處傳參的型別衝突。
+
+---
+## [2026-07-20] 修復 M: (Meter) 拍號與 origMeter 的型別宣告 (v1.3.0)
+- 修正 `all.d.ts` 內 `MeterElement.value` 之 `num` 與 `den` 型別定義為 `string`，適配樂譜表示與解析器之字串賦值。
+- 將 `abc_parse.ts` 內 `MultilineVars.origMeter` 從 `any` 改為精確型別 `MeterElement | null`。
+
+---
+## [2026-07-20] 修復 abc_parse_header.ts 中的模組與類別型別錯誤 (v1.3.1)
+- 在 `abc_parse_header.ts` 頂部補上 `AbcTune` 與 `AbcTokenizer` 的 `import`。
+- 全域擴充 `Array.prototype.last` 型別，修復陣列取最後一個元素時的 TS 型別波浪線警報。
+- 擴充 `KeySignature.acc` 的型別定義，支援 `"natural"`、`"dblsharp"` 等多種變音記號。
+
+---
+## [2026-07-20] 修復 abc_parse_header.ts 第二階段之類別與屬性型別錯誤 (v1.3.2)
+- 於 `all.d.ts` 中的 `KeySigElement.accidentals` 新增 `verticalPos` 欄位。
+- 於 `all.d.ts` 補齊 `ParseStaff` (新增 `index`、`spacing_below_offset`、`verticalPos`) 與 `ParseVoice` (可選屬性與新增 `suppressChords`)。
+- 在 `abc_parse_header.ts` 定義 `HeaderToken` 介面，並以之為指令 `tokens` 進行轉型，消除屬性選填警告。
+- 將 `TempoInfo.duration` 改為 `number[]` 以配合實質運算。
+- 解耦 `appendElement` 的參數限制為 `NOTES_Element` 聯集，並在 `abc_parse_header.ts` 內將 `TempoInfo` 轉型為 `TempoElement` 傳遞。
