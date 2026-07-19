@@ -91,16 +91,16 @@ interface GroupOptions {
 
 declare function constructHLine(x1: number, y1: number, x2: number): string;
 declare function constructVLine(x1: number, y1: number, y2: number): string;
-declare function createSvg(): SVGElement;
+declare function createSvg(): SVGSVGElement;
 
 
 
 (function () {
 'use strict'; 
 	var cookieTemp = "";
-	// 监听document里面的cookie 进行set操作 出现关键字v的时候进行debugger 
+	// 監聽document裡面的cookie 進行set操作出現關鍵字v的時候進行debugger
 	Object.defineProperty(document, 'cookie', {
-		//设置 
+		// 設定
 		set: function (val) {
 			if (val.indexOf('v') != -1) {
 				debugger;

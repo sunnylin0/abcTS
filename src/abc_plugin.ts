@@ -16,6 +16,10 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 // requires: abcjs, raphael
+import { AbcTuneBook } from "./abc_tunebook"
+import { AbcParse } from "./abc_parse"
+import { ABCPrinter } from "./abc_write"
+import { ABCMidiWriter } from "./abc_midiwriter"
 
 interface ABCPluginOptions {
 	show_midi: boolean;
@@ -31,7 +35,9 @@ interface ABCPluginOptions {
 	hide_text: string;
 }
 
-class ABCPlugin {
+
+export class ABCPlugin {
+
 	show_midi: boolean;
 	hide_abc: boolean;
 	render_before: boolean;
@@ -65,16 +71,16 @@ class ABCPlugin {
 	start(rootElement: HTMLElement) {
 		this.errors = "";
 		const elems = this.getABCContainingElements(rootElement);
-		const self = this;
+		const self: ABCPlugin = this;
 		const divs = elems.map(elem => self.convertToDivs(elem)).filter((div): div is HTMLElement => div !== null);
 		this.auto_render = divs.length <= this.auto_render_threshold;
-		divs.forEach(elem => self.render(elem, elem.getAttribute("data-abctext")));
+		divs.forEach(elem => self.render(elem, elem.getAttribute("data-abctext")?.toString()));
 	}
 
 	getABCContainingElements(elem: HTMLElement): HTMLElement[] {
 		const results: HTMLElement[] = [];
-		let includeself = false;
-		const self = this;
+		let includeself: boolean = false;
+		const self: ABCPlugin = this;
 
 		function recurse(node: Node): void {
 			if (node.nodeType === Node.TEXT_NODE && !includeself) {
@@ -94,18 +100,18 @@ class ABCPlugin {
 	}
 
 	convertToDivs(elem: HTMLElement): HTMLElement {
-		const self = this;
+		const self: ABCPlugin = this;
 		const contents = elem.childNodes;
 		let abctext = "";
-		let abcdiv: HTMLElement | null = null;
+		let abcdiv: HTMLElement;
 		let inabc = false;
 		let brcount = 0;
 
-		function recurse(node: HTMLElement): void {
-			if (node.nodeType === Node.TEXT_NODE && node.nodeValue.trim() !== "") {
+		function recurse(node: Node): void {
+			if (node.nodeType === Node.TEXT_NODE && node.nodeValue!.trim() !== "") {
 				brcount = 0;
 				const text = node.nodeValue;
-				if (text.match(/^\s*X:/m)) {
+				if (text!.match(/^\s*X:/m)) {
 					inabc = true;
 					abctext = "";
 					abcdiv = document.createElement("div");
@@ -116,17 +122,17 @@ class ABCPlugin {
 					}
 				}
 				if (inabc) {
-					abctext += text.replace(/\n$/, "").replace(/^\n/, "");
+					abctext += text!.replace(/\n$/, "").replace(/^\n/, "");
 					abcdiv.appendChild(node);
 				}
-			} else if (inabc && node.nodeType === Node.ELEMENT_NODE && node.tagName === "BR" && brcount === 0) {
+			} else if (inabc && node.nodeType === Node.ELEMENT_NODE && (node as Element).tagName === "BR" && brcount === 0) {
 				abctext += "\n";
-				abcdiv.appendChild(node);
+				if (abcdiv) abcdiv.appendChild(node);
 				brcount++;
 			} else if (inabc) { // second BR or whitespace text node
 				inabc = false;
 				brcount = 0;
-				abcdiv.setAttribute("data-abctext", abctext);
+				if (abcdiv) abcdiv.setAttribute("data-abctext", abctext);
 			}
 		}
 
@@ -201,7 +207,7 @@ class ABCPlugin {
 
 // Usage Example
 document.addEventListener("DOMContentLoaded", () => {
-	const abcPlugin = new ABCPlugin();
+	const abcPlugin: ABCPlugin = new ABCPlugin();
 	abcPlugin.start(document.body);
 });
 

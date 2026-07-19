@@ -15,11 +15,10 @@
 //    You should have received a copy of the GNU General Public License
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-/*global ABCPrinter, sprintf, AbcSpacing, getDurlog */
-/*extern  ABCVoiceElement ABCRelativeElement ABCAbsoluteElement ABCBeamElem ABCEndingElem ABCTripletElem ABCTieElem ABCStaffGroupElement*/
 
+import { getDurlog } from "./abc_layout"
 
-class ABCStaffGroupElement {
+export class ABCStaffGroupElement {
 	voices: ABCVoiceElement[] = [];
 	staffs: number[] = [];
 	spacingunits: number = 0;
@@ -29,7 +28,7 @@ class ABCStaffGroupElement {
 
 	addVoice(voice: ABCVoiceElement): void {
 		this.voices.push(voice);
-		if (!this.staffs.includes(voice.y))
+		if (this.staffs.indexOf(voice.y)==-1)
 			this.staffs.push(voice.y);
 	}
 
@@ -49,7 +48,7 @@ class ABCStaffGroupElement {
 		// find out how much space will be taken up by voice headers
 		for (let i = 0; i < this.voices.length; i++) {
 			if (this.voices[i].header) {
-				const t = printer.paper.text(100, this.y, this.voices[i].header).attr({ "font-size": 12, "font-family": "serif" });
+				const t = printer.paper.text(100, -10, this.voices[i].header).attr({ "font-size": 12, "font-family": "serif" });
 				x = Math.max(x, t.getBBox().width);
 				t.remove();
 			}
@@ -156,10 +155,10 @@ class ABCStaffGroupElement {
 	}
 }
 
-class ABCVoiceElement {
+export class ABCVoiceElement {
 	children: ABCAbsoluteElement[] = [];
 	beams: ABCBeamElem[] = [];
-	otherchildren: (ABCTieElem | ABCTripletElem)[] = []; // ties, slurs, triplets
+	otherchildren: (ABCTieElem | ABCTripletElem | ABCEndingElem)[] = []; // ties, slurs, triplets
 	w: number = 0;
 	y: number = 0;
 	i: number = 0;
@@ -187,7 +186,7 @@ class ABCVoiceElement {
 		this.children.push(child);
 	}
 
-	addOther(child: ABCTieElem | ABCTripletElem | ABCBeamElem): void {
+	addOther(child: ABCTieElem | ABCTripletElem | ABCBeamElem | ABCEndingElem): void {
 		if (child instanceof ABCBeamElem) {
 			this.beams.push(child);
 		} else {
@@ -277,7 +276,7 @@ class ABCVoiceElement {
 	}
 }
 
-class ABCAbsoluteElement {
+export class ABCAbsoluteElement {
 	abcelem: ABCElement;
 	duration: number;
 	minspacing: number = 0;
@@ -335,33 +334,33 @@ class ABCAbsoluteElement {
 		this.elemset = [];// printer.paper.set();
 		if (this.invisible) return;
 		for (const child of this.children) {
-			let drawelem = child.draw(printer, this.x, bartop)
+			let drawelem: SVGElement | SVGElement[] = child.draw(printer, this.x, bartop)
 			if (Array.isArray(drawelem))
 				this.elemset.push(...drawelem);
 			else
 				this.elemset.push(drawelem);
 		}
-		let self = this;
+		let self: ABCAbsoluteElement = this;
 		for (const el of this.elemset) {
 			if (el)
 				el.mouseup(function (e) {
 					printer.notifySelect(self);
-				})
+				});
 		}
 	};
 
 	highlight(): void {
 		//this.elemset.attr({ fill: "#ff0000" });
 
-		this.elemset.forEach(el => el.attr({ fill: "#ff0000" }));
+		this.elemset.forEach((el: SVGElement): SVGElement  => el.attr({ fill: "#ff0000" }));
 	}
 
 	unhighlight(): void {
-		this.elemset.forEach(el => el.attr({ fill: "#000000" }));
+		this.elemset.forEach((el: SVGElement): SVGElement => el.attr({ fill: "#000000" }));
 	}
 }
 
-class ABCRelativeElement {
+export class ABCRelativeElement {
 	x: number = 0;
 	c: string | null = "";
 	dx: number = 0;
@@ -389,7 +388,7 @@ class ABCRelativeElement {
 		this.attributes = opt.attributes;
 	}
 
-	draw(printer: ABCPrinter, x: number, bartop: number): SVGElement[] {
+	draw(printer: ABCPrinter, x: number, bartop: number): SVGElement | SVGElement[] {
 		this.x = x + this.dx;
 		switch (this.type) {
 			case "symbol":
@@ -426,13 +425,13 @@ class ABCRelativeElement {
 		}
 		if (this.attributes && this.graphelem) {
 			if (Array.isArray(this.graphelem))
-				this.graphelem.forEach(el => el.attr(this.attributes));
+				this.graphelem.forEach((el: SVGElement): SVGElement  => el.attr(this.attributes));
 		}
 		return this.graphelem;
 	}
 }
 
-class ABCEndingElem {
+export class ABCEndingElem {
 	text: string; // text to be displayed top left
 	anchor1: ABCRelativeElement; // must have a .x property or be null (means starts at the "beginning" of the line - after keysig)
 	anchor2: ABCRelativeElement; // must have a .x property or be null (means ends at the end of the line)
@@ -466,7 +465,7 @@ class ABCEndingElem {
 		printer.paper.path().attr({ path: pathString, stroke: "#000000", fill: "none" });
 	};
 }
-class ABCTieElem {
+export class ABCTieElem {
 	anchor1: ABCRelativeElement; // must have a .x and a .pitch, and a .parent property or be null (means starts at the "beginning" of the line - after keysig)
 	anchor2: ABCRelativeElement; // must have a .x and a .pitch property or be null (means ends at the end of the line)
 	above: boolean; // true if the arc curves above
@@ -521,7 +520,7 @@ class ABCTieElem {
 	}
 }
 
-class ABCTripletElem {
+export class ABCTripletElem {
 	number: number;
 	anchor1: ABCRelativeElement; // must have a .x and a .parent property or be null (means starts at the "beginning" of the line - after keysig)
 	anchor2: ABCRelativeElement; // must have a .x property or be null (means ends at the end of the line)
@@ -585,7 +584,7 @@ class ABCTripletElem {
 	}
 }
 
-class ABCBeamElem {
+export class ABCBeamElem {
 	dy: number;
 	isflat: boolean;
 	isgrace: boolean;
@@ -614,7 +613,7 @@ class ABCBeamElem {
 	}
 
 	add(abselem: ABCAbsoluteElement): void {
-		this.allrests = this.allrests && abselem.abcelem.rest;
+		this.allrests = this.allrests && !!abselem.abcelem.rest;
 		abselem.beam = this;
 		this.elems.push(abselem);
 		const pitch = abselem.abcelem.averagepitch;
@@ -633,7 +632,7 @@ class ABCBeamElem {
 
 	}
 
-	draw(printer: ABCPrinter): void {
+	draw(printer: ABCPrinter, linestartx: number, lineendx: number): void {
 		if (this.elems.length === 0 || this.allrests) return;
 		this.drawBeam(printer);
 		this.drawStems(printer);
@@ -654,8 +653,8 @@ class ABCBeamElem {
 		this.starty = printer.calcY(this.pos + Math.floor(slant / 2));
 		this.endy = printer.calcY(this.pos + Math.floor(-slant / 2));
 
-		let starthead = this.elems[0].heads[(this.asc) ? 0 : this.elems[0].heads.length - 1];
-		let endhead = this.elems[this.elems.length - 1].heads[(this.asc) ? 0 : this.elems[this.elems.length - 1].heads.length - 1];
+		let starthead: ABCRelativeElement = this.elems[0].heads[(this.asc) ? 0 : this.elems[0].heads.length - 1];
+		let endhead: ABCRelativeElement = this.elems[this.elems.length - 1].heads[(this.asc) ? 0 : this.elems[this.elems.length - 1].heads.length - 1];
 		this.startx = starthead.x;
 		if (this.asc) this.startx += starthead.w - 0.6;
 		this.endx = endhead.x;
@@ -667,20 +666,20 @@ class ABCBeamElem {
 	};
 
 	drawStems(printer: ABCPrinter): void {
-		let auxbeams = [];  // auxbeam will be {x, y, durlog, single} auxbeam[0] should match with durlog=-4 (16th) (j=-4-durlog)
+		let auxbeams: Array<any> = [];  // auxbeam will be {x, y, durlog, single} auxbeam[0] should match with durlog=-4 (16th) (j=-4-durlog)
 		for (let i = 0, ii = this.elems.length; i < ii; i++) {
 			if (this.elems[i].abcelem.rest)
 				continue;
-			const furthesthead = this.elems[i].heads[(this.asc) ? 0 : this.elems[i].heads.length - 1];
-			const ovaldelta = (this.isgrace) ? 1 / 3 : 1 / 5;
-			const pitch = furthesthead.pitch + ((this.asc) ? ovaldelta : -ovaldelta);
-			const y = printer.calcY(pitch);
-			const x = furthesthead.x + ((this.asc) ? furthesthead.w : 0);
-			const bary = this.getBarYAt(x);
-			const dx = (this.asc) ? -0.6 : 0.6;
+			const furthesthead: ABCRelativeElement = this.elems[i].heads[(this.asc) ? 0 : this.elems[i].heads.length - 1];
+			const ovaldelta: number = (this.isgrace) ? 1 / 3 : 1 / 5;
+			const pitch: number = furthesthead.pitch + ((this.asc) ? ovaldelta : -ovaldelta);
+			const y: number = printer.calcY(pitch);
+			const x: number = furthesthead.x + ((this.asc) ? furthesthead.w : 0);
+			const bary: number = this.getBarYAt(x);
+			const dx: number = (this.asc) ? -0.6 : 0.6;
 			printer.printStem(x, dx, y, bary);
 
-			let sy = (this.asc) ? 1.5 * AbcSpacing.STEP : -1.5 * AbcSpacing.STEP;
+			let sy: number = (this.asc) ? 1.5 * AbcSpacing.STEP : -1.5 * AbcSpacing.STEP;
 			if (this.isgrace) sy = sy * 2 / 3;
 			for (let durlog = getDurlog(this.elems[i].duration); durlog < -3; durlog++) {
 				if (auxbeams[-4 - durlog]) {

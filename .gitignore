@@ -2,6 +2,8 @@
 abcjs
 tmp
 
+5_abc010_TS/
+
 logs
 *.log
 npm-debug.log*

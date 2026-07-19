@@ -1,7 +1,9 @@
-﻿/**
+
+import { PlayTune } from './wav_generator';
+/**
  * @author paulrosen
  */
-class PlayEmbedded {
+export class PlayEmbedded {
   private playTune: PlayTune;
 
   constructor() {

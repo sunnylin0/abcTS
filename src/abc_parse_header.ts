@@ -33,7 +33,7 @@ var key5flat: KeySignature = { acc: 'flat', note: 'G' };
 var key6flat: KeySignature = { acc: 'flat', note: 'c' };
 var key7flat: KeySignature = { acc: 'flat', note: 'f' };
 
-class AbcParseHeader {
+export class AbcParseHeader {
 	private tokenizer: AbcTokenizer;
 	private warn: (message: string, line: string, start: number) => void;
 	private multilineVars: MultilineVars
@@ -47,7 +47,7 @@ class AbcParseHeader {
 
 		this.multilineVars.is_in_header = true;
 		this.multilineVars.hasMainTitle = false;
-		this.multilineVars.hasnt_set_length = true;
+		this.multilineVars.havent_set_length = true;
 		this.multilineVars.default_length = 0;
 		this.multilineVars.macros = {};
 		this.multilineVars.barNumbers = 0;
@@ -226,7 +226,7 @@ class AbcParseHeader {
 		return ret;
 	}
 
-	private pitches = { A: 5, B: 6, C: 0, D: 1, E: 2, F: 3, G: 4, a: 12, b: 13, c: 7, d: 8, e: 9, f: 10, g: 11 };
+	private pitches: Record<PitchKey, number> = { A: 5, B: 6, C: 0, D: 1, E: 2, F: 3, G: 4, a: 12, b: 13, c: 7, d: 8, e: 9, f: 10, g: 11 };
 
 	addPosToKey(clef: { verticalPos: number }, key: { accidentals: { acc: string, note: string, verticalPos: number } }): void {
 		const mid = clef.verticalPos;
@@ -410,7 +410,7 @@ class AbcParseHeader {
 			return font;
 		};
 
-		const getChangingFont = (cmd: string, tokens: any): string | null => {
+		const getChangingFont = (cmd: string, tokens: any): string|null => {
 			if (tokens.length === 0) {
 				return "Directive \"" + cmd + "\" requires a font as a parameter.";
 			}
@@ -418,7 +418,7 @@ class AbcParseHeader {
 			return null;
 		};
 
-		const getGlobalFont = (cmd: string, tokens: any): string | null => {
+		const getGlobalFont = (cmd: string, tokens: any): string|null => {
 			if (tokens.length === 0) {
 				return "Directive \"" + cmd + "\" requires a font as a parameter.";
 			}
@@ -431,7 +431,7 @@ class AbcParseHeader {
 		let restOfString = str.substring(str.indexOf(tokens[0].token) + tokens[0].token.length);
 		restOfString = this.tokenizer.stripComment(restOfString);
 		const cmd = tokens.shift().token.toLowerCase();
-		let num;
+		let num: number;
 		let scratch = "";
 		switch (cmd) {
 			case "bagpipes": this.tune.formatting.bagpipes = true; break;
@@ -524,13 +524,13 @@ class AbcParseHeader {
 					}
 				};
 
-				let openParen = false;
-				let openBracket = false;
-				let openBrace = false;
-				let justOpenParen = false;
-				let justOpenBracket = false;
-				let justOpenBrace = false;
-				let continueBar = false;
+				let openParen: boolean = false;
+				let openBracket: boolean = false;
+				let openBrace: boolean = false;
+				let justOpenParen: boolean = false;
+				let justOpenBracket: boolean = false;
+				let justOpenBrace: boolean = false;
+				let continueBar: boolean = false;
 				let lastVoice: any;
 				const addContinueBar = () => {
 					continueBar = true;
@@ -608,9 +608,9 @@ class AbcParseHeader {
 									break;
 								}
 							}
-							const newStaff = !openParen || justOpenParen;
-							const bracket = justOpenBracket ? 'start' : openBracket ? 'continue' : undefined;
-							const brace = justOpenBrace ? 'start' : openBrace ? 'continue' : undefined;
+							const newStaff: boolean = !openParen || justOpenParen;
+							const bracket: string = justOpenBracket ? 'start' : openBracket ? 'continue' : undefined;
+							const brace: string = justOpenBrace ? 'start' : openBrace ? 'continue' : undefined;
 							addVoice(vc, newStaff, bracket, brace, continueBar);
 							justOpenParen = false;
 							justOpenBracket = false;
@@ -656,7 +656,7 @@ class AbcParseHeader {
 			this.warn("Expected a voice id", line, start);
 			return;
 		}
-		let isNew = false;
+		let isNew: boolean = false;
 		if (this.multilineVars.voices[id] === undefined) {
 			this.multilineVars.voices[id] = {};
 			isNew = true;
@@ -829,10 +829,16 @@ class AbcParseHeader {
 		}
 
 		if (staffInfo.name) {
-			if (s.name) s.name.push(staffInfo.name); else s.name = [staffInfo.name];
+			if (s.name)
+				s.name.push(staffInfo.name);
+			else
+				s.name = [staffInfo.name];
 		}
 		if (staffInfo.subname) {
-			if (s.subname) s.subname.push(staffInfo.subname); else s.subname = [staffInfo.subname];
+			if (s.subname)
+				s.subname.push(staffInfo.subname);
+			else
+				s.subname = [staffInfo.subname];
 		}
 
 		this.setCurrentVoice(id);
@@ -881,9 +887,11 @@ class AbcParseHeader {
 							if (tokens.length === 0 || tokens[0].token === '/') return ret;
 							throw "Unexpected paren in meter";
 						}
-						if (tok.token !== '.' && tok.token !== '+') throw "Expected top number of meter";
+						if (tok.token !== '.' && tok.token !== '+')
+							throw "Expected top number of meter";
 						ret.num += tok.token;
-						if (tokens.length === 0) throw "Expected top number of meter";
+						if (tokens.length === 0)
+							throw "Expected top number of meter";
 						tok = tokens.shift();
 					}
 					return ret;	// just to suppress warning
@@ -891,26 +899,32 @@ class AbcParseHeader {
 
 				const parseFraction = function (): any {
 					const ret = parseNum();
-					if (tokens.length === 0) throw "Expected slash in meter";
+					if (tokens.length === 0)
+						throw "Expected slash in meter";
 					let tok = tokens.shift();
-					if (tok.token !== '/') throw "Expected slash in meter";
+					if (tok.token !== '/')
+						throw "Expected slash in meter";
 					tok = tokens.shift();
-					if (tok.type !== 'number') throw "Expected bottom number of meter";
+					if (tok.type !== 'number')
+						throw "Expected bottom number of meter";
 					ret.den = tok.token;
 					ret.value = ret.value / parseInt(ret.den);
 					return ret;
 				};
 
-				if (tokens.length === 0) throw "Expected meter definition in M: line";
+				if (tokens.length === 0)
+					throw "Expected meter definition in M: line";
 				const meter = { type: 'specified', value: [] };
 				let totalLength = 0;
 				while (true) {
 					const ret = parseFraction();
 					totalLength += ret.value;
 					meter.value.push({ num: ret.num, den: ret.den });
-					if (tokens.length === 0) break;
+					if (tokens.length === 0)
+						break;
 					let tok = tokens.shift();
-					if (tok.token !== '+') throw "Extra characters in M: line";
+					if (tok.token !== '+')
+						throw "Extra characters in M: line";
 				}
 
 				if (this.multilineVars.havent_set_length === true) {
@@ -924,8 +938,8 @@ class AbcParseHeader {
 		return null;
 	};
 
-	calcTempo(relTempo: { duration: number[] }): { duration: number[] } {
-		const dur = this.multilineVars.default_length ? this.multilineVars.default_length : 1;
+	calcTempo(relTempo: TempoInfo): TempoInfo {
+		const dur: number = this.multilineVars.default_length ? this.multilineVars.default_length : 1;
 		for (let i = 0; i < relTempo.duration.length; i++) {
 			relTempo.duration[i] = dur * relTempo.duration[i];
 		}
@@ -983,7 +997,7 @@ class AbcParseHeader {
 		}
 	};
 
-	setTempo(line: string, start: number, end: number): { type?: string; tempo?: any } {
+	setTempo(line: string, start: number, end: number): { type: string; tempo?: TempoElement } {
 		//Q - tempo; can be used to specify the notes per minute, e.g.   if
 		//the  default  note length is an eighth note then Q:120 or Q:C=120
 		//is 120 eighth notes per minute. Similarly  Q:C3=40  would  be  40
@@ -1003,8 +1017,8 @@ class AbcParseHeader {
 
 			if (tokens.length === 0) throw "Missing parameter in Q: field";
 
-			let tempo = {};
-			let delaySet = true;
+			let tempo: TempoElement = {};
+			let delaySet: boolean = true;
 			let token = tokens.shift();
 			if (token.type === 'quote') {
 				tempo.preString = token.token;
@@ -1014,24 +1028,32 @@ class AbcParseHeader {
 				}
 			}
 			if (token.type === 'alpha' && token.token === 'C') {
-				if (tokens.length === 0) throw "Missing tempo after C in Q: field";
+				if (tokens.length === 0)
+					throw "Missing tempo after C in Q: field";
 				token = tokens.shift();
 				if (token.type === 'punct' && token.token === '=') {
-					if (tokens.length === 0) throw "Missing tempo after = in Q: field";
+					if (tokens.length === 0)
+						throw "Missing tempo after = in Q: field";
 					token = tokens.shift();
-					if (token.type !== 'number') throw "Expected number after = in Q: field";
+					if (token.type !== 'number')
+						throw "Expected number after = in Q: field";
 					tempo.duration = [1];
 					tempo.bpm = parseInt(token.token);
 				} else if (token.type === 'number') {
 					tempo.duration = [parseInt(token.token)];
-					if (tokens.length === 0) throw "Missing = after duration in Q: field";
+					if (tokens.length === 0)
+						throw "Missing = after duration in Q: field";
 					token = tokens.shift();
-					if (token.type !== 'punct' || token.token !== '=') throw "Expected = after duration in Q: field";
-					if (tokens.length === 0) throw "Missing tempo after = in Q: field";
+					if (token.type !== 'punct' || token.token !== '=')
+						throw "Expected = after duration in Q: field";
+					if (tokens.length === 0)
+						throw "Missing tempo after = in Q: field";
 					token = tokens.shift();
-					if (token.type !== 'number') throw "Expected number after = in Q: field";
+					if (token.type !== 'number')
+						throw "Expected number after = in Q: field";
 					tempo.bpm = parseInt(token.token);
-				} else throw "Expected number or equal after C in Q: field";
+				} else
+					throw "Expected number or equal after C in Q: field";
 
 			} else if (token.type === 'number') {
 				let num = parseInt(token.token);
@@ -1041,53 +1063,64 @@ class AbcParseHeader {
 				} else {
 					delaySet = false;
 					token = tokens.shift();
-					if (token.type !== 'punct' && token.token !== '/') throw "Expected fraction in Q: field";
+					if (token.type !== 'punct' && token.token !== '/')
+						throw "Expected fraction in Q: field";
 					token = tokens.shift();
-					if (token.type !== 'number') throw "Expected fraction in Q: field";
+					if (token.type !== 'number')
+						throw "Expected fraction in Q: field";
 					let den = parseInt(token.token);
 					tempo.duration = [num / den];
 					while (tokens.length > 0 && tokens[0].token !== '=' && tokens[0].type !== 'quote') {
 						token = tokens.shift();
-						if (token.type !== 'number') throw "Expected fraction in Q: field";
+						if (token.type !== 'number')
+							throw "Expected fraction in Q: field";
 						num = parseInt(token.token);
 						token = tokens.shift();
-						if (token.type !== 'punct' && token.token !== '/') throw "Expected fraction in Q: field";
+						if (token.type !== 'punct' && token.token !== '/')
+							throw "Expected fraction in Q: field";
 						token = tokens.shift();
-						if (token.type !== 'number') throw "Expected fraction in Q: field";
+						if (token.type !== 'number')
+							throw "Expected fraction in Q: field";
 						den = parseInt(token.token);
 						tempo.duration.push(num / den);
 					}
 					token = tokens.shift();
-					if (token.type !== 'punct' && token.token !== '=') throw "Expected = in Q: field";
+					if (token.type !== 'punct' && token.token !== '=')
+						throw "Expected = in Q: field";
 					token = tokens.shift();
-					if (token.type !== 'number') throw "Expected tempo in Q: field";
+					if (token.type !== 'number')
+						throw "Expected tempo in Q: field";
 					tempo.bpm = parseInt(token.token);
 				}
-			} else throw "Unknown value in Q: field";
+			}
+			else
+				throw "Unknown value in Q: field";
 			if (tokens.length !== 0) {
 				token = tokens.shift();
 				if (token.type === 'quote') {
 					tempo.postString = token.token;
 					token = tokens.shift();
 				}
-				if (tokens.length !== 0) throw "Unexpected string at end of Q: field";
+				if (tokens.length !== 0)
+					throw "Unexpected string at end of Q: field";
 			}
 			return { type: delaySet ? 'delaySet' : 'immediate', tempo: tempo };
 		} catch (msg) {
-			this.warn(msg, line, start);
+			this.warn(String(msg), line, start);
 			return { type: 'none' };
 		}
 	};
 
-	letter_to_inline_header(line: string, i: number): (number | string)[] {
-		const ws = this.tokenizer.eatWhiteSpace(line, i);
+	letter_to_inline_header(line: string, i: number): [number, string?, string?] {
+		const ws: number = this.tokenizer.eatWhiteSpace(line, i);
 		i += ws;
 		if (line.length >= i + 5 && line.charAt(i) === '[' && line.charAt(i + 2) === ':') {
-			const e = line.indexOf(']', i);
+			const e: number = line.indexOf(']', i);
 			switch (line.substring(i, i + 3)) {
 				case "[I:":
-					const err = this.addDirective(line.substring(i + 3, e));
-					if (err) this.warn(err, line, i);
+					const err: string = this.addDirective(line.substring(i + 3, e));
+					if (err)
+						this.warn(err, line, i);
 					return [e - i + 1 + ws];
 				case "[M:":
 					const meter = this.setMeter(line.substring(i + 3, e));
@@ -1110,8 +1143,10 @@ class AbcParseHeader {
 				case "[Q:":
 					if (e > 0) {
 						let tempo = this.setTempo(line, i + 3, e);
-						if (tempo.type === 'delaySet') this.tune.appendElement('tempo', -1, -1, this.calcTempo(tempo.tempo));
-						else if (tempo.type === 'immediate') this.tune.appendElement('tempo', -1, -1, tempo.tempo);
+						if (tempo.type === 'delaySet')
+							this.tune.appendElement('tempo', -1, -1, this.calcTempo(tempo.tempo));
+						else if (tempo.type === 'immediate')
+							this.tune.appendElement('tempo', -1, -1, tempo.tempo);
 						return [e - i + 1 + ws, line.charAt(i + 1), line.substring(i + 3, e)];
 					}
 					break;
@@ -1130,7 +1165,7 @@ class AbcParseHeader {
 		return [0];
 	};
 
-	letter_to_body_header(line: string, i: number): (number | string)[] {
+	letter_to_body_header(line: string, i: number): [number, string?, string?] {
 
 		if (line.length >= i + 3) {
 			switch (line.substring(i, i + 2)) {
@@ -1210,7 +1245,8 @@ class AbcParseHeader {
 				if (field !== undefined) {
 					this.tune.addMetaText(field, this.tokenizer.translateString(this.tokenizer.stripComment(line.substring(2))));
 					return {};
-				} else {
+				}
+				else {
 					switch (line.charAt(0)) {
 						case 'H':
 							this.tune.addMetaText("history", this.tokenizer.translateString(this.tokenizer.stripComment(line.substring(2))));
@@ -1236,7 +1272,8 @@ class AbcParseHeader {
 						case 'P':
 							if (this.multilineVars.is_in_header) {
 								this.tune.addMetaText("partOrder", this.tokenizer.translateString(this.tokenizer.stripComment(line.substring(2))));
-							} else {
+							}
+							else {
 								this.multilineVars.partForNextLine = this.tokenizer.translateString(this.tokenizer.stripComment(line.substring(2)));
 							}
 							break;

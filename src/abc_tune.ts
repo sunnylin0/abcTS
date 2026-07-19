@@ -14,313 +14,26 @@
 //    You should have received a copy of the GNU General Public License
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-/*extern AbcTune */
-
-//declare class AbcTune {
-//	constructor();
-//	// 重置AbcTune对象的状态
-//	reset(): void;
-//	// 清理AbcTune对象中的数据
-//	cleanUp(): void;
-//	// 获取最后一个音符元素
-//	getLastNote(): { el_type: string } | null;
-//	// 给最后一个音符元素添加连音线
-//	addTieToLastNote(): boolean;
-//	// 获取元素的持续时间
-//	getDuration(el: { duration?: number }): number;
-//	// 关闭当前行，处理可能的连音符
-//	closeLine(): void;
-//	// 向当前行添加元素
-//	appendElement(
-//		type: string,
-//		startChar: number | null,
-//		endChar: number | null,
-//		hashParams: { el_type: string; startChar?: number; endChar?: number }
-//	): void;
-//	// 向当前行添加起始元素（如谱号、调号等）
-//	appendStartingElement(
-//		type: string,
-//		startChar: number | null,
-//		endChar: number | null,
-//		hashParams: { el_type: string; startChar?: number; endChar?: number }
-//	): void;
-
-//	// 获取行数
-//	getNumLines(): number;
-//	// 添加副标题
-//	addSubtitle(str: string): void;
-//	// 添加分隔符
-//	addSeparator(spaceAbove: number, spaceBelow: number, lineLength: number): void;
-//	// 添加文本
-//	addText(str: string): void;
-//	// 检查某个声部是否包含音符
-//	containsNotes(voice: { el_type: string }[]): boolean;
-//	// 开始新的一行
-//	startNewLine(params: {
-//		name?: string;
-//		subname?: string;
-//		stem?: string;
-//		clef?: { type: string; verticalPos?: number };
-//		key?: { accidentals?: { acc: string; note: string }[] };
-//		vocalfont?: any;
-//		bracket?: string;
-//		brace?: string;
-//		connectBarLines?: string;
-//		part?: string;
-//		meter?: { type: string; num?: string; den?: string };
-//	}): void;
-//	// 检查是否已经开始音乐内容
-//	hasBeginMusic(): boolean;
-//	// 检查是否为第一行
-//	isFirstLine(index: number): boolean;
-//	// 获取当前声部
-//	getCurrentVoice(): { el_type: string } | null;
-//	// 设置当前声部
-//	setCurrentVoice(staffNum: number, voiceNum: number): void;
-//	// 添加元数据文本
-//	addMetaText(key: string, value: string): void;
-//}
 
 
 
-// abc_tune.d.ts
-
-/**
- * AbcTune 类表示一个曲调的内部数据结构。
- */
-//declare class AbcTune {
-//	/**
-//	 * 版本号。
-//	 */
-//	version: string;
-
-//	/**
-//	 * 元数据文本，包含标题、作者等信息。
-//	 */
-//	metaText: { [key: string]: string };
-
-//	/**
-//	 * 格式化信息。
-//	 */
-//	formatting: { [key: string]: any };
-
-//	/**
-//	 * 曲调的行数据。
-//	 */
-//	lines: any[];
-
-//	/**
-//	 * 当前五线谱编号。
-//	 */
-//	staffNum: number;
-
-//	/**
-//	 * 当前声部编号。
-//	 */
-//	voiceNum: number;
-
-//	/**
-//	 * 当前行编号。
-//	 */
-//	lineNum: number;
-
-//	/**
-//	 * 重置 AbcTune 实例的状态。
-//	 */
-//	reset(): void;
-
-//	/**
-//	 * 清理数据，移除空白行并修复装饰线。
-//	 */
-//	cleanUp(): void;
-
-//	/**
-//	 * 获取当前行的最后一个音符。
-//	 * @returns 最后一个音符元素，如果不存在则返回 null。
-//	 */
-//	getLastNote(): any | null;
-
-//	/**
-//	 * 给最后一个音符添加连音线。
-//	 * @returns 如果成功添加连音线则返回 true，否则返回 false。
-//	 */
-//	addTieToLastNote(): boolean;
-
-//	/**
-//	 * 获取元素的持续时间。
-//	 * @param el 元素对象。
-//	 * @returns 持续时间，如果不存在则返回 。
-//	 */
-//	getDuration(el: any): number;
-
-//	/**
-//	 * 关闭当前行，设置光束的起始和结束。
-//	 */
-//	closeLine(): void;
-
-//	/**
-//	 * 向当前行添加元素。
-//	 * @param type 元素类型。
-//	 * @param startChar 起始字符。
-//	 * @param endChar 结束字符。
-//	 * @param hashParams 包含元素详细信息的哈希参数。
-//	 */
-//	appendElement(type: string, startChar: string | null, endChar: string | null, hashParams: any): void;
-
-//	/**
-//	 * 向当前行添加起始元素。
-//	 * @param type 元素类型。
-//	 * @param startChar 起始字符。
-//	 * @param endChar 结束字符。
-//	 * @param hashParams 包含元素详细信息的哈希参数。
-//	 */
-//	appendStartingElement(type: string, startChar: string | null, endChar: string | null, hashParams: any): void;
-
-//	/**
-//	 * 获取行数。
-//	 * @returns 行数。
-//	 */
-//	getNumLines(): number;
-
-//	/**
-//	 * 添加副标题。
-//	 * @param str 副标题文本。
-//	 */
-//	addSubtitle(str: string): void;
-
-//	/**
-//	 * 添加分隔符。
-//	 * @param spaceAbove 分隔符上方的空间。
-//	 * @param spaceBelow 分隔符下方的空间。
-//	 * @param lineLength 分隔符的长度。
-//	 */
-//	addSeparator(spaceAbove: number, spaceBelow: number, lineLength: number): void;
-
-//	/**
-//	 * 添加文本。
-//	 * @param str 文本内容。
-//	 */
-//	addText(str: string): void;
-
-//	/**
-//	 * 检查声部是否包含音符。
-//	 * @param voice 声部对象。
-//	 * @returns 如果包含音符则返回 true，否则返回 false。
-//	 */
-//	containsNotes(voice: any): boolean;
-
-//	/**
-//	 * 开始新的一行。
-//	 * @param params 包含行参数的对象。
-//	 */
-//	startNewLine(params: any): void;
-
-//	/**
-//	 * 检查是否已经开始音乐。
-//	 * @returns 如果已经开始音乐则返回 true，否则返回 false。
-//	 */
-//	hasBeginMusic(): boolean;
-
-//	/**
-//	 * 检查是否是第一行。
-//	 * @param index 行索引。
-//	 * @returns 如果是第一行则返回 true，否则返回 false。
-//	 */
-//	isFirstLine(index: number): boolean;
-
-//	/**
-//	 * 获取当前声部。
-//	 * @returns 当前声部对象，如果不存在则返回 null。
-//	 */
-//	getCurrentVoice(): any | null;
-
-//	/**
-//	 * 设置当前声部。
-//	 * @param staffNum 五线谱编号。
-//	 * @param voiceNum 声部编号。
-//	 */
-//	setCurrentVoice(staffNum: number, voiceNum: number): void;
-
-//	/**
-//	 * 添加元数据文本。
-//	 * @param key 元数据键。
-//	 * @param value 元数据值。
-//	 */
-//	addMetaText(key: string, value: string): void;
-//}
-
-
-// abc_tune.ts: a computer usable internal structure representing one tune. 
-// Copyright (C)  Paul Rosen (paul at paulrosen dot net) 
-// 
-// This program is free software: you can redistribute it and/or modify 
-// it under the terms of the GNU General Public License as published by 
-// the Free Software Foundation, either version  of the License, or 
-// (at your option) any later version. 
-// 
-// This program is distributed in the hope that it will be useful, 
-// but WITHOUT ANY WARRANTY; without even the implied warranty of 
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the 
-// GNU General Public License for more details. 
-// 
-// You should have received a copy of the GNU General Public License 
-// along with this program. If not, see <http://www.gnu.org/licenses/>. 
-
-
-
-
-//interface AbcTune {
-//	version: string;
-//	metaText: MetaText;
-//	formatting: {};
-//	lines: Line[];
-//	staffNum: number;
-//	voiceNum: number;
-//	lineNum: number;
-//	reset(): void;
-//	cleanUp(): void;
-//	getLastNote(): Note | null;
-//	addTieToLastNote(): boolean;
-//	getDuration(el: Element): number;
-//	closeLine(): void;
-//	appendElement(type: string, startChar?: string, endChar?: string, hashParams: Element): void;
-//	appendStartingElement(type: string, startChar?: string, endChar?: string, hashParams: Element): void;
-//	getNumLines(): number;
-//	addSubtitle(str: string): void;
-//	addSeparator(spaceAbove: number, spaceBelow: number, lineLength: number): void;
-//	addText(str: string): void;
-//	containsNotes(voice: Voice): boolean;
-//	startNewLine(params: {
-//		clef: Clef;
-//		key?: KeySig;
-//		stem?: 'up' | 'down';
-//		part?: string;
-//		meter?: Meter;
-//		name?: string;
-//		subname?: string;
-//		vocalfont?: string;
-//		bracket?: boolean;
-//		brace?: boolean;
-//		connectBarLines?: boolean;
-//	}): void;
-//	hasBeginMusic(): boolean;
-//	isFirstLine(index: number): boolean;
-//	getCurrentVoice(): Voice | null;
-//	setCurrentVoice(staffNum: number, voiceNum: number): void;
-//	addMetaText(key: string, value: string): void;
-//}
-
-class AbcTune {
+export class AbcTune {
+	/** 版本號碼。 */
 	version: string = "1.0.0";
+	/** 元資料文字，包含標題、作者等資訊 */
 	metaText: MetaText = {};
 	formatting: Formatting = {};
+	/** 曲調的行資料 */
 	lines: ABCLine[] = [];
+	/** 目前五線譜編號 */
 	staffNum: number = 0;
+	/** 當前聲部編號 */
 	voiceNum: number = 0;
+	/** 當前行 編號 */
 	lineNum: number = 0;
 	potentialStartBeam: ABCBeamElem;
 	potentialEndBeam: ABCBeamElem;
-
+	/** 重置AbcTune物件的狀態 */
 	reset() {
 		this.version = "1.0.0";
 		this.metaText = {};
@@ -330,7 +43,7 @@ class AbcTune {
 		this.voiceNum = 0;
 		this.lineNum = 0;
 	}
-
+	/** 清理AbcTune物件中的資料 ，刪除空白行並修復裝飾線。 */
 	cleanUp() {
 		this.closeLine(); // Close the last line.
 		// Remove any blank lines
@@ -424,7 +137,7 @@ class AbcTune {
 		function fixClefPlacement(el: ClefElement) {
 			let min = -2;
 			let max = 5;
-			switch (el.typeClef) {
+			switch (el.type) {
 				case 'tenor': el.verticalPos += 2; min += 6; max += 6; break;
 				case 'bass': el.verticalPos--; min += 6; max += 6; break;
 				case 'alto': el.verticalPos -= 2; min += 4; max += 4; break;
@@ -469,8 +182,11 @@ class AbcTune {
 		delete this.lineNum;
 	}
 
-
-	getLastNote(): NoteElement {
+	/**
+	* 取得目前行的最後一個對話。
+	* @returns 最後一個通訊元素，如果不存在則傳回 null。
+	*/
+	getLastNote(): NoteElement | null {
 		if (this.lines[this.lineNum] && this.lines[this.lineNum].staff &&
 			this.getCurrentStaff() && this.getCurrentVoice()) {
 			for (let i = this.getCurrentVoice().length - 1; i >= 0; i--) {
@@ -482,7 +198,10 @@ class AbcTune {
 		}
 		return null;
 	}
-
+	/**
+	* 將最後一個註解元素加入連音線。
+	* @returns 如果新增連音線成功則傳回 true，否則傳回 false。
+	*/
 	addTieToLastNote(): boolean {
 		// TODO-PER: if this is a chord, which note?
 		let el = this.getLastNote();
@@ -492,13 +211,17 @@ class AbcTune {
 		}
 		return false;
 	}
-
+	/**
+	* 取得元素的持續時間。
+	* @param el 元素物件。
+	* @returns 持續時間，如果不存在則傳回 {} 。
+	*/
 	getDuration(el: NoteElement): number {
 		if (el.duration)
 			return el.duration;
 		return;
 	}
-
+	/** 關閉目前行，處理可能的開始和結束對話 */
 	closeLine() {
 		if (this.potentialStartBeam && this.potentialEndBeam) {
 			this.potentialStartBeam.startBeam = true;
@@ -507,7 +230,13 @@ class AbcTune {
 		delete this.potentialStartBeam;
 		delete this.potentialEndBeam;
 	}
-
+	/**
+	* 在目前行新增元素。
+	* @param type 元素型別。
+	* @param startChar 起始字元。
+	* @param endChar 結束字元。
+	* @param hashParams 包含元素詳細資訊的雜湊參數。
+	*/
 	appendElement(type: string, startChar: number, endChar: number, hashParams?: ABCElement) {
 
 		let This = this;
@@ -576,7 +305,13 @@ class AbcTune {
 
 		pushNote(hashParams);
 	}
-
+	/**
+	* 在目前行新增起始元素。
+	* @param type 元素型別。
+	* @param startChar 起始字元。
+	* @param endChar 結束字元。
+	* @param hashParams 包含元素詳細資訊的雜湊參數。
+	*/
 	appendStartingElement(type: string, startChar?: number, endChar?: number, hashParams2?: ABCElement) {
 		// Clone the object because it will be sticking around for the next line and we don't want the extra fields in it.
 		let hashParams = hashParams2 ? { ...hashParams2 } : {} as any;
@@ -601,30 +336,49 @@ class AbcTune {
 		// We didn't see either that type or a note, so replace the element to the staff.
 		this.lines[this.lineNum].staff[this.staffNum][type] = hashParams2;
 	}
-
+	/**
+	* 取得行數。
+	* @returns 行數。
+	*/
 	getNumLines(): number {
 		return this.lines.length;
 	}
-
+	/**
+	* 新增副標題。
+	* @param str 副標題文字。
+	*/
 	addSubtitle(str: string): void {
 		this.lines.push({ subtitle: str });
 	}
-
+	/**
+	* 新增分隔符號。
+	* @param spaceAbove 分區符號上方的空間。
+	* @param spaceBelow 分隔符號下方的空間。
+	* @param lineLength 分隔符號的長度。
+	*/
 	addSeparator(spaceAbove?: number, spaceBelow?: number, lineLength?: number): void {
 		this.lines.push({ separator: { spaceAbove, spaceBelow, lineLength } });
 	}
-
+	/**
+	* 新增文字。
+	* @param str 文字內容。
+	*/
 	addText(str: string): void {
 		this.lines.push({ text: str });
 	}
-
+	/**
+	* 檢查聲部是否包含音符。
+	* @param voice 聲部物件。
+	* @returns 如果包含音符則傳回 true，否則傳回 false。
+	*/
 	containsNotes(voice: NoteElement[]): boolean {
 		return voice.some(v => v.el_type === 'note' ||
 			v.el_type === 'bar');
 	}
-
-
-
+	/**
+	* 開始新的一行。
+	* @param params 包含行參數的物件。
+	*/
 	startNewLine(params: {
 		clef: ClefElement;
 		key?: KeySigElement;
@@ -676,7 +430,7 @@ class AbcTune {
 			}
 		};
 
-		function createStaff(params:ParamsOther) {
+		function createStaff(params: ParamsOther) {
 			This.setCurrentStaff({ voices: [], clef: params.clef, key: params.key });
 			if (params.vocalfont) This.getCurrentStaff().vocalfont = params.vocalfont;
 			if (params.bracket) This.getCurrentStaff().bracket = params.bracket;
@@ -709,18 +463,25 @@ class AbcTune {
 			this.startNewLine(params);
 		}
 	};
-
+	/**
+	* 檢查是否已經開始音樂。
+	* @returns 如果已經開始音樂則傳回 true，否則傳回 false。
+	*/
 	hasBeginMusic(): boolean {
 		return this.lines.length > 0;
 	}
-
+	/**
+	* 檢查是否為第一行。
+	* @param 索引行索引。
+	* @returns 如果是第一行則傳回 true，否則傳回 false。
+	*/
 	isFirstLine(index: number): boolean {
 		for (let i = index - 1; i >= 0; i--) {
 			if (this.lines[i].staff !== undefined) return false;
 		}
 		return true;
 	}
-
+	/** 取得目前 Staff */
 	getCurrentStaff(): Staff {
 		if (this.lines[this.lineNum] !== undefined &&
 			this.lines[this.lineNum].staff[this.staffNum] !== undefined)
@@ -728,8 +489,10 @@ class AbcTune {
 		else
 			return null;
 	}
-
-
+	/**
+	* 取得目前聲部。
+	* @returns 目前聲部對象，如果不存在則傳回null。
+	*/
 	getCurrentVoice(): NoteElement[] {
 		if (this.lines[this.lineNum] !== undefined &&
 			this.lines[this.lineNum].staff[this.staffNum] !== undefined &&
@@ -737,7 +500,7 @@ class AbcTune {
 			return this.lines[this.lineNum].staff[this.staffNum].voices[this.voiceNum];
 		else return null;
 	};
-
+	/** 設定目前 Staff */
 	setCurrentStaff(opt: any): Staff {
 		if (this.lines[this.lineNum] !== undefined &&
 			this.getCurrentStaff() !== undefined)
@@ -745,7 +508,11 @@ class AbcTune {
 		else
 			return null;
 	}
-
+	/**
+	* 設定當前聲部。
+	* @param staffNum 五線譜編號。
+	* @param voiceNum 聲部編號。
+	*/
 	setCurrentVoice(staffNum: number, voiceNum: number): void {
 		this.staffNum = staffNum;
 		this.voiceNum = voiceNum;
@@ -762,7 +529,11 @@ class AbcTune {
 		}
 		this.lineNum = i;
 	};
-
+	/**
+	* 新增元資料文字。
+	* @param key 元資料鍵。
+	* @param value 元資料值。
+	*/
 	addMetaText(key: string, value: string): void {
 		if (this.metaText[key] === undefined)
 			this.metaText[key] = value;

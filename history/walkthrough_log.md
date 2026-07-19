@@ -49,3 +49,50 @@
 ### 驗證與測試日誌 (Verification & Test Log)
 1. 執行 `pnpm run build` 成功建置。
 2. 啟動 `vite preview` 進行瀏覽器自動化測試，確認 Console 中沒有任何 JavaScript 錯誤，且預設的樂譜已成功渲染（DOM 中顯示 `No errors` 狀態）。
+
+---
+## [2026-07-19 13:17:00] 解決 pnpm run dev 啟動錯誤 (完成)
+
+### 變更摘要 (Change Summary)
+1. **修正 HTML 的 DOCTYPE**：
+   - 將 `src/workspace.html` 原先的 XHTML 舊格式變更為標準 HTML5 的 `<!DOCTYPE html>`，這解決了 Vite 6 使用的 `parse5` 丟出 `non-conforming-doctype` 錯誤的問題。
+2. **清除 BOM 字符**：
+   - 使用 Node.js 腳本掃描專案並移除了 `package.json`、`tsconfig.json` 和 `ts_2JS.json` 檔案開頭 of UTF-8 BOM 字符。這解決了 Vite 在載入 CSS/PostCSS 配置時，因讀取含有 BOM 的 `package.json` 而導致的 JSON 解析失敗錯誤（`Unexpected token '﻿'... is not valid JSON`）。
+
+### 驗證與測試日誌 (Verification & Test Log)
+1. 在移除 BOM 與更新 HTML 檔案格式後，執行 `pnpm run dev` 啟動開發伺服器成功。
+2. Vite 6 本機開發伺服器成功監聽本機埠（例如 `http://localhost:5174/`），沒有出現任何編譯期、HTML 解析或設定載入錯誤，熱重載與網頁皆能順利運行。
+
+---
+## [2026-07-19 14:57:00] 重構打包入口與配置分離至 index.ts (完成)
+
+### 變更摘要 (Change Summary)
+1. **建立 `src/index.ts` 與清理舊檔**：
+   - 建立了全新的 `src/index.ts` 作為打包進入點。此檔案明確列出了需要打包的所有檔案的靜態 `import`，並在底部執行了 `window` 全域變數的掛載邏輯。
+   - 刪除了原本僅有一行載入虛擬模組代碼的舊入口檔 `src/main.ts`。
+2. **重構 `vite.config.ts`**：
+   - 入口設定（`entry`）改指向新建立的 `src/index.ts`。
+   - 移除了龐大的硬編碼檔案陣列與全域變數掛載字串。
+   - 重構了自訂的 Vite 插件為 `abcjs-bundle-plugin`，使它在載入 `src/index.ts` 時，能動態讀取其中的 `import` 宣告並於記憶體中拼接相應的原始檔案內容，接著將非 `import` 的掛載邏輯與拼接內容結合後一同編譯，達成了配置與建置工具的完美分離。
+   - 更新了 `copy-workspace-assets` 插件，在複製靜態資源以及變更 HTML script 參照時正確指向 `index.ts`，並在排除打包清單中加上 `index.ts`。
+3. **更動 HTML 檔案參照**：
+   - 將 `src/workspace.html` 原本的 `<script type="module" src="./main.ts"></script>` 更新為 `<script type="module" src="./index.ts"></script>`。
+
+### 驗證與測試日誌 (Verification & Test Log)
+1. 執行 `pnpm run build` 成功建置。產出 UMD 格式的 `dist/abcjs-basic.js`，大小約為 23.22 kB（Gzip: 7.98 kB，Minify: false），無任何編譯與解析錯誤，且靜態資源複製正常。
+2. 執行 `pnpm run dev` 順利啟動 Vite 開發伺服器。開發網頁加載順暢，主控台無任何 JavaScript 或 TypeScript 錯誤。
+
+---
+## [2026-07-19 15:06:00] 將 TS 模組更換為具名導入 (完成)
+
+### 變更摘要 (Change Summary)
+1. **重構 TS 模組的導出與具名導入**：
+   - 將原本缺乏 `export` 宣告的 `abc_parser_lint.ts` (`AbcParserLint`)、`play_embedded.ts` (`PlayEmbedded`) 以及 `application.ts` (`abcParser`, `processAbc`) 原始檔案的關鍵類別與變數加上 `export`。
+   - 在 `src/index.ts` 中，使用具名導入 `import { ... } from './...'` 載入上述所有 TS 變數，消除了所有的 TypeScript 型別紅線。
+   - 對於 `jsonschema-b4.js` 純 JavaScript 檔（無導出），在 `src/index.ts` 中保留 `declare const JSONSchema: any;` 以告知 TS 編譯器全域變數存在，這是混合架構中最正確的作法。
+2. **升級 `vite.config.ts` 打包正則**：
+   - 將 `importRegex` 升級為 `/import\s+(?:(?:\{[^}]+\}|\w+|\*\s+as\s+\w+)\s+from\s+)?['"]\.\/([^'"]+)['"];?/g`，使其能夠正確辨識、提取並動態拼接 `import { ... } from './...'` 的具名載入語句。
+
+### 驗證與測試日誌 (Verification & Test Log)
+1. 執行 `pnpm run build` 成功建置。產出 UMD 格式的 `dist/abcjs-basic.js`，大小約為 171.00 kB，代碼拼接順利無缺，編譯無任何錯誤。
+2. 執行 `pnpm run dev` 啟動開發伺服器成功。控制台無任何 JS/TS 錯誤。

@@ -1,4 +1,4 @@
-﻿//    abc_parser_lint.js: Analyzes the output of abc_parse.
+//    abc_parser_lint.js: Analyzes the output of abc_parse.
 //    Copyright (C) 2010 Paul Rosen (paul at paulrosen dot net)
 //
 //    This program is free software: you can redistribute it and/or modify
@@ -26,7 +26,7 @@
 declare const jsonSchema: JSONSchema.Schema; // Assume JSONSchema is a validation library, need a declaration for TypeScript
 
 
-class AbcParserLint {
+export class AbcParserLint {
 	decorationList;
 	tempoProperties;
 	fontType;
@@ -358,7 +358,7 @@ class AbcParserLint {
 	}
 
 
-	prependPositioning(properties): any {
+	prependPositioning(properties:any): any {
 		const ret: any = {
 			startChar: { type: 'number' },
 			endChar: { type: 'number' }

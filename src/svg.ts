@@ -6,8 +6,8 @@ const svgNS = "http://www.w3.org/2000/svg";
 
 Object.defineProperty(SVGElement.prototype, "translate", {
 	value(x: number, y: number) {
-		const dx = this.getAttribute("x").toNumber() + x
-		const dy = this.getAttribute("y").toNumber() + y
+		const dx = this.getAttribute("x")?.toNumber() + x
+		const dy = this.getAttribute("y")?.toNumber() + y
 		if (!dx) this.setAttribute("x", dx.toString());
 		if (!dy) this.setAttribute("y", dy.toString());
 		return this;
@@ -78,14 +78,16 @@ Object.defineProperty(Array.prototype, "scale", {
 
 
 
-let sizeCache = {};
-class Svg {
-	svg?: SvgInHtml;
+export class Svg {
+	// 🎯 1. 宣告為類別的靜態私有屬性，只有內部能存取，外部看不到
+	private static sizeCache: Record<string, any> = {};
+
+	svg?: SVGSVGElement;
 	parentElement?: HTMLElement;	//父容器
 	dummySvg?: SVGElement; //臨時 SVG
 	currentGroup?: SVGGElement[];
 	constructor(wrapper: HTMLElement) {
-		this.svg = createSvg() as unknown as SvgInHtml;
+		this.svg = createSvg() as SVGSVGElement;
 		this.currentGroup = [];
 		wrapper.appendChild(this.svg);
 		this.parentElement = wrapper.parentElement;
@@ -94,7 +96,7 @@ class Svg {
 	clear() {
 		if (this.svg) {
 			const wrapper: HTMLElement = this.svg.parentNode as HTMLElement;
-			this.svg = createSvg() as unknown as SvgInHtml;
+			this.svg = createSvg() as SVGSVGElement;
 			this.currentGroup = [];
 			if (wrapper) {
 				// TODO-PER: If the wrapper is not present, then the underlying div was pulled out from under this instance. It's possible that is still useful (for creating the music off page?)
@@ -105,8 +107,8 @@ class Svg {
 	};
 
 	setTitle(title: string) {
-		const titleEl = document.createElement("title");
-		const titleNode = document.createTextNode(title);
+		const titleEl: HTMLTitleElement = document.createElement("title");
+		const titleNode: Text = document.createTextNode(title);
 		titleEl.appendChild(titleNode);
 		this.svg.insertBefore(titleEl, this.svg.firstChild);
 	};
@@ -123,7 +125,7 @@ class Svg {
 		this.svg.style.left = "0";
 
 		if (this.svg.parentNode) {
-			const parentElement = this.svg.parentNode as HTMLElement;
+			const parentElement: HTMLElement = this.svg.parentNode as HTMLElement;
 			var cls = parentElement.getAttribute("class");
 			if (!cls)
 				parentElement.setAttribute("class", "abcjs-container");
@@ -151,24 +153,26 @@ class Svg {
 	};
 
 	setScale(scale: number) {
+		// 🎯 將 style 轉為 any 型別，解鎖所有字串索引
+		const style = this.svg.style as any;
 		if (scale !== 1) {
-			this.svg.style.transform = `scale(${scale},${scale})`;
-			this.svg.style['-ms-transform'] = `scale(${scale},${scale})`;
-			this.svg.style['-webkit-transform'] = `scale(${scale},${scale})`;
-			this.svg.style['transform-origin'] = "0 0";
-			this.svg.style['-ms-transform-origin-x'] = "0";
-			this.svg.style['-ms-transform-origin-y'] = "0";
-			this.svg.style['-webkit-transform-origin-x'] = "0";
-			this.svg.style['-webkit-transform-origin-y'] = "0";
+			style.transform = `scale(${scale},${scale})`;
+			style['-ms-transform'] = `scale(${scale},${scale})`;
+			style['-webkit-transform'] = `scale(${scale},${scale})`;
+			style['transform-origin'] = "0 0";
+			style['-ms-transform-origin-x'] = "0";
+			style['-ms-transform-origin-y'] = "0";
+			style['-webkit-transform-origin-x'] = "0";
+			style['-webkit-transform-origin-y'] = "0";
 		} else {
-			this.svg.style.transform = "";
-			this.svg.style['-ms-transform'] = "";
-			this.svg.style['-webkit-transform'] = "";
+			style.transform = "";
+			style['-ms-transform'] = "";
+			style['-webkit-transform'] = "";
 		}
 	};
 
 	insertStyles(styles: string) {
-		const el = document.createElementNS(svgNS, "style");
+		const el: SVGStyleElement = document.createElementNS(svgNS, "style");
 		el.textContent = styles;
 		this.svg.insertBefore(el, this.svg.firstChild); // prepend is not available on older browsers.
 		//	this.svg.prepend(el);
@@ -186,7 +190,7 @@ class Svg {
 		// This is the last thing that gets called, so delete the temporary SVG if one was created
 		//臨時 SVG，請將其刪除
 		if (this.dummySvg) {
-			const body = document.querySelector('body');
+			const body: HTMLBodyElement = document.querySelector('body');
 			body.removeChild(this.dummySvg);
 			this.dummySvg = null;
 		}
@@ -210,7 +214,7 @@ class Svg {
 	};
 
 	dottedLine(attr: { x1: number; y1: number; x2: number; y2: number; stroke: string; }) {
-		let el = document.createElementNS(svgNS, 'line');
+		let el: SVGLineElement = document.createElementNS(svgNS, 'line');
 		el.setAttribute("x1", attr.x1.toString());
 		el.setAttribute("x2", attr.x2.toString());
 		el.setAttribute("y1", attr.y1.toString());
@@ -221,7 +225,7 @@ class Svg {
 	};
 
 	rectBeneath(attr: { [key: string]: string }) {
-		let el = document.createElementNS(svgNS, 'rect');
+		let el: SVGRectElement = document.createElementNS(svgNS, 'rect');
 		el.setAttribute("x", attr.x.toString());
 		el.setAttribute("width", attr.width.toString());
 		el.setAttribute("y", attr.y.toString());
@@ -238,9 +242,10 @@ class Svg {
 	};
 
 	text(x: number, y: number, text: string = "", attr?: any, target?: SVGElement): SVGTextElement {
-		let el = document.createElementNS(svgNS, 'text') as SVGTextElement;
+		let el: SVGTextElement = document.createElementNS(svgNS, 'text') as SVGTextElement;
 		el.setAttribute("stroke", "none");
-		if (!attr) attr = {};
+		if (!attr)
+			attr = {};
 		if (typeof attr === 'object') {
 			attr.x = x;
 			attr.y = y;
@@ -250,25 +255,25 @@ class Svg {
 				el.setAttribute(key, attr[key].toString());
 			}
 		}
-		let lines = ("" + text).split("\n");
+		let lines: string[] = ("" + text).split("\n");
 		for (let i = 0; i < lines.length; i++) {
-			let line = document.createElementNS(svgNS, 'tspan');
+			let line: SVGTSpanElement = document.createElementNS(svgNS, 'tspan');
 			line.setAttribute("x", attr.x ? attr.x : "0");
 			if (i !== 0)
 				line.setAttribute("dy", "1.2em");
 			if (lines[i].indexOf("\x03") !== -1) {
-				let parts = lines[i].split('\x03')
+				let parts: string[] = lines[i].split('\x03')
 				line.textContent = parts[0];
 				if (parts[1]) {
-					let ts2 = document.createElementNS(svgNS, 'tspan');
+					let ts2: SVGTSpanElement = document.createElementNS(svgNS, 'tspan');
 					ts2.setAttribute("dy", "-0.3em");
 					ts2.setAttribute("style", "font-size:0.7em");
 					ts2.textContent = parts[1];
 					line.appendChild(ts2);
 				}
 				if (parts[2]) {
-					var dist = parts[1] ? "0.4em" : "0.1em";
-					var ts3 = document.createElementNS(svgNS, 'tspan');
+					var dist: string = parts[1] ? "0.4em" : "0.1em";
+					var ts3: SVGTSpanElement = document.createElementNS(svgNS, 'tspan');
 					ts3.setAttribute("dy", dist);
 					ts3.setAttribute("style", "font-size:0.7em");
 					ts3.textContent = parts[2];
@@ -287,7 +292,7 @@ class Svg {
 
 	guessWidth(text: string, attr: any): Size {
 		let svg = this.createDummySvg();
-		let el = this.text(attr?.x, attr?.y, text, attr, svg);
+		let el: SVGTextElement = this.text(attr?.x, attr?.y, text, attr, svg);
 		var size: { width: number; height: number }
 		try {
 			size = el.getBBox();
@@ -312,7 +317,7 @@ class Svg {
 				"position: absolute;"
 			];
 			this.dummySvg.setAttribute('style', styles.join(""));
-			let body = document.querySelector('body');
+			let body: HTMLBodyElement = document.querySelector('body');
 			body.appendChild(this.dummySvg);
 		}
 
@@ -321,6 +326,7 @@ class Svg {
 
 
 	getTextSize(text: string | number, attr: any, el?: SVGTextElement): Size {
+
 		if (typeof text === 'number')
 			text = '' + text;
 		if (!text || text.match(/^\s+$/))
@@ -329,10 +335,10 @@ class Svg {
 		if (text.length < 20) {
 			// The short text tends to be repetitive and getBBox is really slow, so lets cache.
 			key = text + JSON.stringify(attr);
-			if (sizeCache[key])
-				return sizeCache[key];
+			if (Svg.sizeCache[key])
+				return Svg.sizeCache[key];
 		}
-		let removeLater = !el;
+		let removeLater: boolean = !el;
 		if (!el)
 			el = this.text(attr.x, attr.y, text, attr);
 		let size;
@@ -352,13 +358,13 @@ class Svg {
 				this.svg.removeChild(el);
 		}
 		if (key)
-			sizeCache[key] = size;
+			Svg.sizeCache[key] = size;
 		return size;
 	};
 
 	openGroup(options?: any): SVGGElement {
 		options = options ? options : {};
-		var el = document.createElementNS(svgNS, "g") as SVGGElement;
+		var el: SVGGElement = document.createElementNS(svgNS, "g") as SVGGElement;
 		if (options.klass)
 			el.setAttribute("class", options.klass);
 		if (options.fill)
@@ -387,7 +393,7 @@ class Svg {
 	};
 
 	path(attr?: any): SVGPathElement {
-		var el = document.createElementNS(svgNS, "path") as SVGPathElement;
+		var el: SVGPathElement = document.createElementNS(svgNS, "path") as SVGPathElement;
 		for (var key in attr) {
 			if (attr.hasOwnProperty(key)) {
 				if (key === 'path')
@@ -406,7 +412,7 @@ class Svg {
 	};
 
 	pathToBack(attr: any): SVGPathElement {
-		var el = document.createElementNS(svgNS, "path") as SVGPathElement;
+		var el: SVGPathElement = document.createElementNS(svgNS, "path") as SVGPathElement;
 		for (var key in attr) {
 			if (attr.hasOwnProperty(key)) {
 				if (key === 'path')
@@ -422,8 +428,8 @@ class Svg {
 	};
 
 	lineToBack(attr: { [key: string]: string | number }): SVGLineElement {
-		let el = document.createElementNS(svgNS, 'line') as SVGLineElement;
-		let keys = Object.keys(attr)
+		let el: SVGLineElement = document.createElementNS(svgNS, 'line') as SVGLineElement;
+		let keys: string[]= Object.keys(attr)
 		for (let i = 0; i < keys.length; i++)
 			el.setAttribute(keys[i].toString(), attr[keys[i]].toString());
 		this.prepend(el);
@@ -473,8 +479,8 @@ function constructVLine(x1: number, y1: number, y2: number): string {
 		" l " + 1 + " " + 0 + " " +
 		" l " + 0 + " " + (-len) + " " + " z ";
 }
-function createSvg(): SVGElement {
-	let svg = document.createElementNS(svgNS, "svg");
+function createSvg(): SVGSVGElement {
+	let svg: SVGSVGElement = document.createElementNS(svgNS, "svg");
 	svg.setAttributeNS("http://www.w3.org/2000/xmlns/", "xmlns:xlink", "http://www.w3.org/1999/xlink");
 	svg.setAttribute('role', 'img');    // for accessibility
 	svg.setAttribute('fill', 'currentColor');    // for automatically picking up dark mode and high contrast

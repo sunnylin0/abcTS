@@ -14,65 +14,20 @@
 //    You should have received a copy of the GNU General Public License
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-/*extern AbcTokenizer */
 
 // this is a series of functions that get a particular element out of the passed stream.
 // the return is the number of characters consumed, so 0 means that the element wasn't found.
 // also returned is the element found. This may be a different length because spaces may be consumed that aren't part of the string.
 // The return structure for most calls is { len: num_chars_consumed, token: str }
 
-// declare class AbcTokenizer {
-// 	constructor();
-
-// 	// 跳过字符串开头的空白字符
-// 	skipWhiteSpace(str: string): number;
-// 	// 吃掉（即跳过）从指定索引开始的空白字符，并返回吃掉的字符数
-// 	eatWhiteSpace(line: string, index: number): number;
-// 	// 获取基本音高字母，忽略前导空格，并规范化为大写
-// 	getKeyPitch(str: string): { len: number; token: string };
-// 	// 获取基本变音记号，忽略前导空格，只包括在键中出现的那些
-// 	getSharpFlat(str: string): { len: number; token: string };
-// 	// 获取模式标记
-// 	getMode(str: string): { len: number; token: string };
-// 	// 获取谱号标记
-// 	getClef(str: string): { len: number; token: string; explicit: boolean };
-// 	// 获取小节线标记
-// 	getBarLine(line: string, i: number): { len: number; token: string; warn?: string };
-// 	// 获取由legalChars字符串中字符组成的所有字符
-// 	getTokenOf(str: string, legalChars: string): { len: number; token: string };
-// 	// 获取下一个不包含空格的字符集
-// 	getToken(str: string, start: number, end: number): string;
-// 	// 检查下一个标记是否与传入的单词匹配，包括可能的前导空格
-// 	isMatch(str: string, match: string): number;
-// 	// 获取键签名中的变音记号标记，包括变音记号和音高字母
-// 	getKeyAccidental(str: string): { len: number; token: { acc: string; note: string }; warn?: string };
-// 	// 检查字符是否为空白字符
-// 	isWhiteSpace(ch: string): boolean;
-// 	// 移除字符串中的注释（以%开头的部分）并修剪两端空白字符
-// 	getMeat(line: string, start: number, end: number): { start: number; end: number };
-// 	// 将输入的字符串标记化，返回所有标记的数组
-// 	tokenize(line: string, start: number, end: number): { type: string; token: string; start: number; end: number }[];
-// 	// 在V:字段中获取下一个标记，标记由空格或等号分隔
-// 	getVoiceToken(line: string, start: number, end: number): { len: number; token: string; err?: string };
-// 	// 翻译包含特殊字符转义的字符串
-// 	translateString(str: string): string;
-// 	// 获取数字值
-// 	getInt(str: string): { value: number; digits: number };
-// 	// 获取浮点数值
-// 	getFloat(str: string): { value: number; digits: number };
-// 	// 解析测量值（如长度、尺寸等）
-// 	getMeasurement(tokens: { type: string; token: string }[]): { used: number; value: number };
-// 	// 获取括号内的子字符串
-// 	getBrackettedSubstring(line: string, i: number, maxErrorChars: number, _matchChar?: string): [number, string, boolean];
-// 	// 移除字符串中的注释
-// 	stripComment(str: string): string;
-// 	// 反转字符串中的特定词组顺序
-// 	theReverser(str: string): string;
-// }
 
 
-class AbcTokenizer {
-	// 跳过空格
+export class AbcTokenizer {
+	/**
+	 * 跳過字串開頭的空白字符
+	 * @param str
+	 * @returns
+	 */
 	skipWhiteSpace(str: string): number {
 		for (let i = 0; i < str.length; i++) {
 			if (!this.isWhiteSpace(str.charAt(i))) {
@@ -82,12 +37,12 @@ class AbcTokenizer {
 		return str.length; // 全是空格
 	}
 
-	// 判断是否结束
+	// 判斷是否結束
 	finished(str: string, i: number): boolean {
 		return i >= str.length;
 	}
 
-	// 吃掉空格
+	// 吃掉（即跳過）從指定索引開始的空白字符，並返回吃掉的字符數
 	eatWhiteSpace(line: string, index: number): number {
 		let i;
 		for (i = index; i < line.length; i++) {
@@ -98,7 +53,7 @@ class AbcTokenizer {
 		return i - index;
 	}
 
-	// 获取基本音高字母
+	// 取得基本音高字母，忽略前導空格，並規範化為大寫
 	getKeyPitch(str: string): { len?: number, token?: string } {
 		let i = this.skipWhiteSpace(str);
 		if (this.finished(str, i)) {
@@ -123,7 +78,7 @@ class AbcTokenizer {
 		return { len: 0 };
 	}
 
-	// 获取基本升降号
+	// 取得基本本升降號，忽略前導空格，只包含在鍵中出現的那些
 	getSharpFlat(str: string): { len: number, token?: string } {
 		switch (str.charAt(0)) {
 			case '#': return { len: 1, token: '#' };
@@ -132,7 +87,7 @@ class AbcTokenizer {
 		return { len: 0 };
 	}
 
-	// 获取模式
+	// 取得模式標記
 	getMode(str: string): { len: number, token?: string } {
 		const skipAlpha = (str: string, start: number): number => {
 			// This returns the index of the next non-alphabetic char, or the entire length of the string if not found.
@@ -169,8 +124,8 @@ class AbcTokenizer {
 		return { len: 0 };
 	}
 
-	// 获取谱号
-	getClef(str: string): { len?: number, token?: string, warn?: string, explicit?: boolean } {
+	// 取得譜號標記
+	getClef(str: string): { len: number, token?: ClefType, warn?: string, explicit?: boolean } {
 		let strOrig = str;
 		let i = this.skipWhiteSpace(str);
 		if (this.finished(str, i)) {
@@ -187,7 +142,7 @@ class AbcTokenizer {
 			return { len: i + 5, warn: "No clef specified: " + strOrig };
 		}
 
-		let j = this.skipWhiteSpace(strClef);
+		let j: number = this.skipWhiteSpace(strClef);
 		if (this.finished(strClef, j)) {
 			return { len: 0 };
 		}
@@ -195,7 +150,7 @@ class AbcTokenizer {
 			i += j;
 			strClef = strClef.substring(j);
 		}
-		let name: ClefType = null;
+		let name: ClefType = 'none';
 		if (strClef.startsWith('treble'))
 			name = 'treble';
 		else if (strClef.startsWith('bass3'))
@@ -226,11 +181,11 @@ class AbcTokenizer {
 				name += "-8";
 		}
 
-		return { len: i + name.length, token: name, explicit: needsClef };
+		return { len: i + name.length, token: name as ClefType, explicit: needsClef };
 	}
 
-	// 获取小节线
-	getBarLine(line: string, i: number): { len?: number, token?: string } | { len: number, warn: string } {
+	// 取得小節線標記
+	getBarLine(line: string, i: number): { len?: number, token?: string, warn?: string } {
 		switch (line.charAt(i)) {
 			case ']':
 				++i;
@@ -258,7 +213,8 @@ class AbcTokenizer {
 								switch (line.charAt(i)) {
 									case '|': // :|]|
 										++i;
-										if (line.charAt(i) === ':') return { len: 5, token: "bar_dbl_repeat" };
+										if (line.charAt(i) === ':')
+											return { len: 5, token: "bar_dbl_repeat" };
 										return { len: 3, token: "bar_right_repeat" };
 									default:
 										return { len: 3, token: "bar_right_repeat" };
@@ -266,7 +222,8 @@ class AbcTokenizer {
 								break;
 							case '|': // :||
 								++i;
-								if (line.charAt(i) === ':') return { len: 4, token: "bar_dbl_repeat" };
+								if (line.charAt(i) === ':')
+									return { len: 4, token: "bar_dbl_repeat" };
 								return { len: 3, token: "bar_right_repeat" };
 							default:
 								return { len: 2, token: "bar_right_repeat" };
@@ -297,11 +254,13 @@ class AbcTokenizer {
 					case ']': return { len: 2, token: "bar_thin_thick" };
 					case '|': // ||
 						++i;
-						if (line.charAt(i) === ':') return { len: 3, token: "bar_left_repeat" };
+						if (line.charAt(i) === ':')
+							return { len: 3, token: "bar_left_repeat" };
 						return { len: 2, token: "bar_thin_thin" };
 					case ':': // |:
 						let colons = 0;
-						while (line.charAt(i + colons) === ':') colons++;
+						while (line.charAt(i + colons) === ':')
+							colons++;
 						return { len: 1 + colons, token: "bar_left_repeat" };
 					default: return { len: 1, token: "bar_thin" };
 				}
@@ -310,7 +269,7 @@ class AbcTokenizer {
 		}
 	}
 
-	// 获取匹配的字符串
+	// 取得由 legalChars 匹配字串中字元組成的所有字符
 	getTokenOf(str: string, legalChars: string): { len: number, token: string } {
 		let i;
 		for (i = 0; i < str.length; i++) {
@@ -321,7 +280,7 @@ class AbcTokenizer {
 		return { len: i, token: str };
 	}
 
-	// 获取token
+	// 取得下一個不包含空格的字元集
 	getToken(str: string, start: number, end: number): string {
 		// This returns the next set of chars that doesn't contain spaces
 		let i = start;
@@ -331,7 +290,7 @@ class AbcTokenizer {
 		return str.substring(start, i);
 	}
 
-	// 匹配字符串
+	// 檢查下一個標記是否與傳入的單字匹配，包括可能的前導空格
 	isMatch(str: string, match: string): number {
 		let i = this.skipWhiteSpace(str);
 		if (this.finished(str, i)) {
@@ -340,10 +299,10 @@ class AbcTokenizer {
 		if (str.substring(i).startsWith(match)) {
 			return i + match.length;
 		}
-		return;
+		return 0;
 	}
 
-	// 获取键号标记
+	// 取得鍵簽名中的變音記號標記，包含變音記號和音高字母
 	getKeyAccidental(str: string): { len?: number, token?: { acc: string, note: string }, warn?: string } {
 		const accTranslation: { [key: string]: string } = {
 			'^': 'sharp',
@@ -358,7 +317,7 @@ class AbcTokenizer {
 		if (this.finished(str, i)) {
 			return { len: 0 };
 		}
-		let acc: string | null = null;
+		let acc: string;
 		switch (str.charAt(i)) {
 			case '^':
 			case '_':
@@ -418,12 +377,12 @@ class AbcTokenizer {
 		}
 	}
 
-	// 判断是否为空格
+	// 檢查字元是否為空白字符
 	isWhiteSpace(ch: string): boolean {
 		return ch === ' ' || ch === '\t' || ch === '\x12';
 	}
 
-	// 获取主要内容
+	// 移除字串中的註解（以%開頭的部分）並修剪兩端空白字符
 	getMeat(line: string, start: number, end: number): { start: number, end: number } {
 		// This removes any comments starting with '%' and trims the ends of the string so that there are no leading or trailing spaces.
 		// it returns just the start and end characters that contain the meat.
@@ -437,19 +396,18 @@ class AbcTokenizer {
 		return { start: start, end: end };
 	}
 
-	// 判断是否为字母
+	// 判斷是否為字母
 	isLetter(ch: string): boolean {
 		return (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z');
 	}
 
-	// 判断是否为数字
+	// 判斷是否為數字
 	isNumber(ch: string): boolean {
 		return (ch >= '0' && ch <= '9');
 	}
 
-	// 分词
-	tokenize(line: string, start: number, end: number):
-		{ type?: string, token?: string, start?: number, end?: number, continueId?: boolean }[] {
+	// 將輸入的字串標記化，傳回所有標記的陣列
+	tokenize(line: string, start: number, end: number): { type?: string, token?: string, start?: number, end?: number, continueId?: boolean }[] {
 		// this returns all the tokens inside the passed string. A token is a punctuation mark, a string of digits, a string of letters.
 		//  Quoted strings are one token.
 		// The type of token is returned: quote, alpha, number, punct
@@ -481,7 +439,7 @@ class AbcTokenizer {
 			} else if (line.charAt(start) === ' ') {
 				i = start + 1;
 			} else {
-				tokens.push({ type: 'punct', token: line.charAt(start), start, end: start +  1});
+				tokens.push({ type: 'punct', token: line.charAt(start), start, end: start + 1 });
 				i = start + 1;
 			}
 			start = i;
@@ -489,8 +447,8 @@ class AbcTokenizer {
 		return tokens;
 	}
 
-	// 获取声部token
-	getVoiceToken(line: string, start: number, end: number): { len: number, token?: string ,  warn?: string } {
+	// 在V:欄位中取得下一個標記，標記由空格或等號分隔
+	getVoiceToken(line: string, start: number, end: number): { len: number, token?: string, warn?: string } {
 		// This finds the next token. A token is delimited by a space or an equal sign. If it starts with a quote, then the portion between the quotes is returned.
 		let i = start;
 		while (i < end && this.isWhiteSpace(line.charAt(i)) || line.charAt(i) === '=') {
@@ -512,7 +470,7 @@ class AbcTokenizer {
 		}
 	}
 
-	// 字符转换映射
+	// 字元轉換映射
 	charMap: { [key: string]: string } = {
 		"`a": 'à', "'a": "á", "^a": "â", "~a": "ã", "\"a": "ä", "oa": "å", "=a": "ā", "ua": "ă", ";a": "ą",
 		"`e": 'è', "'e": "é", "^e": "ê", "\"e": "ë", "=e": "ē", "ue": "ĕ", ";e": "ę", ".e": "ė",
@@ -537,7 +495,7 @@ class AbcTokenizer {
 		"251": "©"
 	};
 
-	// 翻译字符串
+	// 翻譯包含特殊字元轉義的字串
 	translateString(str: string): string {
 		let arr = str.split('\\');
 		if (arr.length === 1) {
@@ -565,7 +523,7 @@ class AbcTokenizer {
 		return out!;
 	}
 
-	// 获取数字
+	// 取得數字
 	getNumber(line: string, index: number): { num: number, index: number } {
 		let num = 0;
 		while (index < line.length) {
@@ -587,7 +545,7 @@ class AbcTokenizer {
 		return { num, index };
 	}
 
-	// 获取分数
+	// 取得分數
 	getFraction(line: string, index: number): { value: number, index: number } {
 		let num = 1;
 		let den = 1;
@@ -607,7 +565,7 @@ class AbcTokenizer {
 			} else {
 				let iSave = index;
 				let ret2 = this.getNumber(line, index);
-				if (ret2.num === 0 && iSave === index) { // 如果没有使用任何字符，则默认为2
+				if (ret2.num === 0 && iSave === index) { // 如果沒有使用任何字符，則預設 2
 					ret2.num = 2;
 				}
 				if (ret2.num !== 0) {
@@ -619,7 +577,7 @@ class AbcTokenizer {
 		return { value: num / den, index };
 	}
 
-	// 反转字符串
+	// 反轉字串
 	theReverser(str: string): string {
 		if (str.endsWith(", The"))
 			return "The " + str.substring(0, str.length - 5);
@@ -628,7 +586,7 @@ class AbcTokenizer {
 		return str;
 	}
 
-	// 去除注释
+	// 移除字串中的註釋
 	stripComment(str: string): string {
 		let i = str.indexOf('%');
 		if (i >= 0)
@@ -636,7 +594,7 @@ class AbcTokenizer {
 		return str.trim();
 	}
 
-	// 获取整数
+	// 取得整數值
 	getInt(str: string): { value?: number, digits: number } {
 		// This parses the beginning of the string for a number and returns { value: num, digits: num }
 		// If digits is 0, then the string didn't point to a number.
@@ -645,11 +603,11 @@ class AbcTokenizer {
 			return { digits: 0 };
 		}
 		let s = "" + x;
-		let i = str.indexOf(s); // 考虑前导空格
+		let i = str.indexOf(s); // 考慮前導空格
 		return { value: x, digits: i + s.length };
 	}
 
-	// 获取浮点数
+	// 取得浮點數
 	getFloat(str: string): { value?: number, digits: number } {
 		// This parses the beginning of the string for a number and returns { value: num, digits: num }
 		// If digits is 0, then the string didn't point to a number.
@@ -658,21 +616,21 @@ class AbcTokenizer {
 			return { digits: 0 };
 		}
 		let s = "" + x;
-		let i = str.indexOf(s); // 考虑前导空格
+		let i = str.indexOf(s); // 考慮前導空格
 		return { value: x, digits: i + s.length };
 	}
 
-	// 获取测量值
+	// 取得測量值（如長度、尺寸等）
 	getMeasurement(tokens: { type: string, token: string, start: number, end: number }[]): { used: number, value?: number } {
 		if (tokens.length === 0)
 			return { used: 0 };
 		if (tokens[0].type !== 'number')
 			return { used: 0 };
-		let num = tokens.shift().token;
+		let num = tokens.shift()!.token;
 		if (tokens.length === 0)
 			return { used: 1, value: parseInt(num) };
 
-		let x = tokens.shift();
+		let x = tokens.shift()!;
 		let used = 1;
 		if (x.token === '.') {
 			used++;
@@ -680,14 +638,14 @@ class AbcTokenizer {
 				return { used: used, value: parseInt(num) };
 			}
 			if (tokens[0].type === 'number') {
-				x = tokens.shift();
+				x = tokens.shift()!;
 				num = num + '.' + x.token;
 				used++;
 				if (tokens.length === 0) {
 					return { used: used, value: parseFloat(num) };
 				}
 			}
-			x = tokens.shift();
+			x = tokens.shift()!;
 		}
 		switch (x.token) {
 			case 'pt': return { used: used + 1, value: parseFloat(num) };
@@ -697,7 +655,7 @@ class AbcTokenizer {
 		return { used: 0 };
 	}
 
-	// 替换字符串中的转义字符
+	// 替換字串中的轉義字符
 	substInChord(str: string): string {
 		while (str.indexOf("\\n") !== -1) {
 			str = str.replace("\\n", "\n");
@@ -705,7 +663,7 @@ class AbcTokenizer {
 		return str;
 	}
 
-	// 获取括号内的子字符串
+	// 取得括號內的子字串
 	getBrackettedSubstring(line: string, i: number, maxErrorChars: number, _matchChar?: string): [number, string, boolean] {
 		// This extracts the sub string by looking at the first character and searching for that
 		// character later in the line (or search for the optional _matchChar).
@@ -722,7 +680,7 @@ class AbcTokenizer {
 		}
 		if (line.charAt(pos) === matchChar) {
 			return [pos - i + 1, this.substInChord(line.substring(i + 1, pos)), true];
-		} else { // 到达行尾，选择任意数量的字符以防止行消失
+		} else { // 到達行尾，選擇任意數量的字元以防止行消失
 			pos = i + maxErrorChars;
 			if (pos > line.length - 1) {
 				pos = line.length - 1;

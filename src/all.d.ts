@@ -62,6 +62,7 @@ interface Symbol {
 	scale: (x: number, y: number, cx: number, cy: number) => void;
 	getBBox: () => { width: number; height: number };
 }
+type PitchKey = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g';
 
 type ElementType =
 	| "rest"
@@ -82,9 +83,11 @@ type BarType =
 	| "bar_thick_thin"
 	| "bar_right_repeat"
 	| "bar_left_repeat"
-	| "bar_dbl_repeat";
+	| "bar_dbl_repeat"
+	| "bar_invisible";
 
-type ClefType = "treble" | "tenor" | "alto" | "bass" | 'treble+8' | 'tenor+8' | 'bass+8' | 'alto+8' | 'treble-8' | 'tenor-8' | 'bass-8' | 'alto-8';
+type ClefType = "none" | "treble" | "tenor" | "alto" | "alto1" | "alto2" | "bass" | "bass3" |
+	'treble+8' | 'tenor+8' | 'bass+8' | 'alto+8' | 'treble-8' | 'tenor-8' | 'bass-8' | 'alto-8';
 type KeySigDir = "sharp" | "flat";
 type MeterType = "" | "common_time" | "cut_time" | "specified";
 type Decoration = "upbow" | "downbow" | "accent";
@@ -384,6 +387,43 @@ interface GraceNote {
 	accidental?: NoteAccidental;
 }
 
+
+
+interface ABCStaff {
+	bracket?: string;
+	brace?: string;
+	connectBarLines?: string;
+	title?: string[];
+	clef?: { type: string, pitch?: number };
+	key?: { regularKey?: { acc: string, num: number }, extraAccidentals?: { acc: string, note: string }[] };
+	meter?: { type: string, value?: { num: string, den: string }[] };
+	voices: ABCElement[][];
+}
+
+
+
+//interface ABCElement {
+//	el_type: string;
+//	duration?: number;
+//	pitches?: {
+//		pitch: number, accidental?: string, duration?: number, startTie?: boolean, endTie?: boolean, startSlur?: number, endSlur?: number,
+//		printer_shift?: string
+//	}[];
+//	rest?: { type: string };
+//	lyric?: { syllable: string, divider: string }[];
+//	gracenotes?: { pitch: number, accidental?: string }[];
+//	decoration?: string[];
+//	barNumber?: string;
+//	startTriplet?: boolean;
+//	endTriplet?: boolean;
+//	direction?: string;
+//	startBeam?: boolean;
+//	endBeam?: boolean;
+//	averagepitch?: number;
+//}
+
+
+
 //type AbcElement = RestElement | NoteElement | BarElement | ClefElement | KeySigElement | MeterElement;
 interface ABCElement {
 	accidentals?: { acc?: string, note?: string, verticalPos?: number }[],
@@ -463,6 +503,7 @@ interface StaffInfo {
 	subname?: string;
 	startStaff?: boolean;
 	middle?: number;
+	verticalPos?: number;
 }
 
 interface Separator {
@@ -492,7 +533,6 @@ interface Glyphs {
 }
 
 
-
 interface VoiceItemBase {
 	el_type?: VoiceElType;
 	stafflines?: number;
@@ -506,44 +546,6 @@ interface VoiceItemBase {
 	rest_type?: string;
 }
 
-
-
-//declare class ABCAbsoluteElement {
-//	abcelem: ABCElement;
-//	duration: number;
-//	minspacing: number;
-//	x: number;
-//	children: ABCRelativeElement[];
-//	heads: ABCRelativeElement[];
-//	extra: ABCRelativeElement[];
-//	extraw: number;
-//	decs: any[];
-//	w: number;
-//	right: ABCRelativeElement[];
-
-//	getMinWidth(): number;
-//	getExtraWidth(): number;
-//	addExtra(extra: any): void;
-//	addHead(head: any): void;
-//	addRight(right: any): void;
-//	addChild(child: any): void;
-//	draw(printer: ABCPrinter): void;
-//	highlight(): void;
-//	unhighlight(): void;
-//}
-
-//declare class ABCRelativeElement {
-//	x: number;
-//	c: string | null;
-//	dx: number;
-//	w: number;
-//	pitch: number;
-//	scalex: number;
-//	type: string;
-//	graphelem?: SVGElement;
-
-//	draw(printer: ABCPrinter, x: number): any;
-//}
 
 
 /**

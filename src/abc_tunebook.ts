@@ -22,33 +22,33 @@
 // The return structure for most calls is { len: num_chars_consumed, token: str }
 
 interface TuneInfo {
-	abc: string;      // The ABC notation string for the tune
-	startPos: number; // The starting character position in the original book string
+	abc: string;      // 曲調的 ABC 記譜法字串
+	startPos: number; // 原始書籍字串中的起始字元位置
 }
 
-class AbcTuneBook {
+export class AbcTuneBook {
 	tunes: TuneInfo[];
 
 	constructor(book: string) {
-		// 初始化处理流程
+		// 初始化處理流程
 		let directives = "";
-		const processedBook = book.trim();  // 使用原生 trim 替代 Prototype.js 的 strip‌:ml-citation{ref="4,7" data="citationList"}
-		const rawTunes = processedBook.split("\nX:");
+		const processedBook = book.trim();  // 使用原生trim 取代  Prototype.js 的 strip‌:ml-citation{ref="4,7" data="citationList"}
+		const rawTunes: string[] = processedBook.split("\nX:");
 		let pos = 0;
 
-		// 重建 X: 标记并生成初始曲谱数组
-		this.tunes = rawTunes.map((tune, index) => {
+		// 重建X: 標記並產生初始曲譜數組
+		this.tunes = rawTunes.map((tune: string, index) => {
 			const restoredTune = index > 0 ? `X:${tune}` : tune;  // 修复分割丢失的 X: 标记‌:ml-citation{ref="3" data="citationList"}
 			const start = pos;
 			pos += restoredTune.length;
 			return { abc: restoredTune, startPos: start };
 		});
 
-		// 过滤无效起始曲谱
+		// 過濾無效起始曲譜
 		if (this.tunes.length > 1 && !this.tunes[0].abc.startsWith('X:')) {
-			// There could be file-wide directives in this, if so, we need to insert it into each tune. We can probably get away with
-			// just looking for file-wide directives here (before the first tune) and inserting them at the bottom of each tune, since
-			// the tune is parsed all at once. The directives will be seen before the printer begins processing.
+			// 這裡可能包含檔案級指令，如果是這樣，我們需要將其插入到每個曲庫中。我們或許可以勉強應付。
+			// 我只是在這裡（在第一首曲子之前）查找文件範圍的指令，並將它們插入到每首曲子的末尾，因為
+			// 整個樂譜會一次解析。指令會在印表機開始處理前讀取。
 			var dir = this.tunes.shift();
 			var arrDir = dir.abc.split('\n');
 			arrDir.forEach(function (line) {
@@ -57,12 +57,12 @@ class AbcTuneBook {
 			});
 		}
 
-		// 截断双换行符后的内容
+		// 截斷雙換行符後的內容
 		this.tunes.forEach(tune => {
 			const endIndex = tune.abc.indexOf('\n\n');
 			if (endIndex > 0)
 				tune.abc = tune.abc.substring(0, endIndex);  // 保持原处理逻辑‌:ml-citation{ref="3" data="citationList"}
-				tune.abc = directives + tune.abc;
+			tune.abc = directives + tune.abc;
 		});
 	}
 }

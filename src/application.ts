@@ -1,4 +1,4 @@
-﻿//    application.js: Interface between a web page and the abc javascript processor.
+//    application.js: Interface between a web page and the abc javascript processor.
 //    Copyright (C) 2010 Paul Rosen (paul at paulrosen dot net)
 //
 //    This program is free software: you can redistribute it and/or modify
@@ -14,24 +14,16 @@
 //    You should have received a copy of the GNU General Public License
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-/*global $, Ajax, Element */
-/*global window, confirm */
-/*global AbcParse, AbcTuneBook, AbcParserLint, PlayEmbedded, DrawNotation, ABCPrinter, Raphael */
-/*extern abcParser, pickTunebook, selectTune */
-/*global abc_contents_output */
+import { AbcTuneBook } from "./abc_tunebook"
+import { AbcParse } from "./abc_parse"
 
 
+export let abcParser: AbcParse = null;
 
-/////////////////////////////////////////////////////////////////////////////////
-
-let abcParser: AbcParse = null;
-
-
-/////////////////////////////////////////////////////////////////////////////////
 
 // This function takes a string representing an ABC tune book, and a callback routine, and it parses the string
 // and calls the callback routine for each tune it finds. If a tune is parsed in error, then the callback is called with null.
-function processAbc(params) {
+export function processAbc(params) {
 	var strAbc = params.tunebook;
 	var fnCallback = params.fnCallback;
 	var ret = [];
@@ -52,7 +44,6 @@ function processAbc(params) {
 	return ret;
 }
 
-/////////////////////////////////////////////////////////////////////////////////
 
 
 

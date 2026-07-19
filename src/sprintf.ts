@@ -29,7 +29,7 @@ function str_repeat(i: any, m: number): string {
 
 
 
-function sprintf(format: string, ...args: (string | number)[]): string {
+export function sprintf(format: string, ...args: (string | number)[]): string {
 	let i = 0;
 	let f = format;
 	const o: string[] = [];

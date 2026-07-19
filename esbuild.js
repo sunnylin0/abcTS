@@ -39,13 +39,13 @@ var config = {
 
 
 const obj = { dereference: true }
-//src是需要copy函数中src目录的遍历结果，包括子文件路径和子目录路径
+//src是copy函數中src目錄的遍歷需要結果，包括子檔案路徑和子目錄路徑
 obj.filter = (src, dest) => {
 	let stat = fs.lstatSync(src)
 	let isDirectory = stat.isDirectory()
 
 	if (isDirectory) {
-		//自己的匹配规则
+		//自己的符合規則
 		if (src.endsWith('.vs'))
 			return false;
 		else
@@ -67,10 +67,10 @@ obj.filter = (src, dest) => {
 (async () => {
 
 	fs.removeSync("dist");
-	//复制函数
+	//複製函數
 	fs.copySync("src", "dist", obj, err => {
 		if (err) return console.error('err', err);
-		console.log("拷贝文件成功！")
+		console.log("複製檔案成功！")
 	})
 
 	console.log('編譯 esbuild abc2svgLin.js')

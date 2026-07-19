@@ -14,107 +14,13 @@
 //    You should have received a copy of the GNU General Public License
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-/*global ABCVoiceElement */
-/*global ABCRelativeElement */
-/*global ABCAbsoluteElement */
-/*global ABCBeamElem */
-/*global ABCEndingElem */
-/*global ABCTripletElem */
-/*global ABCTieElem */
-/*extern ABCLayout getDuration getDurlog */
 
-//interface ABCElement {
-//	el_type: string;
-//	duration?: number;
-//	pitches?: {
-//		pitch: number, accidental?: string, duration?: number, startTie?: boolean, endTie?: boolean, startSlur?: number, endSlur?: number,
-//		printer_shift?: string
-//	}[];
-//	rest?: { type: string };
-//	lyric?: { syllable: string, divider: string }[];
-//	gracenotes?: { pitch: number, accidental?: string }[];
-//	decoration?: string[];
-//	barNumber?: string;
-//	startTriplet?: boolean;
-//	endTriplet?: boolean;
-//	direction?: string;
-//	startBeam?: boolean;
-//	endBeam?: boolean;
-//	averagepitch?: number;
-//}
+import {
+	ABCAbsoluteElement, ABCRelativeElement, ABCVoiceElement, ABCStaffGroupElement
+	, ABCTieElem, ABCTripletElem, ABCBeamElem, ABCEndingElem
+} from "./abc_graphelements"
 
-//interface ABCStaff {
-//	bracket?: string;
-//	brace?: string;
-//	connectBarLines?: string;
-//	title?: string[];
-//	clef?: { type: string, pitch?: number };
-//	key?: { regularKey?: { acc: string, num: number }, extraAccidentals?: { acc: string, note: string }[] };
-//	meter?: { type: string, value?: { num: string, den: string }[] };
-//	voices: ABCElement[][];
-//}
-
-//interface ABCGlyphs {
-//	getSymbolWidth(symbol: string): number;
-//	getSymbolAlign(symbol: string): string;
-//}
-
-//interface ABCStaffGroupElement {
-//	addVoice(staff: ABCVoiceElement): void;
-//}
-
-//interface ABCVoiceElement {
-//	header?: string;
-//	y: number;
-//	addChild(child: ABCAbsoluteElement | ABCRelativeElement): void;
-//	addInvisibleChild(child: ABCAbsoluteElement): void;
-//	addOther(other: ABCBeamElem | ABCTieElem | ABCEndingElem | ABCTripletElem): void;
-//}
-
-//interface ABCRelativeElement {
-//	type: string;
-//	dx: number;
-//	w: number;
-//	pitch: number;
-//	scalex?: number;
-//	scaley?: number;
-//	constructor(type: string, dx: number, w: number, pitch: number, properties?: { type?: string, scalex?: number, scaley?: number });
-//}
-
-//interface ABCAbsoluteElement {
-//	abcElem: ABCElement;
-//	duration: number;
-//	heads: ABCRelativeElement[];
-//	addChild(child: ABCRelativeElement): void;
-//	addHead(head: ABCRelativeElement): void;
-//	addRight(element: ABCRelativeElement): void;
-//	addExtra(element: ABCRelativeElement): void;
-//	constructor(abcElem: ABCElement, duration: number, staffIndex: number);
-//}
-
-//interface ABCBeamElem {
-//	direction: string;
-//	add(element: ABCAbsoluteElement): void;
-//	constructor(direction: string);
-//}
-
-// interface ABCEndingElem {
-// 	ending: string;
-// 	anchor2?: ABCRelativeElement;
-// 	constructor(ending: string, anchor?: ABCRelativeElement, anchor2?: ABCRelativeElement);
-// }
-
-// interface ABCTripletElem {
-// 	anchor2?: ABCRelativeElement;
-// 	constructor(tripletInfo: boolean, anchor1: ABCRelativeElement, anchor2?: ABCRelativeElement, isAbove?: boolean);
-// }
-
-// interface ABCTieElem {
-// 	anchor2?: ABCRelativeElement;
-// 	constructor(anchor1: ABCRelativeElement, anchor2?: ABCRelativeElement, isAbove?: boolean);
-// }
-
-function getDuration(elem: ABCElement): number {
+export function getDuration(elem: ABCElement): number {
 	let d = 0;
 	if (elem) {
 		if (elem.duration)
@@ -125,12 +31,12 @@ function getDuration(elem: ABCElement): number {
 	return d;
 }
 
-function getDurlog(duration: number): number {
+export function getDurlog(duration: number): number {
 	return Math.floor(Math.log(duration) / Math.log(2));
 }
 
-// ABCLayout 类定义
-class ABCLayout {
+// ABCLayout 類別定義
+export class ABCLayout {
 	glyphs: ABCGlyphs;
 	y: number;
 	isBagpipes: boolean;
@@ -143,9 +49,9 @@ class ABCLayout {
 	slursbyvoice: any;
 	tiesbyvoice: any;
 	endingsbyvoice: any;
-	s: number; // 当前乐谱行号
-	v: number; // 当前声部号
-	voice;
+	s: number; // 目前樂譜行號
+	v: number; // 當前聲部號
+	voice: ABCVoiceElement;
 	abcline: NoteElement[];
 	pos: number;
 	partstartelem: ABCEndingElem;
@@ -253,7 +159,7 @@ class ABCLayout {
 			this.voice.addOther(this.ties[i]);
 		}
 		for (this.pos = 0; this.pos < this.abcline.length; this.pos++) {
-			const abselems = this.printABCElement();
+			const abselems: ABCAbsoluteElement[] = this.printABCElement();
 			for (let i = 0; i < abselems.length; i++) {
 				this.voice.addChild(abselems[i]);
 			}
@@ -304,9 +210,9 @@ class ABCLayout {
 	printBeam(): ABCAbsoluteElement[] {
 		let abselemset: ABCAbsoluteElement[] = [];
 		if (this.getElem().startBeam && !this.getElem().endBeam) {
-			let beamelem = new ABCBeamElem(this.stemdir);
+			let beamelem: ABCBeamElem = new ABCBeamElem(this.stemdir);
 			while (this.getElem()) {
-				let abselem = this.printNote(this.getElem(), true);
+				let abselem: ABCAbsoluteElement = this.printNote(this.getElem(), true);
 				abselemset.push(abselem);
 				beamelem.add(abselem);
 				if (this.getElem().endBeam) {
@@ -351,7 +257,7 @@ class ABCLayout {
 		let dot = 0;
 		for (let tot = Math.pow(2, durlog), inc = tot / 2; tot < duration; dot++, tot += inc, inc /= 2);
 
-		let abselem = new ABCAbsoluteElement(elem, duration, 1);
+		let abselem: ABCAbsoluteElement = new ABCAbsoluteElement(elem, duration, 1);
 
 		if (elem.rest) {
 			switch (elem.rest.type) {
@@ -466,7 +372,7 @@ class ABCLayout {
 				abselem.addExtra(grace);
 
 				if (gracebeam) { // give the beam the necessary info
-					let pseudoabselem :ABCBeamElem = {
+					let pseudoabselem: ABCBeamElem = {
 						heads: [grace],
 						abcelem: { averagepitch: gracepitch, minpitch: gracepitch, maxpitch: gracepitch },
 						duration: (this.isBagpipes) ? 1 / 32 : 1 / 16
@@ -526,7 +432,7 @@ class ABCLayout {
 		return abselem;
 	}
 
-	printNoteHead(abselem: ABCAbsoluteElement, c: any, pitchelem: any, dir: any, headx: number, extrax: number, flag: any, dot: number, dotshiftx: number, scale: number): any {
+	printNoteHead(abselem: ABCAbsoluteElement, c: string, pitchelem: any, dir: string, headx: number, extrax: number, flag: string, dot: number, dotshiftx: number, scale: number): ABCRelativeElement {
 		// TODO scale the dot as well
 		let pitch = pitchelem.verticalPos;
 		let notehead: any;
@@ -544,12 +450,12 @@ class ABCLayout {
 			}
 			notehead = new ABCRelativeElement(c, shiftheadx, this.glyphs.getSymbolWidth(c) * scale, pitch, { scalex: scale, scaley: scale });
 			if (flag) {
-				let pos = pitch + ((dir == "down") ? -7 : 7) * scale;
-				let xdelta = (dir == "down") ? headx : headx + notehead.w - 0.6;
+				let pos: number = pitch + ((dir == "down") ? -7 : 7) * scale;
+				let xdelta: number = (dir == "down") ? headx : headx + notehead.w - 0.6;
 				abselem.addRight(new ABCRelativeElement(flag, xdelta, this.glyphs.getSymbolWidth(flag) * scale, pos, { scalex: scale, scaley: scale }));
 			}
 			for (; dot > 0; dot--) {
-				var dotadjusty = (1 - pitch % 2); //TODO don't adjust when above or below stave?
+				var dotadjusty: number = (1 - pitch % 2); //TODO don't adjust when above or below stave?
 				abselem.addRight(new ABCRelativeElement("dots.dot", notehead.w + dotshiftx - 2 + 5 * dot, this.glyphs.getSymbolWidth("dots.dot"), pitch + dotadjusty));
 			}
 		}
@@ -590,7 +496,7 @@ class ABCLayout {
 		}
 
 		if (pitchelem.startTie) {
-			let tie = new ABCTieElem(notehead, null, (dir == "down"));
+			let tie: ABCTieElem = new ABCTieElem(notehead, null, (dir == "down"));
 			this.ties[this.ties.length] = tie;
 			this.voice.addOther(tie);
 		}
@@ -615,19 +521,18 @@ class ABCLayout {
 		if (pitchelem.startSlur) {
 			for (i = 0; i < pitchelem.startSlur.length; i++) {
 				let slurid = pitchelem.startSlur[i];
-				let slur = new ABCTieElem(notehead, null, (dir == "down"));
+				let slur: ABCTieElem = new ABCTieElem(notehead, null, (dir == "down"));
 				this.slurs[slurid] = slur;
 				this.voice.addOther(slur);
 			}
 		}
-
 		return notehead;
 	}
 
 	printDecoration(decoration: string[], pitch: number, width: number, abselem: ABCAbsoluteElement, roomtaken?: number): void {
 		let dec: any;
 		let unknowndecs: string[] = [];
-		let yslot = (pitch > 9) ? pitch + 3 : 12;
+		let yslot: number = (pitch > 9) ? pitch + 3 : 12;
 		let ypos: number;
 		let i;
 		roomtaken = roomtaken || 0;
@@ -639,7 +544,7 @@ class ABCLayout {
 				(pitch === 4) && ypos--; // don't place on a stave line
 				((pitch === 6) || (pitch === 8)) && ypos++;
 				(pitch > 9) && yslot++; // take up some room of those that are above
-				let deltax = width / 2;
+				let deltax: number = width / 2;
 				if (this.glyphs.getSymbolAlign("scripts.staccato") !== "center") {
 					deltax -= (this.glyphs.getSymbolWidth(dec) / 2);
 				}
@@ -647,8 +552,8 @@ class ABCLayout {
 			}
 			if (decoration[i] === "slide" && abselem.heads[0]) {
 				ypos = abselem.heads[0].pitch;
-				const blank1 = new ABCRelativeElement("", -roomtaken - 15, 0, ypos - 1);
-				const blank2 = new ABCRelativeElement("", -roomtaken - 5, 0, ypos + 1);
+				const blank1: ABCRelativeElement = new ABCRelativeElement("", -roomtaken - 15, 0, ypos - 1);
+				const blank2: ABCRelativeElement = new ABCRelativeElement("", -roomtaken - 5, 0, ypos + 1);
 				abselem.addChild(blank1);
 				abselem.addChild(blank2);
 				this.voice.addOther(new ABCTieElem(blank1, blank2, false));
@@ -708,12 +613,12 @@ class ABCLayout {
 		let anchor = null; // place to attach part lines
 		let dx = 0;
 
-		const firstdots = (elem.type === "bar_right_repeat" || elem.type === "bar_dbl_repeat");
-		const firstthin = (elem.type !== "bar_left_repeat" && elem.type !== "bar_thick_thin");
-		const thick = (elem.type === "bar_right_repeat" || elem.type === "bar_dbl_repeat" || elem.type === "bar_left_repeat" ||
+		const firstdots: boolean = (elem.type === "bar_right_repeat" || elem.type === "bar_dbl_repeat");
+		const firstthin: boolean = (elem.type !== "bar_left_repeat" && elem.type !== "bar_thick_thin");
+		const thick: boolean = (elem.type === "bar_right_repeat" || elem.type === "bar_dbl_repeat" || elem.type === "bar_left_repeat" ||
 			elem.type === "bar_thin_thick" || elem.type === "bar_thick_thin");
-		const secondthin = (elem.type === "bar_left_repeat" || elem.type === "bar_thick_thin" || elem.type === "bar_thin_thin" || elem.type === "bar_dbl_repeat");
-		const seconddots = (elem.type === "bar_left_repeat" || elem.type === "bar_dbl_repeat");
+		const secondthin: boolean = (elem.type === "bar_left_repeat" || elem.type === "bar_thick_thin" || elem.type === "bar_thin_thin" || elem.type === "bar_dbl_repeat");
+		const seconddots: boolean = (elem.type === "bar_left_repeat" || elem.type === "bar_dbl_repeat");
 
 		// limit positionning of slurs
 		if (firstdots || seconddots) {
@@ -774,9 +679,9 @@ class ABCLayout {
 	}
 
 	printClef(elem: ClefElement): ABCAbsoluteElement {
-		let clef = "clefs.G";
-		let pitch = 4;
-		let abselem = new ABCAbsoluteElement(elem, 0, 10);
+		let clef: string = "clefs.G";
+		let pitch: number = 4;
+		let abselem: ABCAbsoluteElement = new ABCAbsoluteElement(elem, 0, 10);
 		switch (elem.type) {
 			case "treble": break;
 			case "tenor": clef = "clefs.C"; pitch = 8; break;
@@ -802,8 +707,8 @@ class ABCLayout {
 	}
 
 	printKeySignature(elem: KeySigElement): ABCAbsoluteElement {
-		let abselem = new ABCAbsoluteElement(elem, 0, 10);
-		let dx = 0;
+		let abselem: ABCAbsoluteElement = new ABCAbsoluteElement(elem, 0, 10);
+		let dx: number = 0;
 		if (elem.accidentals) {
 			for (let acc of elem.accidentals) {
 				let symbol = (acc.acc === "sharp") ? "accidentals.sharp" : (acc.acc === "natural") ? "accidentals.nat" : "accidentals.flat";
@@ -819,7 +724,7 @@ class ABCLayout {
 		const abselem = new ABCAbsoluteElement(elem, 0, 20);
 
 		if (elem.type === "specified") {
-			// 处理指定拍号类型
+			// 處理指定拍號類型
 			for (let i = 0; i < elem.value.length; i++) {
 				if (i !== 0) {
 					abselem.addRight(new ABCRelativeElement('+', i * 20 - 9, this.glyphs.getSymbolWidth("+"), 7));
@@ -840,7 +745,7 @@ class ABCLayout {
 				"timesig.cut", 0, this.glyphs.getSymbolWidth("timesig.cut"), 7));
 		}
 
-		this.startlimitelem = abselem; // 限制连线位置
+		this.startlimitelem = abselem; // 限制連線位置
 		return abselem;
 	}
 }

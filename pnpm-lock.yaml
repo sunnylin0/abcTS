@@ -22,8 +22,8 @@ importers:
         version: 11.3.6
     devDependencies:
       typescript:
-        specifier: 4.1.5
-        version: 4.1.5
+        specifier: ^6.0.3
+        version: 6.0.3
       vite:
         specifier: ^6.2.0
         version: 6.4.3(@types/node@26.1.0)(lightningcss@1.32.0)
@@ -698,9 +698,9 @@ packages:
     resolution: {integrity: sha512-65P7iz6X5yEr1cwcgvQxbbIw7Uk3gOy5dIdtZ4rDveLqhrdJP+Li/Hx6tyK0NEb+2GCyneCMJiGqrADCSNk8sQ==}
     engines: {node: '>=8.0'}
 
-  typescript@4.1.5:
-    resolution: {integrity: sha512-6OSu9PTIzmn9TCDiovULTnET6BgXtDYL4Gg4szY+cGsc3JP1dQL8qvE8kShTRx1NIw4Q9IBHlwODjkjWEtMUyA==}
-    engines: {node: '>=4.2.0'}
+  typescript@6.0.3:
+    resolution: {integrity: sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==}
+    engines: {node: '>=14.17'}
     hasBin: true
 
   undici-types@8.3.0:
@@ -1249,7 +1249,7 @@ snapshots:
     dependencies:
       is-number: 7.0.0
 
-  typescript@4.1.5: {}
+  typescript@6.0.3: {}
 
   undici-types@8.3.0: {}
 

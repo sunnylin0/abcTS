@@ -1,4 +1,4 @@
-﻿// 设置元素属性的函数
+﻿// 設定元素屬性的函數
 function setAttributes(elm: HTMLElement, attrs: { [key: string]: string }): HTMLElement {
 	for (const attr in attrs) {
 		elm.setAttribute(attr, attrs[attr]);
@@ -6,25 +6,25 @@ function setAttributes(elm: HTMLElement, attrs: { [key: string]: string }): HTML
 	return elm;
 }
 
-// Midi 类定义
+// Midi 類別定義
 class Midi {
 	tracks: string[] = [];
 	track: string = "%%0";
 	first: boolean = true;
 	silencelength: string = "%0";
 
-	// 设置乐器
+	// 設定樂器
 	setInstrument(number: number): void {
 		this.track = "%00%C0" + toHex(number, 2) + this.track;
 	}
 
-	// 添加音符
+	// 新增音符
 	addNote(pitch: number, loudness: number, length: number): void {
 		this.startNote(pitch, loudness);
 		this.endNote(pitch, length);
 	}
 
-	// 开始音符
+	// 開始音符
 	startNote(pitch: number, loudness: number): void {
 		if (this.first) {
 			this.first = false;
@@ -35,18 +35,18 @@ class Midi {
 		this.track += "%" + pitch.toString(16) + "%" + loudness; //note
 	}
 
-	// 结束音符
+	// 結束音符
 	endNote(pitch: number, length: number): void {
 		this.track += toDurationHex(length); //duration
 		this.track += "%" + pitch.toString(16) + "%00";//end note
 	}
 
-	// 添加休止符
+	// 加入休止符
 	addRest(length: number): void {
 		this.silencelength = toDurationHex(length);
 	}
 
-	// 嵌入 MIDI 到页面中
+	// 嵌入MIDI 到頁面中
 	embed(parent: HTMLElement): void {
 		const tracklength = toHex(this.track.length / 3 + 4, 8);
 		const data = "data:audio/midi," +
@@ -55,7 +55,7 @@ class Midi {
 			this.track +
 			'%00%FF%2F%00'; // track end
 
-		const embedElement = setAttributes(document.createElement('embed'), {
+		const embedElement: HTMLElement = setAttributes(document.createElement('embed'), {
 			src: data,
 			type: 'audio/midi', // Correct MIME type for MIDI files
 			controller: 'true',
@@ -69,17 +69,17 @@ class Midi {
 	}
 }
 
-// 辅助函数：将字符串编码为十六进制格式
+// 輔助函數：將字串編碼為十六進位格式
 function encodeHex(s: string): string {
 	let ret = "";
 	for (let i = 0; i < s.length; i += 2) {
 		ret += "%";
-		ret += s.substr(i, 2);
+		ret += s.substring(i, i+2);
 	}
 	return ret;
 }
 
-// 辅助函数：将数字转换为指定长度的十六进制字符串
+// 輔助函數：將數字轉換為指定長度的十六進位字串
 function toHex(n: number, padding: number): string {
 	let s = n.toString(16);
 	while (s.length < padding) {
@@ -88,18 +88,18 @@ function toHex(n: number, padding: number): string {
 	return encodeHex(s);
 }
 
-// 辅助函数：将音符长度转换为 MIDI 格式的十六进制字符串
+// 輔助函數：將音符長度轉換為MIDI 格式的十六進位字串
 function toDurationHex(n: number): string {
 	let res = 0;
 	let a: number[] = [];
 
-	// cut up into 7 bit chunks
+	// 切成 7 位元區塊
 	while (n !== 0) {
 		a.push(n & 0x7F);
 		n = n >> 7;
 	}
 
-	// join the 7 bit chunks together, all but last chunk get leading 1
+	// 將7位元資料塊連接起來，除最後一個資料塊外，其餘資料塊都以1開頭。
 	for (let i = a.length - 1; i >= 0; i--) {
 		res = res << 8;
 		let bits = a[i];
@@ -114,46 +114,9 @@ function toDurationHex(n: number): string {
 
 	return toHex(res, padding);
 }
-//interface ABCTune {
-//	formatting?: {
-//		midi?: string;
-//	};
-//	metaText?: {
-//		tempo?: {
-//			duration?: number[];
-//			bpm?: number;
-//		};
-//	};
-//	lines: ABCLine[];
-//}
 
 
-//interface ABCElement {
-//	el_type: string;
-//	duration?: number;
-//	pitches?: Pitch[];
-//	startTriplet?: boolean;
-//	startTie?: boolean;
-//	endTie?: boolean;
-//}
-
-//interface Pitch {
-//	pitch: number;
-//	accidental?: string;
-//	startTie?: boolean;
-//	endTie?: boolean;
-//}
-
-//interface KeySignature {
-//	accidentals?: Accidental[];
-//}
-
-//interface Accidental {
-//	acc?: string;
-//	note?: string;
-//}
-
-class ABCMidiWriter {
+export class ABCMidiWriter {
 	options: any;
 	parent: HTMLElement;
 	scale: number[];
@@ -163,8 +126,8 @@ class ABCMidiWriter {
 	next: { line?: number, staff?: number, voice?: number, pos?: number } | null;
 	qpm: number;
 	program: number;
-	midi: Midi; // Assuming Midi is some type defined elsewhere
-	abctune: ABCTune;
+	midi: Midi; // 假設 Midi 是其他地方定義的某種類型
+	abctune: AbcTune;
 	baseduration: number;
 	baraccidentals: number[];
 	accidentals: number[];
@@ -366,14 +329,11 @@ class ABCMidiWriter {
 
 	handleBar(elem) {
 		this.baraccidentals = [];
-
-
-		let repeat = (elem.type === "bar_right_repeat" || elem.type === "bar_dbl_repeat");
-		let skip = (elem.startEnding) ? true : false;
-		let setvisited = (repeat || skip);
-		let setrestart = (elem.type === "bar_left_repeat" || elem.type === "bar_dbl_repeat" || elem.type === "bar_thick_thin" || elem.type === "bar_thin_thick" || elem.type === "bar_thin_thin" || elem.type === "bar_right_repeat");
-
-		let next = null;
+		let repeat: boolean = (elem.type === "bar_right_repeat" || elem.type === "bar_dbl_repeat");
+		let skip: boolean = (elem.startEnding) ? true : false;
+		let setvisited: boolean = (repeat || skip);
+		let setrestart: boolean = (elem.type === "bar_left_repeat" || elem.type === "bar_dbl_repeat" || elem.type === "bar_thick_thin" || elem.type === "bar_thin_thick" || elem.type === "bar_thin_thin" || elem.type === "bar_right_repeat");
+     	let next = null;
 
 		if (this.isVisited()) {
 			next = this.getJumpMark();

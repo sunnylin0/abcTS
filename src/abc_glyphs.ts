@@ -7,7 +7,7 @@ interface GlyphsData {
 	};
 }
 
-class ABCGlyphs {
+export class ABCGlyphs {
 
 	private glyphs: GlyphsData;
 

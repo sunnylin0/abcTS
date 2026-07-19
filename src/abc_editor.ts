@@ -1,18 +1,25 @@
-﻿// 定义 EditArea 类
-class EditArea {
+﻿import { AbcParse } from "./abc_parse";
+import { AbcTune } from "./abc_tune";
+import { AbcTuneBook } from "./abc_tunebook";
+import { Svg } from "./svg";
+import { ABCPrinter } from "./abc_write";
+import { ABCMidiWriter } from "./abc_midiwriter";
+
+// 定義EditArea類
+export class EditArea {
 	textarea: HTMLTextAreaElement;
 	changelistener: { fireChanged: () => void }
 	constructor(textareaid: string) {
 		this.textarea = document.getElementById(textareaid) as HTMLTextAreaElement;
 	}
 
-	addSelectionListener(listener: { fireSelectionChanged: () => void }) {
+	addSelectionListener(listener: ABCEditor) {
 		this.textarea.onmousemove = () => {
 			listener.fireSelectionChanged();
 		}
 	}
 
-	addChangeListener(listener: { fireChanged: () => void }) {
+	addChangeListener(listener: ABCEditor) {
 		this.changelistener = listener;
 		this.textarea.onkeyup = () => {
 			listener.fireChanged();
@@ -50,8 +57,8 @@ class EditArea {
 	}
 }
 
-// 定义 ABCEditor 类
-class ABCEditor {
+// 定義 ABCEditor 類別
+export class ABCEditor {
 	editarea: EditArea;
 	div: HTMLElement;
 	mididiv?: HTMLElement;
@@ -63,8 +70,8 @@ class ABCEditor {
 	bIsPaused: boolean;
 	timerId: number | null;
 	printer: ABCPrinter;
-	tune;
-	svg;
+	tune: AbcTune;
+	svg: Svg;
 
 	constructor(editarea: string | EditArea, params: {
 		canvas_id?: string,
@@ -120,35 +127,35 @@ class ABCEditor {
 	updateRendering() {
 		if (this.bIsPaused || this.bReentry) return;
 		this.bReentry = true;
-		const t = this.editarea.getString();
+		const t: string = this.editarea.getString();
 		if (t === this.oldt) {
 			this.updateSelection();
 			this.bReentry = false;
 			return;
 		}
-		// 僅在使用者停止輸入後才進行渲染，因此請等待一會兒並透過計時器進行更新。
-		const This = this;
+		// 只需在使用者輸入停止後才進行渲染，因此請等待一段時間並定時器進行更新。
+		const This: ABCEditor = this;
 		const doRendering = () => {
 			This.timerId = null;
-			const newText = This.editarea.getString(); // 重新获取文本，以防在回调期间发生变化
+			const newText: string = This.editarea.getString(); // 重新取得文本，在回呼期間發生變化
 			This.oldt = newText;
 			// clear out any old tune
 			This.div.innerHTML = "";
-			const tunebook = new AbcTuneBook(t);
-			const abcParser = new AbcParse();
+			const tunebook: AbcTuneBook = new AbcTuneBook(t);
+			const abcParser: AbcParse = new AbcParse();
 			abcParser.parse(tunebook.tunes[0].abc); //TODO handle multiple tunes
-			const tune = abcParser.getTune();			
-			const paper = new Svg(This.div);
-			paper.setSize(800,400)
+			const tune: AbcTune = abcParser.getTune();
+			const paper: Svg = new Svg(This.div);
+			paper.setSize(800, 400);
 			This.printer = new ABCPrinter(paper);
 			This.printer.printABC(tune);
 
 			this.tune = tune;
 			this.svg = paper;
 
-			if ( This.mididiv) {
+			if (This.mididiv) {
 				if ((This.mididiv !== This.div) && (This.mididiv.innerHTML = "")) {
-					var midiwriter = new ABCMidiWriter(This.mididiv, This.midiparams);
+					var midiwriter: ABCMidiWriter = new ABCMidiWriter(This.mididiv, This.midiparams);
 					midiwriter.writeABC(tune);
 				}
 			}
@@ -162,16 +169,16 @@ class ABCEditor {
 			This.bReentry = false;
 		};
 
-		if (this.timerId)	// If the user is still typing, cancel the update
+		if (this.timerId)	// 若使用者仍在輸入，取消更新
 			clearTimeout(this.timerId);
-		this.timerId = setTimeout(doRendering, 300);	// Is this a good comprimise between responsiveness and not redrawing too much?
+		this.timerId = setTimeout(doRendering, 300);	// 這是否是響應速度和避免過度重繪之間的一個好的折衷方案？
 	}
 
 	updateSelection() {
 		const selection = this.editarea.getSelection();
 		try {
 			this.printer.rangeHighlight(selection.start, selection.end);
-		} catch (e) { } // 可能 printer 尚未定义
+		} catch (e) { } // 可能 printer 尚未定義
 	}
 
 	fireSelectionChanged() {
@@ -186,7 +193,7 @@ class ABCEditor {
 
 		this.editarea.setSelection(abcelem.startChar, abcelem.endChar);
 	};
-	pause(shouldPause) {
+	pause(shouldPause: boolean) {
 		this.bIsPaused = shouldPause;
 		if (!shouldPause)
 			this.updateRendering();

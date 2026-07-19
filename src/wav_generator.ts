@@ -31,9 +31,9 @@
 
 
 
-class PlayTune {
+export class PlayTune {
 	/*
-			_players：用於存儲播放器元素的陣列。
+		_players：用於存儲播放器元素的陣列。
 		_playerI：當前播放器的索引。
 		_songLines：存儲樂曲數據的陣列，每個元素是一個 [頻率, 時值] 的元組。
 		_songLineIndex：當前播放的樂曲行索引。
@@ -50,11 +50,13 @@ class PlayTune {
 
 	constructor() {
 		// 初始化按鈕狀態
-		const stopButton = document.getElementById('stopButton') as HTMLButtonElement;
-		if (stopButton) stopButton.disabled = true;
+		const stopButton: HTMLButtonElement = document.getElementById('stopButton') as HTMLButtonElement;
+		if (stopButton)
+			stopButton.disabled = true;
 
-		const playButton = document.getElementById('playButton') as HTMLButtonElement;
-		if (playButton) playButton.disabled = false;
+		const playButton: HTMLButtonElement = document.getElementById('playButton') as HTMLButtonElement;
+		if (playButton)
+			playButton.disabled = false;
 	}
 
 	/**
@@ -143,7 +145,7 @@ class PlayTune {
  */
 	play(tune: number[][], tempo: number): void {
 		// 頻率對應表（從低音 C 開始）
-		const frequencies = [
+		const frequencies: number[] = [
 			16.35, 17.32, 18.35, 19.45, 20.60, 21.83, 23.12, 24.50, 25.96, 27.5, 29.14, 30.87,
 			32.70, 34.65, 36.71, 38.89, 41.20, 43.65, 46.25, 49.00, 51.91, 55, 58.27, 61.74,
 			65.41, 69.30, 73.42, 77.78, 82.41, 87.31, 92.50, 98.00, 103.8, 110, 116.5, 123.5,
@@ -156,8 +158,8 @@ class PlayTune {
 			8372, 8870, 9397, 9956, 10548, 11175, 11840, 12544, 13290, 14080, 14917, 15804
 		];
 
-		const ms = (60 / tempo) * 1000;
-		const eighthNoteLen = 250;
+		const ms: number = (60 / tempo) * 1000;
+		const eighthNoteLen: number = 250;
 
 		// 重置狀態
 		this._songLines = [];
@@ -165,8 +167,8 @@ class PlayTune {
 
 		// 將樂曲轉換為播放序列
 		for (let i = 0; i < tune.length; i++) {
-			const freq = frequencies[tune[i][0]];
-			const noteLength = (eighthNoteLen * ms * tune[i][1]) / 1000 / 500;
+			const freq: number = frequencies[tune[i][0]];
+			const noteLength: number = (eighthNoteLen * ms * tune[i][1]) / 1000 / 500;
 			this._songLines.push([freq, noteLength]);
 		}
 
@@ -175,10 +177,12 @@ class PlayTune {
 		this._consumeLine(this);
 
 		// 啟用停止按鈕
-		const stopButton = document.getElementById('stopButton') as HTMLButtonElement;
-		if (stopButton) stopButton.disabled = false;
-		const playButton = document.getElementById('playButton') as HTMLButtonElement;
-		if (playButton) playButton.disabled = false;
+		const stopButton: HTMLButtonElement = document.getElementById('stopButton') as HTMLButtonElement;
+		if (stopButton)
+			stopButton.disabled = false;
+		const playButton: HTMLButtonElement = document.getElementById('playButton') as HTMLButtonElement;
+		if (playButton)
+			playButton.disabled = false;
 	}
 
 	/**
@@ -186,8 +190,9 @@ class PlayTune {
 	 */
 	stop(): void {
 		this._isPlaying = false; // 停止播放
-		const stopButton = document.getElementById('stopButton') as HTMLButtonElement;
-		if (stopButton) stopButton.disabled = true;
+		const stopButton: HTMLButtonElement = document.getElementById('stopButton') as HTMLButtonElement;
+		if (stopButton)
+			stopButton.disabled = true;
 	}
 
 	/**
@@ -198,10 +203,12 @@ class PlayTune {
 		// 如果停止播放或樂曲結束
 		if (!This._isPlaying || This._songLineIndex >= This._songLines.length) {
 			This._isPlaying = false;
-			const stopButton = document.getElementById('stopButton') as HTMLButtonElement;
-			if (stopButton) stopButton.disabled = true;
-			const playButton = document.getElementById('playButton') as HTMLButtonElement;
-			if (playButton) playButton.disabled = false;
+			const stopButton: HTMLButtonElement = document.getElementById('stopButton') as HTMLButtonElement;
+			if (stopButton)
+				stopButton.disabled = true;
+			const playButton: HTMLButtonElement = document.getElementById('playButton') as HTMLButtonElement;
+			if (playButton)
+				playButton.disabled = false;
 			return;
 		}
 
@@ -260,7 +267,7 @@ if (!window.btoa) {
  * @param value 數值
  * @returns 打包後的字符串
  */
-function pack(fmt: string, ...args: any[]): string {
+function pack(fmt: string, ...args: (string | number)[]): string {
 	let output: string = '';
 
 	let argi: number = 0;
@@ -268,13 +275,16 @@ function pack(fmt: string, ...args: any[]): string {
 		const c: string = fmt.charAt(i);
 		const arg: any = args[argi];
 		argi++;
+		let strA = "";
 
 		switch (c) {
 			case "a":
-				output += arg[0] + "\0";
+				strA = typeof args[argi] === 'string' ? (args[argi] as string) : String(args[argi]);
+				output += strA.charAt(0) + "\0";
 				break;
 			case "A":
-				output += arg[0] + " ";
+				strA = typeof args[argi] === 'string' ? (args[argi] as string) : String(args[argi]);
+				output += strA.charAt(0) + " ";
 				break;
 			case "C":
 			case "c":
