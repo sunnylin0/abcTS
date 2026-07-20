@@ -1,4 +1,4 @@
-﻿//    abc_layout.js: Creates a data structure suitable for printing a line of abc
+//    abc_layout.js: Creates a data structure suitable for printing a line of abc
 //    Copyright (C) 2010 Gregory Dyke (gregdyke at gmail dot com)
 //
 //    This program is free software: you can redistribute it and/or modify
@@ -57,6 +57,7 @@ export class ABCLayout {
 	partstartelem: ABCEndingElem;
 	startlimitelem;
 	roomtaken: number;
+	roomtakenright: number;
 	accidentalshiftx: number;
 	triplet: ABCTripletElem;
 
@@ -136,7 +137,7 @@ export class ABCLayout {
 			this.voice.addChild(this.printKeySignature(abcstaff.key));
 			if (abcstaff.meter) this.voice.addChild(this.printTimeSignature(abcstaff.meter));
 			this.printABCVoice(abcstaff.voices[this.v]);
-			this.staffgroup.addVoice(this.voice);
+			this.staffgroup.addVoice(this.voice, this.s);
 		}
 	}
 
@@ -247,6 +248,7 @@ export class ABCLayout {
 		let notehead: any = null;
 		let grace: any = null;
 		this.roomtaken = 0; // room needed to the left of the note
+		this.roomtakenright = 0;
 		let dotshiftx = 0;
 		let c = "";
 		let flag: any = null;
@@ -260,20 +262,24 @@ export class ABCLayout {
 		let abselem: ABCAbsoluteElement = new ABCAbsoluteElement(elem, duration, 1);
 
 		if (elem.rest) {
+			let restpitch = 7;
+			if (this.stemdir === "down") restpitch = 3;
+			if (this.stemdir === "up") restpitch = 11;
 			switch (elem.rest.type) {
 				case "rest":
 					c = this.chartable["rest"][-durlog];
-					elem.averagepitch = 7;
-					elem.minpitch = 7;
-					elem.maxpitch = 7;
+					elem.averagepitch = restpitch;
+					elem.minpitch = restpitch;
+					elem.maxpitch = restpitch;
 					break; // TODO rests in bars is now broken
 				case "invisible":
 				case "spacer":
 					c = "";
 			}
-			notehead = this.printNoteHead(abselem, c, { verticalPos: 7 }, null, 0, -this.roomtaken, null, dot, 0, 1);
+			notehead = this.printNoteHead(abselem, c, { verticalPos: restpitch }, null, 0, -this.roomtaken, null, dot, 0, 1);
 			if (notehead) abselem.addHead(notehead);
 			this.roomtaken += this.accidentalshiftx;
+			this.roomtakenright = Math.max(this.roomtakenright, this.dotshiftx);
 		} else {
 			this.sortPitch(elem);
 
@@ -315,7 +321,7 @@ export class ABCLayout {
 					c = "noteheads.quarter";
 				}
 
-				if ((dir == "down" && p == pp - 1) || (dir == "up" && p == 0)) { // place to put slurs if not already on pitches
+				if (((this.stemdir === "up" || dir === "down") && p === pp - 1) || ((this.stemdir === "down" || dir === "up") && p === 0)) { // place to put slurs if not already on pitches
 					if (elem.startSlur) {
 						elem.pitches[p].startSlur = elem.startSlur;
 					}
@@ -328,6 +334,7 @@ export class ABCLayout {
 				notehead = this.printNoteHead(abselem, c, elem.pitches[p], dir, 0, -this.roomtaken, flag, dot, dotshiftx, 1);
 				if (notehead) abselem.addHead(notehead);
 				this.roomtaken += this.accidentalshiftx;
+				this.roomtakenright = Math.max(this.roomtakenright, this.dotshiftx);
 			}
 
 			// draw stem from the furthest note to a pitch above/below the stemmed note
@@ -345,7 +352,7 @@ export class ABCLayout {
 			elem.lyric.forEach(function (ly) {
 				lyricStr += ly.syllable + ly.divider + "\n";
 			});
-			abselem.addChild(new ABCRelativeElement(lyricStr, 0, 0, 0, { type: "debugLow" }));
+			abselem.addRight(new ABCRelativeElement(lyricStr, 0, lyricStr.length * 5, 0, { type: "debugLow" }));
 		}
 
 		if (elem.gracenotes !== undefined) {
@@ -416,7 +423,30 @@ export class ABCLayout {
 		}
 
 		if (elem.chord !== undefined) { //16 -> high E.
-			abselem.addChild(new ABCRelativeElement(elem.chord.name, 0, 0, (elem.chord.position == "below") ? -3 : 16, { type: "text" }));
+			for (let ci = 0; ci < elem.chord.length; ci++) {
+				let cx = 0;
+				let cy = 16;
+				const chordItem = elem.chord[ci];
+				switch (chordItem.position) {
+					case "left":
+						this.roomtaken += 7;
+						cx = -this.roomtaken;
+						cy = elem.averagepitch;
+						abselem.addExtra(new ABCRelativeElement(chordItem.name, cx, this.glyphs.getSymbolWidth(chordItem.name[0]) + 4, cy, { type: "text" }));
+						break;
+					case "right":
+						this.roomtakenright += 4;
+						cx = this.roomtakenright;
+						cy = elem.averagepitch;
+						abselem.addRight(new ABCRelativeElement(chordItem.name, cx, this.glyphs.getSymbolWidth(chordItem.name[0]) + 4, cy, { type: "text" }));
+						break;
+					case "below":
+						cy = -3;
+						// fall through
+					default:
+						abselem.addChild(new ABCRelativeElement(chordItem.name, cx, 0, cy, { type: "text" }));
+				}
+			}
 		}
 
 		if (elem.startTriplet) {
@@ -438,6 +468,7 @@ export class ABCLayout {
 		let notehead: any;
 		let i;
 		this.accidentalshiftx = 0;
+		this.dotshiftx = 0;
 		if (c === undefined)
 			abselem.addChild(new ABCRelativeElement("pitch is undefined", 0, 0, 0, { type: "debug" }));
 		else if (c === "") {
@@ -448,12 +479,13 @@ export class ABCLayout {
 				let adjust = (pitchelem.printer_shift == "same") ? 1 : 0;
 				shiftheadx = (dir == "down") ? -this.glyphs.getSymbolWidth(c) * scale + adjust : this.glyphs.getSymbolWidth(c) * scale - adjust;
 			}
-			notehead = new ABCRelativeElement(c, shiftheadx, this.glyphs.getSymbolWidth(c) * scale, pitch, { scalex: scale, scaley: scale });
+			notehead = new ABCRelativeElement(c, shiftheadx, this.glyphs.getSymbolWidth(c) * scale, pitch, { scalex: scale, scaley: scale, extreme: ((dir == "down") ? "below" : "above") });
 			if (flag) {
 				let pos: number = pitch + ((dir == "down") ? -7 : 7) * scale;
 				let xdelta: number = (dir == "down") ? headx : headx + notehead.w - 0.6;
 				abselem.addRight(new ABCRelativeElement(flag, xdelta, this.glyphs.getSymbolWidth(flag) * scale, pos, { scalex: scale, scaley: scale }));
 			}
+			this.dotshiftx = notehead.w + dotshiftx - 2 + 5 * dot;
 			for (; dot > 0; dot--) {
 				var dotadjusty: number = (1 - pitch % 2); //TODO don't adjust when above or below stave?
 				abselem.addRight(new ABCRelativeElement("dots.dot", notehead.w + dotshiftx - 2 + 5 * dot, this.glyphs.getSymbolWidth("dots.dot"), pitch + dotadjusty));
@@ -496,7 +528,7 @@ export class ABCLayout {
 		}
 
 		if (pitchelem.startTie) {
-			let tie: ABCTieElem = new ABCTieElem(notehead, null, (dir == "down"));
+			let tie: ABCTieElem = new ABCTieElem(notehead, null, (this.stemdir === "up" || dir === "down") && this.stemdir !== "down", (this.stemdir === "down" || this.stemdir === "up"));
 			this.ties[this.ties.length] = tie;
 			this.voice.addOther(tie);
 		}
@@ -509,7 +541,7 @@ export class ABCLayout {
 					slur = this.slurs[slurid].anchor2 = notehead;
 					delete this.slurs[slurid];
 				} else {
-					slur = new ABCTieElem(null, notehead, (dir == "down"));
+					slur = new ABCTieElem(null, notehead, dir === "down", (this.stemdir === "up" || dir === "down") && this.stemdir !== "down", this.stemdir);
 					this.voice.addOther(slur);
 				}
 				if (this.startlimitelem) {
@@ -521,7 +553,7 @@ export class ABCLayout {
 		if (pitchelem.startSlur) {
 			for (i = 0; i < pitchelem.startSlur.length; i++) {
 				let slurid = pitchelem.startSlur[i];
-				let slur: ABCTieElem = new ABCTieElem(notehead, null, (dir == "down"));
+				let slur: ABCTieElem = new ABCTieElem(notehead, null, (this.stemdir === "up" || dir === "down") && this.stemdir !== "down", this.stemdir);
 				this.slurs[slurid] = slur;
 				this.voice.addOther(slur);
 			}
@@ -606,7 +638,7 @@ export class ABCLayout {
 		if (unknowndecs.length > 0) abselem.addChild(new ABCRelativeElement(unknowndecs.join(','), 0, 0, 0, { type: "debug" }));
 	}
 
-	printBarLine(elem: ABCElement): ABCAbsoluteElement {
+	printBarLine(elem: BarElement): ABCAbsoluteElement {
 		// bar_thin, bar_thin_thick, bar_thin_thin, bar_thick_thin, bar_right_repeat, bar_left_repeat, bar_double_repeat
 
 		const abselem = new ABCAbsoluteElement(elem, 0, 10);
@@ -614,7 +646,7 @@ export class ABCLayout {
 		let dx = 0;
 
 		const firstdots: boolean = (elem.type === "bar_right_repeat" || elem.type === "bar_dbl_repeat");
-		const firstthin: boolean = (elem.type !== "bar_left_repeat" && elem.type !== "bar_thick_thin");
+		const firstthin: boolean = (elem.type !== "bar_left_repeat" && elem.type !== "bar_thick_thin" && elem.type !== "bar_invisible");
 		const thick: boolean = (elem.type === "bar_right_repeat" || elem.type === "bar_dbl_repeat" || elem.type === "bar_left_repeat" ||
 			elem.type === "bar_thin_thick" || elem.type === "bar_thick_thin");
 		const secondthin: boolean = (elem.type === "bar_left_repeat" || elem.type === "bar_thick_thin" || elem.type === "bar_thin_thin" || elem.type === "bar_dbl_repeat");
@@ -641,13 +673,18 @@ export class ABCLayout {
 			abselem.addRight(anchor);
 		}
 
+		if (elem.type === "bar_invisible") {
+			anchor = new ABCRelativeElement(null, dx, 1, 2, { "type": "none", "pitch2": 10, linewidth: 0.6 });
+			abselem.addRight(anchor);
+		}
+
 		if (elem.decoration) {
 			this.printDecoration(elem.decoration, 12, (thick) ? 3 : 1, abselem);
 		}
 
 		if (thick) {
 			dx += 4; //3 hardcoded;    
-			anchor = new ABCRelativeElement(null, dx, 4, 2, { "type": "bar", "pitch2": 10, scalex: 8, linewidth: 0.6 });
+			anchor = new ABCRelativeElement(null, dx, 4, 2, { "type": "bar", "pitch2": 10, linewidth: 4 });
 			abselem.addRight(anchor);
 			dx += 5;
 		}

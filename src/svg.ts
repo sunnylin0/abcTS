@@ -1,8 +1,27 @@
-﻿//    abc_voice_element.js: Definition of the VoiceElement class.
+//    abc_voice_element.js: Definition of the VoiceElement class.
 
 /*global module */
 
 const svgNS = "http://www.w3.org/2000/svg";
+
+Object.defineProperty(SVGElement.prototype, "toBack", {
+	value<T extends SVGElement>(this: T) {
+		if (this.parentNode) {
+			this.parentNode.insertBefore(this, this.parentNode.firstChild);
+		}
+		return this;
+	},
+	writable: true,
+	configurable: true
+});
+
+Object.defineProperty(Array.prototype, "toBack", {
+	value<T extends SVGElement>(this: T[]) {
+		return this.map(el => el.toBack());
+	},
+	writable: true,
+	configurable: true
+});
 
 Object.defineProperty(SVGElement.prototype, "translate", {
 	value(x: number, y: number) {

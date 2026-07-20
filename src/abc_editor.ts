@@ -5,6 +5,9 @@ import { Svg } from "./svg";
 import { ABCPrinter } from "./abc_write";
 import { ABCMidiWriter } from "./abc_midiwriter";
 
+interface ParserOptions { }
+interface MidiOptions { }
+
 // 定義EditArea類
 export class EditArea {
 	textarea: HTMLTextAreaElement;
@@ -68,7 +71,7 @@ export class ABCEditor {
 	oldt: string;
 	bReentry: boolean;
 	bIsPaused: boolean;
-	timerId: number | null;
+	timerId: number | ReturnType<typeof setTimeout> | null = null;
 	printer: ABCPrinter;
 	tune: AbcTune;
 	svg: Svg;

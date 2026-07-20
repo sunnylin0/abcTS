@@ -39,10 +39,10 @@ import { AbcParseHeader } from "./abc_parse_header";
 //	const g: number;
 //}
 
-interface  Rests {
-	 x: string;
-	 y: string;
-	 z: string;
+interface Rests {
+	x: string;
+	y: string;
+	z: string;
 }
 
 export class MultilineVars {
@@ -116,7 +116,7 @@ export class AbcParse {
 	multilineVars: MultilineVars;
 	header: AbcParseHeader;
 
-	pitches: Record<PitchKey, number>  = { A: 5, B: 6, C: 0, D: 1, E: 2, F: 3, G: 4, a: 12, b: 13, c: 7, d: 8, e: 9, f: 10, g: 11 };
+	pitches: Record<PitchKey, number> = { A: 5, B: 6, C: 0, D: 1, E: 2, F: 3, G: 4, a: 12, b: 13, c: 7, d: 8, e: 9, f: 10, g: 11 };
 	rests: Rests = { x: 'invisible', y: 'spacer', z: 'rest' };
 	legalAccents = ["trill", "lowermordent", "uppermordent", "mordent", "pralltriller", "accent",
 		"emphasis", "fermata", "invertedfermata", "tenuto", "0", "1", "2", "3", "4", "5", "+", "wedge",
@@ -168,6 +168,12 @@ export class AbcParse {
 			} else if (chord[0] > 0 && chord[1].length > 0 && chord[1][0] === '_') {
 				chord[1] = chord[1].substring(1);
 				chord[2] = 'below';
+			} else if (chord[0] > 0 && chord[1].length > 0 && chord[1][0] === '<') {
+				chord[1] = chord[1].substring(1);
+				chord[2] = 'left';
+			} else if (chord[0] > 0 && chord[1].length > 0 && chord[1][0] === '>') {
+				chord[1] = chord[1].substring(1);
+				chord[2] = 'right';
 			} else
 				chord[2] = 'default';
 			return chord;
@@ -223,7 +229,9 @@ export class AbcParse {
 				return ret;
 			case 'H': return [1, 'fermata'];
 			case 'J': return [1, 'slide'];
+			case 'L': return [1, 'accent'];
 			case 'M': return [1, 'mordent'];
+			case 'P': return [1, 'pralltriller'];
 			case 'R': return [1, 'roll'];
 			case 'T': return [1, 'trill'];
 		}
@@ -391,8 +399,8 @@ export class AbcParse {
 			if (word_list.length !== 0) {
 				if (word_list[0].skip) {
 					switch (word_list[0].to) {
-						case 'next': if (el.el_type === 'note' && el.pitches !== null && !inSlur) word_list.shift(); break;
-						case 'slur': if (el.el_type === 'note' && el.pitches !== null) word_list.shift(); break;
+						case 'next': if (el.el_type === 'note' && el.pitches != null && !inSlur) word_list.shift(); break;
+						case 'slur': if (el.el_type === 'note' && el.pitches != null) word_list.shift(); break;
 						case 'bar': if (el.el_type === 'bar') word_list.shift(); break;
 					}
 				} else {
@@ -959,10 +967,16 @@ export class AbcParse {
 
 					ret = this.letter_to_chord(line, i);
 					if (ret[0] > 0) {
-						// TODO-PER: There could be more than one chord here if they have different positions.
-						el.chord = { name: this.tokenizer.translateString(ret[1]), position: ret[2] };
+						if (!el.chord) {
+							el.chord = [];
+						}
+						el.chord.push({ name: this.tokenizer.translateString(ret[1]), position: ret[2] as any });
 						i += ret[0];
-						i += this.tokenizer.skipWhiteSpace(line.substring(i));
+						let ii = this.tokenizer.skipWhiteSpace(line.substring(i));
+						if (ii > 0) {
+							el.force_end_beam_last = true;
+						}
+						i += ii;
 					} else {
 						if (this.nonDecorations.indexOf(line[i]) === -1)
 							ret = this.letter_to_accent(line, i);
@@ -1282,7 +1296,12 @@ export class AbcParse {
 		strTune = strTune.replace(/\r/g, '\n');
 		strTune += '\n'; // Tacked on temporarily to make the last line continuation work
 		strTune = strTune.replace(/\n\\.*\n/g, "\n"); // get rid of latex commands.
-		strTune = strTune.replace(/\\([ \t]*)\n/g, "$1 \x12"); // take care of line continuations right away, but keep the same number of characters
+		let continuationReplacement = function (all: string, backslash: string, comment: string): string {
+			let spaces = "                                                                                                                                                                                                     ";
+			let padding = comment ? spaces.substring(0, comment.length) : "";
+			return backslash + " \x12" + padding;
+		};
+		strTune = strTune.replace(/\\([ \t]*)(%.*)*\n/g, continuationReplacement as any); // take care of line continuations right away, but keep the same number of characters
 		const lines = strTune.split('\n');
 		if (lines.last().length === 0) {
 			lines.pop();

@@ -1,5 +1,6 @@
 ﻿{
 	"compilerOptions": {
+		"ignoreDeprecations": "6.0",
 		"baseUrl": ".",
 		//非常好用的 ex: import {*} from '*/command/addevele'
 		//但 storybook 看不懂要在 .storybook/main.js 設定
@@ -20,6 +21,7 @@
 		"outDir": "./build",
 		"allowJs": true, //編譯 *.js 文件 , 要多 "outDir" 屬性才不會有 TS5055 問題
 		"sourceMap": true,
+		"resolveJsonModule": true, /* 允許載入 json */
 		"allowSyntheticDefaultImports": true, /* 允許從沒有默認導出的模塊中默認導入。 這不會影響代碼發出，只會影響類型檢查。 */
 		"experimentalDecorators": true,
 		"esModuleInterop": true, /* 通過為所有導入創建命名空間對象，啟用 CommonJS 和 ES 模塊之間的發射互操作性。 暗示“allowSyntheticDefaultImports”。 */

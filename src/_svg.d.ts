@@ -1,10 +1,11 @@
-﻿//declare var svgNS: string;
+//declare var svgNS: string;
 declare interface SVGElement {
 	translate(x: number, y: number): SVGElement;
 	//attr(attr: any): SVGElement;
 	attr<T extends SVGElement>(this: T, attributes: SVGAttributes<T>): T;
 	scale<T extends SVGElement>(scalex: number, scaley: number, x: number, y: number): T;
 	mouseup(handler: (event: MouseEvent) => void);
+	toBack(): SVGElement;
 }
 
 interface SVGAttributes<T extends SVGElement = SVGElement> {
@@ -18,6 +19,7 @@ interface SVGAttributes<T extends SVGElement = SVGElement> {
 interface Array<T extends SVGElement> {
 	attr<U extends T>(this: U[], attributes: SVGAttributes<U>): U[];
 	scale<U extends T>(scalex: number, scaley: number, x: number, y: number): U;
+	toBack<U extends T>(this: U[]): U[];
 }
 
 //interface SVGAttributes<T extends SVGElement = SVGElement> {

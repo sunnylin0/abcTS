@@ -1,4 +1,4 @@
-﻿//    abc_write.ts: Prints an abc file parsed by abc_parse.js
+//    abc_write.ts: Prints an abc file parsed by abc_parse.js
 //    Copyright (C) 2010 Gregory Dyke (gregdyke at gmail dot com)
 //
 //    This program is free software: you can redistribute it and/or modify
@@ -94,6 +94,10 @@ export class ABCPrinter {
 	layouter: ABCLayout; // 應設定為對應的佈局器類型
 	staffgroups: any[]; // 應設定為對應的 staffgroup 類型數組
 	backupy: number;
+	staffbottom: number = 0;
+	path: any[] = [];
+	lastM: number[] = [0, 0];
+	ingroup: boolean = false;
 
 	constructor(paper: Svg, opt?: any) {
 		this.y = 0;
@@ -102,6 +106,40 @@ export class ABCPrinter {
 		this.glyphs = new ABCGlyphs();
 		this.listeners = [];
 		this.selected = [];
+		this.path = [];
+		this.lastM = [0, 0];
+		this.ingroup = false;
+	}
+
+	beginGroup(): void {
+		this.path = [];
+		this.lastM = [0, 0];
+		this.ingroup = true;
+	}
+
+	addPath(path: any[]): void {
+		path = path || [];
+		if (path.length === 0) return;
+		const firstNode = [...path[0]];
+		firstNode[0] = "m";
+		firstNode[1] -= this.lastM[0];
+		firstNode[2] -= this.lastM[1];
+		this.lastM[0] += firstNode[1];
+		this.lastM[1] += firstNode[2];
+		this.path.push(firstNode);
+		for (let i = 1, ii = path.length; i < ii; i++) {
+			if (path[i][0] === "m") {
+				this.lastM[0] += path[i][1];
+				this.lastM[1] += path[i][2];
+			}
+			this.path.push(path[i]);
+		}
+	}
+
+	endGroup(): SVGPathElement {
+		this.ingroup = false;
+		if (this.path.length === 0) return null;
+		return this.paper.path().attr({ path: this.path, stroke: "none", fill: "#000000" }) as SVGPathElement;
 	}
 	// 設定y座標並備份當前y座標
 	setY(y: number): void {
@@ -166,16 +204,21 @@ export class ABCPrinter {
 		}
 		const y = this.calcY(pitch);
 		const pathString = sprintf(
-			"M %.3f %.3f L %.3f %.3f L %.3f %.3f L %.3f %.3f z",
+			"M %f %f L %f %f L %f %f L %f %f z",
 			x1, y - dy, x2, y - dy, x2, y + dy, x1, y + dy
 		);
 		return this.paper
 			.path()
 			.attr({ path: pathString, stroke: "none", fill: fill })
-		//line .toBack();
+			.toBack();
 	}
 
 	printStem(x: number, dx: number, y1: number, y2: number): SVGPathElement {
+		if (dx < 0) {
+			const tmp = y2;
+			y2 = y1;
+			y1 = tmp;
+		}
 		const isIE = /*@cc_on!@*/ false; // IE偵測器
 		let fill = "#000000";
 		if (isIE) {
@@ -183,14 +226,19 @@ export class ABCPrinter {
 			fill = "#666666";
 		}
 		if (~~x === x) x += 0.05; // Raphael 對 VML 進行了奇怪的捨入 (for VML)
-		const pathString = sprintf(
-			"M %.3f %.3f L %.3f %.3f L %.3f %.3f L %.3f %.3f z",
-			x, y1, x, y2, x + dx, y2, x + dx, y1
-		);
-		return this.paper
-			.path()
-			.attr({ path: pathString, stroke: "none", fill: fill })
-		//line .toBack();
+		const pathArray = [["M", x, y1], ["L", x, y2], ["L", x + dx, y2], ["L", x + dx, y1], ["z"]];
+		if (!isIE && this.ingroup) {
+			this.addPath(pathArray);
+			return null;
+		} else {
+			const pathString = sprintf(
+				"M %.3f %.3f L %.3f %.3f L %.3f %.3f L %.3f %.3f z",
+				x, y1, x, y2, x + dx, y2, x + dx, y1
+			);
+			return this.paper
+				.path()
+				.attr({ path: pathString, stroke: "none", fill: fill }) as SVGPathElement;
+		}
 	}
 	// 列印文字
 	printText(x: number, offset: number, text: string, anchor?: string): SVGTextElement {
@@ -204,11 +252,12 @@ export class ABCPrinter {
 		x: number,
 		offset: number,
 		symbol: string,
-		start?: number,
-		end?: number
+		scalex?: number,
+		scaley?: number
 	): SVGPathElement | SVGPathElement[] {
 		if (!symbol)
 			return null;
+		const isIE = /*@cc_on!@*/ false; // IE偵測器
 		if (symbol.length > 0 && symbol.indexOf(".") < 0) {
 			let elemset: SVGPathElement[] = [];
 			let dx = 0;
@@ -230,17 +279,31 @@ export class ABCPrinter {
 			return elemset;
 		} else {
 			let ycorr = this.glyphs.getYCorr(symbol);
-			let el: SVGPathElement = this.glyphs.printSymbol(
-				x,
-				this.calcY(offset + ycorr),
-				symbol,
-				this.paper
-			);
-			if (el) {
-				return el;
-			} else {
-				this.debugMsg(x, "no symbol:" + symbol);
+			if (!isIE && this.ingroup) {
+				const path = this.glyphs.getPathForSymbol(
+					x,
+					this.calcY(offset + ycorr),
+					symbol,
+					scalex,
+					scaley
+				);
+				if (path) {
+					this.addPath(path);
+				}
 				return null;
+			} else {
+				let el: SVGPathElement = this.glyphs.printSymbol(
+					x,
+					this.calcY(offset + ycorr),
+					symbol,
+					this.paper
+				);
+				if (el) {
+					return el;
+				} else {
+					this.debugMsg(x, "no symbol:" + symbol);
+					return null;
+				}
 			}
 		}
 	}
@@ -262,7 +325,7 @@ export class ABCPrinter {
 		const uy = dy / norm;
 
 		const flatten = norm / 5;
-		const curve = ((above) ? -1 : 1) * Math.min(35, Math.max(4, flatten));
+		const curve = ((above) ? -1 : 1) * Math.min(25, Math.max(4, flatten));
 
 		const controlx1 = x1 + flatten * ux - curve * uy;
 		const controly1 = y1 + flatten * uy + curve * ux;
@@ -270,14 +333,14 @@ export class ABCPrinter {
 		const controly2 = y2 - flatten * uy + curve * ux;
 		const thickness = 2;
 
-		let pathString = sprintf("M %.3f %.3f C %.3f %.3f %.3f %.3f %.3f %.3f C %.3f %.3f %.3f %.3f %.3f %.3f z",
+		let pathString = sprintf("M %f %f C %f %f %f %f %f %f C %f %f %f %f %f %f z",
 			x1, y1,
 			controlx1, controly1, controlx2, controly2, x2, y2,
 			controlx2 - thickness * uy, controly2 + thickness * ux, controlx1 - thickness * uy, controly1 + thickness * ux, x1, y1);
 
 
-		return this.paper.path().attr({ path: pathString, stroke: "none", fill: "#0" })
-		//line .toBack();
+		return this.paper.path().attr({ path: pathString, stroke: "none", fill: "#000000" })
+			.toBack();
 	}
 	// 偵錯資訊
 	debugMsg(x: number, msg: string): SVGTextElement {
@@ -285,8 +348,7 @@ export class ABCPrinter {
 	}
 
 	debugMsgLow(x: number, msg: string): SVGTextElement {
-		this.paper.text(x, this.y + 80, msg).attr({ "font-family": "serif", "font-size": 12 });
-		return;
+		return this.paper.text(x, this.staffbottom, msg).attr({ "font-family": "serif", "font-size": 12, "text-anchor": "start" }) as SVGTextElement;
 	}
 
 	calcY(ofs: number): number {
@@ -314,14 +376,14 @@ export class ABCPrinter {
 		if (abctune.formatting.staffwidth) {
 			this.width = abctune.formatting.staffwidth;
 		} else {
-			this.width = 700;
+			this.width = 740;
 		}
 		this.width += AbcSpacing.MARGINLEFT; // margin
 		if (abctune.formatting.scale) {
 			this.paper.text(200, this.y, "Format: scale=" + abctune.formatting.scale);
 			this.y += 20;
 		}
-		this.paper.text(this.width / 2, this.y, abctune.metaText.title).attr({ "text-anchor": "middle", "font-size": 20, "font-family": "serif" });
+		this.paper.text(this.width / 2, this.y, abctune.metaText.title).attr({ "font-size": 20, "font-family": "serif" });
 		this.y += 20;
 		if (abctune.lines[0] && abctune.lines[0].subtitle) {
 			this.printSubtitleLine(abctune.lines[0]);
@@ -392,7 +454,7 @@ export class ABCPrinter {
 		for (let line = 0; line < abctune.lines.length; line++) {
 			const abcline:ABCLine = abctune.lines[line];
 			if (abcline.staff) {
-				const staffgroup: ABCStaffGroupElement = this.layouter.printABCLine(abcline.staff, this.y);
+				const staffgroup: ABCStaffGroupElement = this.layouter.printABCLine(abcline.staff);
 				let newspace: number = this.space;
 				for (let it = 0; it < 3; it++) {
 					staffgroup.layout(newspace, this);
@@ -408,12 +470,12 @@ export class ABCPrinter {
 						}
 					}
 				}
-				staffgroup.draw(this);
+				staffgroup.draw(this, this.y);
 				if (staffgroup.w > maxwidth)
 					maxwidth = staffgroup.w;
 				this.staffgroups[this.staffgroups.length] = staffgroup;
-				this.y = this.layouter.y;
-				this.y += AbcSpacing.STAVEHEIGHT;
+				this.y = staffgroup.y + staffgroup.height;
+				this.y += AbcSpacing.STAVEHEIGHT * 0.2;
 			} else if (abcline.subtitle && line != 0) {
 				this.printSubtitleLine(abcline);
 				this.y += 20; //hardcoded
@@ -434,11 +496,9 @@ export class ABCPrinter {
 		if (abctune.metaText.unalignedWords) extraText.push("Words:\n" + abctune.metaText.unalignedWords);
 		let text2: SVGTextElement;
 		let height = 10;
-		if (extraText.length > 0) {
-			text2 = this.paper.text(AbcSpacing.MARGINLEFT, this.y + 25, extraText.join("\n")).attr({ "text-anchor": "start", "font-family": "serif", "font-size": 13 });
-			height = text2.getBBox().height;
-			text2.translate(0, height / 2);
-		}
+		text2 = this.paper.text(AbcSpacing.MARGINLEFT, this.y + 25, extraText.join("\n")).attr({ "text-anchor": "start", "font-family": "serif", "font-size": 13 });
+		height = text2.getBBox().height;
+		text2.translate(0, height / 2);
 		this.paper.setSize(maxwidth + 50, this.y + 30 + height);
 
 		// 修正IE在計算高度時出現的問題

@@ -21,7 +21,7 @@ declare namespace JSONSchema {
         minItems?: number;
         maxItems?: number;
         additionalProperties?: boolean | Schema;
-        properties?: { key: string]: Schema };
+        properties?: { [key: string]: Schema };
         pattern?: RegExp;
         maxLength?: number;
         minLength?: number;

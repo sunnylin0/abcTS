@@ -81,23 +81,27 @@ export class AbcTune {
 		}
 
 		function cleanUpSlursInLine(voiceList: NOTES_Element[]) {
-			let currSlur = 0;
+			let currSlur: number[] = [];
 
-			function addEndSlur(obj: NOTES_Element | Pitch, num: number | number[]) {
+			function addEndSlur(obj: NOTES_Element | Pitch, num: number, chordPos: number) {
 				obj.endSlur = [];
-				const count = typeof num === 'number' ? num : num.length;
-				for (let i = 0; i < count; i++) {
-					obj.endSlur.push(currSlur);
-					if (currSlur > 0) --currSlur;
+				if (currSlur[chordPos] === undefined)
+					currSlur[chordPos] = chordPos * 100;
+				for (let i = 0; i < num; i++) {
+					obj.endSlur.push(currSlur[chordPos]);
+					if (currSlur[chordPos] > 0) --currSlur[chordPos];
 				}
 			}
 
-			function addStartSlur(obj: NOTES_Element | Pitch, num: number | number[]) {
+			function addStartSlur(obj: NOTES_Element | Pitch, num: number, chordPos: number) {
 				obj.startSlur = [];
+				if (currSlur[chordPos] === undefined) {
+					currSlur[chordPos] = chordPos * 100;
+				}
 				const count = typeof num === 'number' ? num : num.length;
 				for (let i = 0; i < count; i++) {
-					++currSlur;
-					obj.startSlur.push(currSlur);
+					++currSlur[chordPos];
+					obj.startSlur.push(currSlur[chordPos]);
 				}
 			}
 
@@ -107,26 +111,27 @@ export class AbcTune {
 					if (el.gracenotes) {
 						for (let g of el.gracenotes) {
 							if (g.endSlur) {
-								addEndSlur(g, g.endSlur);
+								addEndSlur(g, g.endSlur, 1);
 							}
 							if (g.startSlur) {
-								addStartSlur(g, g.startSlur);
+								addStartSlur(g, g.startSlur, 1);
 							}
 						}
 					}
 					if (el.endSlur) {
-						addEndSlur(el, el.endSlur);
+						addEndSlur(el, el.endSlur, 1);
 					}
 					if (el.startSlur) {
-						addStartSlur(el, el.startSlur);
+						addStartSlur(el, el.startSlur, 1);
 					}
 					if (el.pitches) {
-						for (let p of el.pitches) {
-							if (p.endSlur) {
-								addEndSlur(p, p.endSlur);
+						for (let p = 0; p < el.pitches.length; p++) {
+							let pitch = el.pitches[p];
+							if (pitch.endSlur) {
+								addEndSlur(pitch, pitch.endSlur, p + 1);
 							}
-							if (p.startSlur) {
-								addStartSlur(p, p.startSlur);
+							if (pitch.startSlur) {
+								addStartSlur(pitch, pitch.startSlur, p + 1);
 							}
 						}
 					}
@@ -239,17 +244,17 @@ export class AbcTune {
 	* @param endChar 結束字元。
 	* @param hashParams 包含元素詳細資訊的雜湊參數。
 	*/
-	appendElement(type: ElementType, startChar: number, endChar: number, hashParams2?: NOTES_Element) {
-		let hashParams: NOTES_Element = hashParams2 || {};
+	appendElement(type: ElementType, startChar: number, endChar: number, hashParams2?: ABCElement) {
+		let hashParams: ABCElement = hashParams2 || {};
 		let This = this;
-		function pushNote(hp: NOTES_Element) {
+		function pushNote(hp: ABCElement) {
 			if (hp.pitches !== undefined) {
 				let mid = This.lines[This.lineNum].staff[This.staffNum].clef?.verticalPos ?? 0;
-				hp.pitches.forEach((p: NOTES_Element) => p.verticalPos = (p.pitch ?? 0) - mid);
+				hp.pitches.forEach((p: ABCElement) => p.verticalPos = (p.pitch ?? 0) - mid);
 			}
 			if (hp.gracenotes !== undefined) {
 				let mid2 = This.lines[This.lineNum].staff[This.staffNum].clef?.verticalPos ?? 0;
-				hp.gracenotes.forEach((p: NOTES_Element) => p.verticalPos = (p.pitch ?? 0) - mid2);
+				hp.gracenotes.forEach((p: ABCElement) => p.verticalPos = (p.pitch ?? 0) - mid2);
 			}
 			This.lines[This.lineNum].staff[This.staffNum].voices[This.voiceNum].push(hp as NOTES_Element);
 		}
@@ -284,6 +289,8 @@ export class AbcTune {
 			let dur = This.getDuration(hashParams);
 			if (dur >= 0.25) {	// The beam ends on the note before this.
 				endBeamLast();
+			} else if (hashParams.force_end_beam_last && This.potentialStartBeam !== undefined) {
+				endBeamLast();
 			} else if (hashParams.end_beam && This.potentialStartBeam !== undefined) {
 				if (hashParams.rest === undefined)
 					endBeamHere();
@@ -304,6 +311,7 @@ export class AbcTune {
 		}
 
 		delete hashParams.end_beam;	// We don't want this temporary variable hanging around.
+		delete hashParams.force_end_beam_last;	// We don't want this temporary variable hanging around.
 
 		pushNote(hashParams);
 	}
@@ -412,7 +420,7 @@ export class AbcTune {
 							found = true;
 					}
 					if (!found) {
-						var stem = { el_type: 'stem', direction: 'up' };
+						var stem: StemElement = { el_type: 'stem', direction: 'up' };
 						This.lines[This.lineNum].staff[This.staffNum].voices[0].splice(0, 0, stem);
 					}
 				}
@@ -434,7 +442,7 @@ export class AbcTune {
 				This.lines[This.lineNum].staff[This.staffNum].meter = params.meter;
 		};
 
-		function createLine(params: { clef: ClefElement; key?: KeySigElement }) {
+		function createLine(params: ParamsOther) {
 			This.lines[This.lineNum] = { staff: [] };
 			createStaff(params);
 		}

@@ -260,46 +260,47 @@ interface ElementBase {
 	endChar?: number;
 }
 
-interface RestElement extends ABCElement {
-	el_type?: "rest";
+interface RestElement extends Omit<ABCElement, 'el_type'> {
+	el_type: "rest";
 }
 
-interface NoteElement extends ABCElement {
-	el_type?: "note";
+interface NoteElement extends Omit<ABCElement, 'el_type'> {
+	el_type: "note";
 }
 
-interface BarElement extends ABCElement {
-	el_type?: "bar";
+interface BarElement extends Omit<ABCElement, 'el_type'> {
+	el_type: "bar";
 	type?: BarType;
 	number?: number;
 }
 
-interface ClefElement extends ABCElement {
-	el_type?: "clef";
+interface ClefElement extends Omit<ABCElement, 'el_type'> {
+	el_type: "clef";
 	type?: ClefType;
 	verticalPos: number;
 }
 
-interface KeySigElement extends ABCElement {
-	el_type?: "key";
+interface KeySigElement extends Omit<ABCElement, 'el_type'> {
+	el_type: "key";
 	num?: number;
 	dir?: KeySigDir;
 	extra?: { pitch: number; type: NoteAccidental }[];
 	accidentals?: {
 		acc?: 'sharp' | 'dblsharp' | 'natural' | 'flat' | 'dblflat' | 'quarterflat' | 'quartersharp';
-		note?: 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g';
+		note?: PitchKey;
 		verticalPos?: number;
 	}[];
 	extraAccidentals?: any[];
 }
 
-interface MeterElement extends ABCElement {
-	el_type?: "meter";
+interface MeterElement extends Omit<ABCElement, 'el_type'> {
+	el_type: "meter";
 	type?: MeterType;
 	value?: { num?: string; den?: string }[];
 }
 
-interface TempoElement extends ElementBase {
+interface TempoElement extends Omit<ABCElement, 'el_type'> {
+	el_type: "tempo";
 	duration?: number[]
 	noteLength?: number;
 	bpm?: number;
@@ -307,21 +308,73 @@ interface TempoElement extends ElementBase {
 	postString?: string;
 }
 
-interface Notes_el_Type {
-	//集合了所有音符元素的类型
-	el_type?: ElementType;
+interface StemElement extends Omit<ABCElement, 'el_type'> {
+	el_type: "stem";
+	direction?: 'up' | 'down';
 }
 
-type NOTES_Element = NotesEl_Type | NoteElement | RestElement | BarElement | ClefElement | KeySigElement | MeterElement | TempoElement | null;
+type NOTES_Element = NoteElement | RestElement | BarElement | ClefElement | KeySigElement | MeterElement | TempoElement | StemElement;
+
+interface ABCElement extends ElementBase {
+	accidentals?: { acc?: string, note?: string, verticalPos?: number }[],
+
+	type?: string;
+	pitches?: Pitch[];
+	rest?: {
+		type: string;
+		endSlur?: number | number[];
+		endTie?: boolean;
+		startSlur?: number | number[];
+		startTie?: boolean;
+	};
+	chord?: Chord[];
+	barNumber?: number | string;
+	startEnding?: string,
+	endEnding?: boolean,
+	duration?: number;
+	bpm?: number;
+	decoration?: string[];
+	gracenotes?: ABCElement[];
+	lyric?: Lyric[];
+
+	startSlur?: number | number[];
+	endSlur?: number | number[];
+
+	startTriplet?: number;
+	endTriplet?: boolean;
+
+	startBeam?: boolean;
+	endBeam?: boolean;
+
+	end_beam?: boolean;
+	force_end_beam_last?: boolean;
+	title?: string;
+	direction?: string;
+
+	pitch?: number,
+	startTie?: boolean,
+	endTie?: boolean,
+	averagepitch?: number;
+
+	stem?: 'up' | 'down';
+	minpitch?: number;
+	maxpitch?: number;
+	accidental?: NoteAccidental;
+	verticalPos?: number;
+}
+
+
+
 
 interface MetaText {
 	tempo?: Tempo;
+	title?: string;
 	title?: string;
 	rhythm?: string;
 	author?: string;
 	origin?: string;
 	composer?: string;
-	rhythm?: string;
+	group?: string;
 
 	partOrder?: string;
 	notes?: string;
@@ -335,7 +388,7 @@ interface MetaText {
 
 interface Chord {
 	name?: string;
-	position?: 'default' | 'above' | 'below';
+	position?: 'default' | 'above' | 'below' | 'left' | 'right';
 }
 
 interface Lyric {
@@ -365,53 +418,6 @@ interface GraceNote {
 
 
 
-//type AbcElement = RestElement | NoteElement | BarElement | ClefElement | KeySigElement | MeterElement;
-interface ABCElement extends ElementBase {
-	accidentals?: { acc?: string, note?: string, verticalPos?: number }[],
-
-	type?: string;
-	pitches?: Pitch[];
-	rest?: {
-		type: string;
-		endSlur?: number | number[];
-		endTie?: boolean;
-		startSlur?: number | number[];
-		startTie?: boolean;
-	};
-	chord?: Chord;
-	barNumber?: number | string;
-	startEnding?: string,
-	endEnding?: boolean,
-	duration?: number;
-	bpm?: number;
-	decoration?: string[];
-	gracenotes?: NOTES_Element[];
-	lyric?: Lyric[];
-
-	startSlur?: number | number[];
-	endSlur?: number | number[];
-
-	startTriplet?: number;
-	endTriplet?: boolean;
-
-	startBeam?: boolean;
-	endBeam?: boolean;
-
-	end_beam?: boolean;
-	title?: string;
-	direction?: string;
-
-	pitch?: number,
-	startTie?: boolean,
-	endTie?: boolean,
-	averagepitch?: number;
-
-	stem?: 'up' | 'down';
-	minpitch?: number;
-	maxpitch?: number;
-	accidental?: NoteAccidental;
-	verticalPos?: number;
-}
 
 
 interface Voice_Staff_voices {

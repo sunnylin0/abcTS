@@ -17,19 +17,32 @@
 
 
 import { getDurlog } from "./abc_layout"
+import { AbcSpacing } from "./abc_write"
+
+export interface StaffLayoutInfo {
+	y: number;
+	top: number;
+	highest: number;
+	lowest: number;
+	bottom?: number;
+}
 
 export class ABCStaffGroupElement {
 	voices: ABCVoiceElement[] = [];
-	staffs: number[] = [];
+	staffs: StaffLayoutInfo[] = [];
 	spacingunits: number = 0;
 	minspace: number = 1000;
 	startx: number = 0;
 	w: number = 0;
+	y: number = 0;
+	height: number = 0;
 
-	addVoice(voice: ABCVoiceElement): void {
+	addVoice(voice: ABCVoiceElement, staffnumber: number): void {
 		this.voices.push(voice);
-		if (this.staffs.indexOf(voice.y)==-1)
-			this.staffs.push(voice.y);
+		if (!this.staffs[staffnumber]) {
+			this.staffs[staffnumber] = { y: voice.y, top: 0, highest: 7, lowest: 7 };
+		}
+		voice.staff = this.staffs[staffnumber];
 	}
 
 	finished(): boolean {
@@ -66,8 +79,8 @@ export class ABCStaffGroupElement {
 			// find first duration level to be laid out among candidates across voices
 			currentduration = null;
 			for (let i = 0; i < this.voices.length; i++) {
-				if (!this.voices[i].layoutEnded() && (!currentduration || this.voices[i].durationindex < currentduration))
-					currentduration = this.voices[i].durationindex;
+				if (!this.voices[i].layoutEnded() && (!currentduration || this.voices[i].getDurationIndex() < currentduration))
+					currentduration = this.voices[i].getDurationIndex();
 			}
 
 			// isolate voices at current duration level
@@ -75,7 +88,7 @@ export class ABCStaffGroupElement {
 			let othervoices: ABCVoiceElement[] = [];
 
 			for (const voice of this.voices) {
-				if (voice.durationindex !== currentduration) {
+				if (voice.getDurationIndex() !== currentduration) {
 					othervoices.push(voice);
 				} else {
 					currentvoices.push(voice);
@@ -131,7 +144,26 @@ export class ABCStaffGroupElement {
 		}
 	}
 
-	draw(printer: ABCPrinter) {
+	draw(printer: ABCPrinter, y: number) {
+		this.y = y;
+		for (let i = 0; i < this.staffs.length; i++) {
+			if (this.staffs[i]) {
+				const shiftabove = this.staffs[i].highest - ((i === 0) ? 20 : 15);
+				const shiftbelow = this.staffs[i].lowest - ((i === this.staffs.length - 1) ? 0 : 0);
+				this.staffs[i].top = y;
+				if (shiftabove > 0) {
+					y += shiftabove * AbcSpacing.STEP;
+				}
+				this.staffs[i].y = y;
+				y += AbcSpacing.STAVEHEIGHT * 0.9; // position of the words
+				if (shiftbelow < 0) {
+					y -= shiftbelow * AbcSpacing.STEP;
+				}
+				this.staffs[i].bottom = y;
+			}
+		}
+		this.height = y - this.y;
+
 		let bartop = 0;
 		for (const voice of this.voices) {
 			voice.draw(printer, bartop);
@@ -140,18 +172,19 @@ export class ABCStaffGroupElement {
 		}
 
 		if (this.staffs.length > 1) {
-			printer.setY(this.staffs[0]);
+			printer.y = this.staffs[0].y;
 			const top = printer.calcY(10);
-			printer.setY(this.staffs[this.staffs.length - 1]);
+			printer.y = this.staffs[this.staffs.length - 1].y;
 			const bottom = printer.calcY(2);
 			printer.printStem(this.startx, 0.6, top, bottom);
 		}
 
 		for (const staff of this.staffs) {
-			printer.setY(staff);
-			printer.printStave(this.startx, this.w);
+			if (staff) {
+				printer.y = staff.y;
+				printer.printStave(this.startx, this.w);
+			}
 		}
-		printer.unSetY();
 	}
 }
 
@@ -176,8 +209,9 @@ export class ABCVoiceElement {
 	barto: boolean;
 	barbottom: number;
 	header: string;
-	constructor(y: number, voicenumber: number, voicetotal: number) {
+	staff: StaffLayoutInfo;
 
+	constructor(y: number, voicenumber: number, voicetotal: number) {
 		this.y = y;
 		this.voicenumber = voicenumber; //number of the voice on a given stave (not staffgroup)
 		this.voicetotal = voicetotal;
@@ -204,6 +238,11 @@ export class ABCVoiceElement {
 
 	layoutEnded(): boolean {
 		return (this.i >= this.children.length);
+	}
+
+	getDurationIndex(): number {
+		const child = this.children[this.i];
+		return this.durationindex - (child && child.duration > 0 ? 0 : 0.0000005);
 	}
 
 	beginLayout(startx: number): void {
@@ -240,6 +279,11 @@ export class ABCVoiceElement {
 			this.spacingunits = Math.sqrt(child.duration * 8);
 		}
 		this.nextx = x;
+		// contribute to staff y position
+		if (this.staff) {
+			this.staff.highest = Math.max(child.top, this.staff.highest);
+			this.staff.lowest = Math.min(child.bottom, this.staff.lowest);
+		}
 		return child.x;
 	};
 
@@ -253,29 +297,32 @@ export class ABCVoiceElement {
 
 	draw(printer: ABCPrinter, bartop: number): void {
 		const width = this.w - 1;
-		printer.setY(this.y);
-		if (this.barfrom) this.barbottom = printer.calcY(2);
-		if (!this.barto) bartop = null;
-
-		for (let child of this.children) {
-			child.draw(printer, bartop);
-		};
-		for (let beam of this.beams) {
-			beam.draw(printer, 10, width); // beams must be drawn first for proper printing of triplets, slurs and ties.
-		};
-
-		this.otherchildren.forEach(child => {
-			child.draw(printer, 10, width);
-		});
+		if (this.staff) {
+			printer.y = this.staff.y;
+			printer.staffbottom = this.staff.bottom;
+		} else {
+			printer.y = this.y;
+		}
+		this.barbottom = printer.calcY(2);
 
 		if (this.header) {
 			let textpitch = 12 - (this.voicenumber + 1) * (12 / (this.voicetotal + 1));
-			printer.paper.text(this.startx / 2, printer.calcY(textpitch), this.header, { "font-size": 12, "font-family": "serif" }); // code duplicated above
+			printer.paper.text(this.startx / 2, printer.calcY(textpitch), this.header).attr({ "font-size": 12, "font-family": "serif" });
 		}
-		printer.unSetY();
+
+		for (let i = 0, ii = this.children.length; i < ii; i++) {
+			this.children[i].draw(printer, (this.barto || i === ii - 1) ? bartop : 0);
+		}
+
+		for (let beam of this.beams) {
+			beam.draw(printer, 10, width); // beams must be drawn first for proper printing of triplets, slurs and ties.
+		}
+
+		this.otherchildren.forEach(child => {
+			child.draw(printer, this.startx + 10, width);
+		});
 	}
 }
-
 export class ABCAbsoluteElement {
 	abcelem: ABCElement;
 	duration: number;
@@ -291,7 +338,8 @@ export class ABCAbsoluteElement {
 	invisible: boolean = false;
 	elemset: SVGElement[];
 	beam?: ABCBeamElem;
-
+	bottom: number = 7;
+	top: number = 7;
 
 	constructor(abcelem: ABCElement, duration: number, minspacing: number = 0) {
 		this.abcelem = abcelem;
@@ -328,17 +376,32 @@ export class ABCAbsoluteElement {
 	addChild(child: ABCRelativeElement): void {
 		child.parent = this;
 		this.children.push(child);
+		this.pushTop(child.top);
+		this.pushBottom(child.bottom);
+	}
+
+	pushTop(top: number): void {
+		this.top = Math.max(top, this.top);
+	}
+
+	pushBottom(bottom: number): void {
+		this.bottom = Math.min(bottom, this.bottom);
 	}
 
 	draw(printer: ABCPrinter, bartop: number): void {
 		this.elemset = [];// printer.paper.set();
 		if (this.invisible) return;
+		printer.beginGroup();
 		for (const child of this.children) {
 			let drawelem: SVGElement | SVGElement[] = child.draw(printer, this.x, bartop)
 			if (Array.isArray(drawelem))
 				this.elemset.push(...drawelem);
 			else
 				this.elemset.push(drawelem);
+		}
+		const groupVal = printer.endGroup();
+		if (groupVal) {
+			this.elemset.push(groupVal);
 		}
 		let self: ABCAbsoluteElement = this;
 		for (const el of this.elemset) {
@@ -374,6 +437,8 @@ export class ABCRelativeElement {
 	linewidth: number;
 	attributes: any;
 	graphelem: SVGElement[] | SVGElement;
+	top: number;
+	bottom: number;
 
 	constructor(c: string, dx: number, w: number, pitch: number, opt: any = {}) {
 		this.c = c;      // character or path or string
@@ -386,6 +451,8 @@ export class ABCRelativeElement {
 		this.pitch2 = opt.pitch2;
 		this.linewidth = opt.linewidth;
 		this.attributes = opt.attributes;
+		this.top = pitch + ((opt.extreme === "above") ? 7 : 0);
+		this.bottom = pitch - ((opt.extreme === "below") ? 7 : 0);
 	}
 
 	draw(printer: ABCPrinter, x: number, bartop: number): SVGElement | SVGElement[] {
@@ -393,7 +460,7 @@ export class ABCRelativeElement {
 		switch (this.type) {
 			case "symbol":
 				if (this.c === null) return null;
-				this.graphelem = printer.printSymbol(this.x, this.pitch, this.c, 0, 0);
+				this.graphelem = printer.printSymbol(this.x, this.pitch, this.c, this.scalex, this.scaley);
 				break;
 			case "debug":
 				this.graphelem = printer.debugMsg(this.x, this.c);
@@ -469,11 +536,11 @@ export class ABCTieElem {
 	anchor1: ABCRelativeElement; // must have a .x and a .pitch, and a .parent property or be null (means starts at the "beginning" of the line - after keysig)
 	anchor2: ABCRelativeElement; // must have a .x and a .pitch property or be null (means ends at the end of the line)
 	above: boolean; // true if the arc curves above
-	force: boolean;
+	force: string | boolean;
 	startlimitelem: ABCAbsoluteElement;
 	endlimitelem: ABCAbsoluteElement;
 
-	constructor(anchor1: ABCRelativeElement, anchor2: ABCRelativeElement, above: boolean, force?: boolean) {
+	constructor(anchor1: ABCRelativeElement, anchor2: ABCRelativeElement, above: boolean, force?: string | boolean) {
 		this.anchor1 = anchor1;
 		this.anchor2 = anchor2;
 		this.above = above;
@@ -508,15 +575,24 @@ export class ABCTieElem {
 			}
 		}
 
+		let preservebeamdir = false;
 		if (this.anchor1 && this.anchor2) {
-			if (!this.force &&
+			if ((!this.force &&
 				this.anchor1.parent?.beam && this.anchor2.parent?.beam &&
-				this.anchor1.parent.beam.asc === this.anchor2.parent.beam.asc) {
+				this.anchor1.parent.beam.asc === this.anchor2.parent.beam.asc) ||
+				((this.force === "up" || this.force === "down") &&
+				this.anchor1.parent?.beam && this.anchor2.parent?.beam &&
+				this.anchor1.parent.beam === this.anchor2.parent.beam)) {
 				this.above = !this.anchor1.parent.beam.asc;
+				preservebeamdir = true;
 			}
 		}
 
-		printer.drawArc(linestartx, lineendx, startpitch, endpitch, this.above);
+		let pitchshift = 0;
+		if (this.force === "up" && !preservebeamdir) pitchshift = 7;
+		if (this.force === "down" && !preservebeamdir) pitchshift = -7;
+
+		printer.drawArc(linestartx, lineendx, startpitch + pitchshift, endpitch + pitchshift, this.above);
 	}
 }
 
@@ -667,6 +743,7 @@ export class ABCBeamElem {
 
 	drawStems(printer: ABCPrinter): void {
 		let auxbeams: Array<any> = [];  // auxbeam will be {x, y, durlog, single} auxbeam[0] should match with durlog=-4 (16th) (j=-4-durlog)
+		printer.beginGroup();
 		for (let i = 0, ii = this.elems.length; i < ii; i++) {
 			if (this.elems[i].abcelem.rest)
 				continue;
@@ -712,6 +789,7 @@ export class ABCBeamElem {
 				}
 			}
 		}
+		printer.endGroup();
 	}
 	getBarYAt(x: number): number {
 		return this.starty + (this.endy - this.starty) / (this.endx - this.startx) * (x - this.startx);

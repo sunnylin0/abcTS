@@ -387,6 +387,19 @@ export class AbcParseHeader {
 			result.foundClef = true;
 		}
 		if (ret.accidentals !== undefined) {
+			ret.accidentals.forEach((acc) => {
+				if (retClef.token === 'bass') {
+					if (acc.note === 'C') acc.note = 'c';
+					if (acc.note === 'D' && acc.acc !== 'flat') acc.note = 'd';
+					if (acc.note === 'E' && acc.acc !== 'flat') acc.note = 'e';
+					if (acc.note === 'F' && acc.acc !== 'flat') acc.note = 'f';
+					if (acc.note === 'G' && acc.acc !== 'flat') acc.note = 'g';
+				} else {
+					if (acc.note === 'a') acc.note = 'A';
+					if (acc.note === 'b') acc.note = 'B';
+					if (acc.note === 'C') acc.note = 'c';
+				}
+			});
 			this.multilineVars.key = ret;
 			result.foundKey = true;
 		}
@@ -1231,6 +1244,7 @@ export class AbcParseHeader {
 		C: 'composer',
 		D: 'discography',
 		F: 'url',
+		G: 'group',
 		I: 'instruction',
 		N: 'notes',
 		O: 'origin',
