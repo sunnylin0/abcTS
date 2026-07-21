@@ -29,7 +29,7 @@ function str_repeat(i: any, m: number): string {
 
 
 
-export function sprintf(format: string, ...args: (string | number)[]): string {
+function sprintf(format: string, ...args: (string | number)[]): string {
 	let i = 0;
 	let f = format;
 	const o: string[] = [];
@@ -96,6 +96,12 @@ export function sprintf(format: string, ...args: (string | number)[]): string {
 	}
 	return o.join('');
 }
+
+// 2. 掛載到 globalThis (或 window/global)
+(globalThis as any).sprintf = sprintf;
+
+// 3. 加上 export {} 讓 TS 知道這是一個模組，避免全域名稱重複報錯
+export { };
 
 
 // 測試

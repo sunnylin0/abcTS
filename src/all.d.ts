@@ -1,6 +1,8 @@
 
-declare function str_repeat(i: any, m: number): string;
-declare function sprintf(format: string, ...args: (string | number)[]): string;
+declare global {
+	function str_repeat(i: any, m: number): string;
+	function sprintf(format: string, ...args: (string | number)[]): string;
+}
 
 interface Array<T> {
 	last(): T;

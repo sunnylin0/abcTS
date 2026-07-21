@@ -40,20 +40,3 @@ Object.defineProperty(String.prototype, "toNumber", {
 // TypeScript declaration merge
 //export { }; // Required for module augmentation
 
-var abcList = {}
-function getAbcElemList(abcelem: ABCElement) {
-	let elTypeName;
-	if (abcelem.el_type)
-		elTypeName = abcelem.constructor.name + "_" + abcelem.el_type;
-	else
-		if (abcelem.type)
-			elTypeName = abcelem.constructor.name + "_other_" + abcelem.type;
-		else
-			elTypeName = abcelem.constructor.name + "_other";
-
-	if (abcList[elTypeName]) {
-		abcList[elTypeName] = { ...abcList[elTypeName], ...Object.clone(abcelem) }
-	} else {
-		abcList[elTypeName] = { ...Object.clone(abcelem) }
-	}
-}

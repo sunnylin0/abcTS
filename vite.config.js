@@ -22,48 +22,51 @@ export default defineConfig({
 		sourcemap: true,
 		minify: false,
 	},
-    plugins: [
-        // 獨立處理靜態資源與 HTML 的插件
-        {
-            name: 'copy-workspace-assets',
-            closeBundle() {
-                const htmlPath = resolve(__dirname, 'src/workspace.html');
-                if (!fs.existsSync(htmlPath)) return;
+	plugins: [
+		// 獨立處理靜態資源與 HTML 的插件
+		{
+			name: 'copy-workspace-assets',
+			closeBundle() {
+				// 處理 workspace.html
+				const htmlPath = resolve(__dirname, 'src/workspace.html');
+				if (!fs.existsSync(htmlPath)) return;
 
-                let html = fs.readFileSync(htmlPath, 'utf-8');
+				let html = fs.readFileSync(htmlPath, 'utf-8');
 
-                // 將模組化 script 標籤替換成打包後的單一基本 UMD 檔案
-                const timestamp = Date.now();
-                html = html.replace(
-                    /<script type="module" src=".*index\.ts"><\/script>/g,
-                    `<script src="./abcjs-basic.js?v=${timestamp}"></script>`
-                );
+				// 將模組化 script 標籤替換成打包後的單一基本 UMD 檔案
+				const timestamp = Date.now();
+				html = html.replace(
+					/<script type="module" src=".*index\.ts"><\/script>/g,
+					`<script src="./abcjs-basic.js?v=${timestamp}"></script>`
+				);
 
-                fs.ensureDirSync(resolve(__dirname, 'dist'));
-                fs.writeFileSync(resolve(__dirname, 'dist/workspace.html'), html, 'utf-8');
+				fs.ensureDirSync(resolve(__dirname, 'dist'));
+				fs.writeFileSync(resolve(__dirname, 'dist/workspace.html'), html, 'utf-8');
 
-                // 複製其他的靜態檔案 (css, txt 等)
-                fs.copySync(resolve(__dirname, 'src'), resolve(__dirname, 'dist'), {
-                    filter: (src) => {
-                        if (src.endsWith('.vs') || src.endsWith('.git')) return false;
+				// 複製其他的靜態檔案 (css, txt 等)
+				fs.copySync(resolve(__dirname, 'src'), resolve(__dirname, 'dist'), {
+					filter: (src, dest) => {
+						if (src.endsWith('.vs') || src.endsWith('.git')) return false;
 
-                        const stat = fs.lstatSync(src);
-                        if (stat.isDirectory()) return true;
+						const stat = fs.lstatSync(src);
+						if (stat.isDirectory()) return true;
 
-                        const name = src.toLowerCase();
-                        // 跳過所有源碼檔案，只留靜態資產
-                        if (name.endsWith('.ts') || name.endsWith('workspace.html')) {
-                            return false;
-                        }
-                        return (
-                            name.endsWith('.txt') ||
-                            name.endsWith('.css') ||
-                            name.endsWith('.html') ||
-                            name.endsWith('.json')
-                        );
-                    },
-                });
-            },
-        },
-    ],
+						const name = src.toLowerCase();
+						// 跳過所有源碼檔案，只留靜態資產
+						if (name.endsWith('.ts') || name.endsWith('workspace.html')) {
+							return false;
+						}
+						return (
+							name.endsWith('.txt') ||
+							name.endsWith('.css') ||
+							name.endsWith('.html') ||
+							name.endsWith('.js') ||
+							name.endsWith('.json')
+						);
+					},
+				});
+				console.log('Copied workspace assets to dist successfully.');
+			},
+		},
+	],
 });

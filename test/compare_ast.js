@@ -1,8 +1,14 @@
-﻿const version = "0.0.4";
+﻿/**
+ * [比較原版 abcjs] 與 [本專案TS] 版 ast 差異
+ */
+
+const version = "0.0.4";
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
-const oldPath = '../../abcjs_20100604'; //請寫上舊 js 的目錄
+//請寫上原版 abcjs 的目錄
+const oldPath = '../../abcjs_20100604'; 
+
 /** 要截入舊專案的 js 檔 */
 const oldFiles = [
 	'sprintf.js',

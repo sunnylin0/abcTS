@@ -415,7 +415,7 @@ export class ABCAbsoluteElement {
 	highlight(): void {
 		//this.elemset.attr({ fill: "#ff0000" });
 
-		this.elemset.forEach((el: SVGElement): SVGElement  => el.attr({ fill: "#ff0000" }));
+		this.elemset.forEach((el: SVGElement): SVGElement => el.attr({ fill: "#ff0000" }));
 	}
 
 	unhighlight(): void {
@@ -492,7 +492,7 @@ export class ABCRelativeElement {
 		}
 		if (this.attributes && this.graphelem) {
 			if (Array.isArray(this.graphelem))
-				this.graphelem.forEach((el: SVGElement): SVGElement  => el.attr(this.attributes));
+				this.graphelem.forEach((el: SVGElement): SVGElement => el.attr(this.attributes));
 		}
 		return this.graphelem;
 	}
@@ -581,8 +581,8 @@ export class ABCTieElem {
 				this.anchor1.parent?.beam && this.anchor2.parent?.beam &&
 				this.anchor1.parent.beam.asc === this.anchor2.parent.beam.asc) ||
 				((this.force === "up" || this.force === "down") &&
-				this.anchor1.parent?.beam && this.anchor2.parent?.beam &&
-				this.anchor1.parent.beam === this.anchor2.parent.beam)) {
+					this.anchor1.parent?.beam && this.anchor2.parent?.beam &&
+					this.anchor1.parent.beam === this.anchor2.parent.beam)) {
 				this.above = !this.anchor1.parent.beam.asc;
 				preservebeamdir = true;
 			}

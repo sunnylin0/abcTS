@@ -19,9 +19,6 @@ import { ABCLayout } from "./abc_layout"
 import { ABCAbsoluteElement } from "./abc_graphelements"
 import { ABCRelativeElement } from "./abc_graphelements"
 
-/*global Math, sprintf, ABCGlyphs, ABCLayout*/
-/*extern ABCPrinter, AbcSpacing */
-
 //請完整轉譯出 typescript  的 ABCPrinter类 function(如 drawArc, printABC)
 
 
