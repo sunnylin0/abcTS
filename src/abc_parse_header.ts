@@ -1224,8 +1224,8 @@ export class AbcParseHeader {
 					let e = line.indexOf('\x12', i + 2);
 					if (e === -1) e = line.length;
 					const tempo = this.setTempo(line, i + 2, e);
-					if (tempo.type === 'delaySet') this.tune.appendElement('tempo', -1, -1, this.calcTempo(tempo.tempo) as unknown as ABCElement);
-					else if (tempo.type === 'immediate') this.tune.appendElement('tempo', -1, -1, tempo.tempo as unknown as ABCElement);
+					if (tempo.type === 'delaySet') this.tune.appendElement('tempo', -1, -1, this.calcTempo(tempo.tempo) as unknown as TempoElement);
+					else if (tempo.type === 'immediate') this.tune.appendElement('tempo', -1, -1, tempo.tempo as unknown as TempoElement);
 					return [e, line.charAt(i), line.substring(i + 2).trim()];
 				case "V:":
 					this.parseVoice(line, 2, line.length);

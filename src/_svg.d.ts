@@ -5,7 +5,7 @@ declare interface SVGElement {
 	attr<T extends SVGElement>(this: T, attributes: SVGAttributes<T>): T;
 	scale<T extends SVGElement>(scalex: number, scaley: number, x: number, y: number): T;
 	mouseup(handler: (event: MouseEvent) => void);
-	toBack<T>(): T;
+	toBack<T extends SVGElement>(): T;
 }
 
 interface SVGAttributes<T extends SVGElement = SVGElement> {

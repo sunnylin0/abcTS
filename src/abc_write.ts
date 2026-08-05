@@ -462,7 +462,7 @@ export class ABCPrinter {
 		for (let line = 0; line < abctune.lines.length; line++) {
 			const abcline: ABCLine = abctune.lines[line];
 			if (abcline.staff) {
-				const staffgroup: ABCStaffGroupElement = this.layouter.printABCLine(abcline.staff);
+				const staffgroup: ABCStaffGroupElement = this.layouter.printABCLine(abcline.staff, this.y);
 				let newspace: number = this.space;
 				for (let it = 0; it < 3; it++) {
 					staffgroup.layout(newspace, this);

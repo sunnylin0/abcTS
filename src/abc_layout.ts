@@ -151,12 +151,12 @@ export class ABCLayout {
 		}
 		for (let slur in this.slurs) {
 			if (this.slurs.hasOwnProperty(slur)) {
-				this.slurs[slur] = new ABCTieElem(null, null, this.slurs[slur].above);
+				this.slurs[slur] = new ABCTieElem(null, null, this.slurs[slur].above, this.slurs[slur].force);
 				this.voice.addOther(this.slurs[slur]);
 			}
 		}
 		for (let i = 0; i < this.ties.length; i++) {
-			this.ties[i] = new ABCTieElem(null, null, this.ties[i].above);
+			this.ties[i] = new ABCTieElem(null, null, this.ties[i].above, this.ties[i].force);
 			this.voice.addOther(this.ties[i]);
 		}
 		for (this.pos = 0; this.pos < this.abcline.length; this.pos++) {
