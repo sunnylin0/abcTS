@@ -108,36 +108,7 @@ export class ABCPrinter {
 		this.ingroup = false;
 	}
 
-	beginGroup(): void {
-		this.path = [];
-		this.lastM = [0, 0];
-		this.ingroup = true;
-	}
 
-	addPath(path: any[]): void {
-		path = path || [];
-		if (path.length === 0) return;
-		const firstNode = [...path[0]];
-		firstNode[0] = "m";
-		firstNode[1] -= this.lastM[0];
-		firstNode[2] -= this.lastM[1];
-		this.lastM[0] += firstNode[1];
-		this.lastM[1] += firstNode[2];
-		this.path.push(firstNode);
-		for (let i = 1, ii = path.length; i < ii; i++) {
-			if (path[i][0] === "m") {
-				this.lastM[0] += path[i][1];
-				this.lastM[1] += path[i][2];
-			}
-			this.path.push(path[i]);
-		}
-	}
-
-	endGroup(): SVGPathElement {
-		this.ingroup = false;
-		if (this.path.length === 0) return null;
-		return this.paper.path().attr({ path: this.path, stroke: "none", fill: "#000000" }) as SVGPathElement;
-	}
 	// 設定y座標並備份當前y座標
 	setY(y: number): void {
 		this.backupy = this.y;
@@ -190,6 +161,39 @@ export class ABCPrinter {
 			}
 		}
 	}
+
+
+	beginGroup(): void {
+		this.path = [];
+		this.lastM = [0, 0];
+		this.ingroup = true;
+	}
+
+	addPath(path: any[]): void {
+		path = path || [];
+		if (path.length === 0) return;
+		const firstNode = [...path[0]];
+		firstNode[0] = "m";
+		firstNode[1] -= this.lastM[0];
+		firstNode[2] -= this.lastM[1];
+		this.lastM[0] += firstNode[1];
+		this.lastM[1] += firstNode[2];
+		this.path.push(firstNode);
+		for (let i = 1, ii = path.length; i < ii; i++) {
+			if (path[i][0] === "m") {
+				this.lastM[0] += path[i][1];
+				this.lastM[1] += path[i][2];
+			}
+			this.path.push(path[i]);
+		}
+	}
+
+	endGroup(): SVGPathElement {
+		this.ingroup = false;
+		if (this.path.length === 0) return null;
+		return this.paper.path().attr({ path: this.path, stroke: "none", fill: "#000000" }) as SVGPathElement;
+	}
+
 	// 列印五線譜線
 	printStaveLine(x1: number, x2: number, pitch: number): SVGPathElement {
 		const isIE = /*@cc_on!@*/ false; // IE偵測器
@@ -218,7 +222,7 @@ export class ABCPrinter {
 		}
 		const isIE = /*@cc_on!@*/ false; // IE偵測器
 		let fill = "#000000";
-		if (isIE) {
+		if (isIE && dx < 1) {
 			dx = 1;
 			fill = "#666666";
 		}
@@ -228,15 +232,12 @@ export class ABCPrinter {
 			this.addPath(pathArray);
 			return null;
 		} else {
-			const pathString = sprintf(
-				"M %.3f %.3f L %.3f %.3f L %.3f %.3f L %.3f %.3f z",
-				x, y1, x, y2, x + dx, y2, x + dx, y1
-			);
 			return this.paper
 				.path()
-				.attr({ path: pathString, stroke: "none", fill: fill }) as SVGPathElement;
+				.attr({ path: pathArray, stroke: "none", fill: fill }) as SVGPathElement;
 		}
 	}
+
 	// 列印文字
 	printText(x: number, offset: number, text: string, anchor?: string): SVGTextElement {
 		anchor = anchor || "start";
@@ -299,9 +300,9 @@ export class ABCPrinter {
 					return el;
 				} else {
 					this.debugMsg(x, "no symbol:" + symbol);
-					return null;
 				}
 			}
+			return null;
 		}
 	}
 
@@ -420,7 +421,17 @@ export class ABCPrinter {
 					;
 				const c: string = this.layouter.chartable["note"][- durlog];
 				const flag: string = this.layouter.chartable["uflags"][-durlog];
-				const temponote: ABCRelativeElement = this.layouter.printNoteHead(abselem, c, { verticalPos: tempopitch }, "up", 0, 0, flag, dot, 0, temposcale);
+				const temponote: ABCRelativeElement = this.layouter.printNoteHead(abselem,
+					c,
+					{ verticalPos: tempopitch },
+					"up",
+					0,
+					0,
+					flag,
+					dot,
+					0,
+					temposcale
+				);
 				abselem.addHead(temponote);
 
 				if (duration < 1) {
@@ -449,7 +460,7 @@ export class ABCPrinter {
 
 		let maxwidth = this.width;
 		for (let line = 0; line < abctune.lines.length; line++) {
-			const abcline:ABCLine = abctune.lines[line];
+			const abcline: ABCLine = abctune.lines[line];
 			if (abcline.staff) {
 				const staffgroup: ABCStaffGroupElement = this.layouter.printABCLine(abcline.staff);
 				let newspace: number = this.space;

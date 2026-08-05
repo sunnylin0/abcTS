@@ -315,8 +315,9 @@ export class ABCVoiceElement {
 		}
 
 		for (let beam of this.beams) {
-			beam.draw(printer, 10, width); // beams must be drawn first for proper printing of triplets, slurs and ties.
+			beam.draw(printer, 0, 0); // beams must be drawn first for proper printing of triplets, slurs and ties.
 		}
+
 
 		this.otherchildren.forEach(child => {
 			child.draw(printer, this.startx + 10, width);
@@ -469,8 +470,9 @@ export class ABCRelativeElement {
 				this.graphelem = printer.debugMsgLow(this.x, this.c);
 				break;
 			case "text":
-				this.graphelem = printer.printText(this.x, this.pitch, this.c, "middle");
+				this.graphelem = printer.printText(this.x, this.pitch, this.c);
 				break;
+
 			case "bar":
 				this.graphelem = printer.printStem(this.x, this.linewidth, printer.calcY(this.pitch), (bartop) ? bartop : printer.calcY(this.pitch2));
 				break;

@@ -601,3 +601,16 @@
 - 專案靜態編譯與 UMD 打包 `pnpm run build` 成功且無型別報錯。
 - 順利生成多軌與和弦音符無誤的 MIDI 序列。
 
+---
+## [2026-07-23 14:08:00] 測試沙盒環境重設優化與 DOM 狀態隔離
+
+### 目標 (Objectives)
+- 優化比對測試中的瀏覽器沙盒，確保測試案例之間的 DOM 狀態是隔離且會重設的，避免記憶體洩漏與跨案例的 DOM 干擾。
+
+### 需求 (Requirements)
+1. 擴充 `MockElement` 使其支援清空子節點與文字內容的方法 `clear()`。
+2. 在比對測試流程中，當每個測試案例渲染與比對完成後，對舊版與新版沙盒的 `document.body` 執行 `clear()` 方法，完成 DOM 清理。
+
+### 驗收條件 (Acceptance Criteria)
+- `pnpm run build` 打包編譯成功。
+- 執行 `node abcTS/test/compare_ast.js` 通過所有測試，無 DOM 狀態干擾。

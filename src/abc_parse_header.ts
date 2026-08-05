@@ -227,7 +227,7 @@ export class AbcParseHeader {
 	}
 
 	deepCopyKey(key: { acc?: any, note?: any, verticalPos?: number }[]): KeySigElement {
-		const ret: KeySigElement = { accidentals: [] };
+		const ret: KeySigElement = { accidentals: [] } as KeySigElement;
 		if (key) {
 			for (let k of key) {
 				ret.accidentals.push(Object.assign({}, k));
@@ -301,13 +301,13 @@ export class AbcParseHeader {
 
 		let retClef = this.tokenizer.getClef(str);
 		if (retClef.token !== undefined && (retClef.explicit === true || retClef.token !== 'none')) {
-			this.multilineVars.clef = { type: retClef.token, verticalPos: this.calcMiddle(retClef.token, 0) };
+			this.multilineVars.clef = { el_type: "clef", type: retClef.token, verticalPos: this.calcMiddle(retClef.token, 0) };
 			str = str.substring(retClef.len);
 			setMiddle(str);
 			return { foundClef: true };
 		}
 
-		let ret: KeySigElement = {};
+		let ret: KeySigElement = { el_type: "key"};
 
 		const retPitch = this.tokenizer.getKeyPitch(str);
 		if (retPitch.len > 0) {
@@ -371,7 +371,7 @@ export class AbcParseHeader {
 			if (retClef.warn) {
 				this.warn("error parsing clef:" + retClef.warn, origStr, 0);
 			} else {
-				this.multilineVars.clef = { type: retClef.token, verticalPos: this.calcMiddle(retClef.token, 0) };
+				this.multilineVars.clef = { el_type: "clef", type: retClef.token, verticalPos: this.calcMiddle(retClef.token, 0) };
 				str = str.substring(retClef.len);
 				setMiddle(str);
 			}
@@ -845,7 +845,7 @@ export class AbcParseHeader {
 			s.numVoices!++;
 		}
 		if (staffInfo.clef) {
-			s.clef = { type: staffInfo.clef as ClefType, verticalPos: staffInfo.verticalPos! };
+			s.clef = { el_type: "clef", type: staffInfo.clef as ClefType, verticalPos: staffInfo.verticalPos! };
 		}
 		if (staffInfo.spacing) {
 			s.spacing_below_offset = staffInfo.spacing;
@@ -1045,7 +1045,7 @@ export class AbcParseHeader {
 
 			if (tokens.length === 0) throw "Missing parameter in Q: field";
 
-			let tempo: TempoElement = {};
+			let tempo: TempoElement = { el_type: "tempo" };
 			let delaySet: boolean = true;
 			let token = tokens.shift();
 			if (token.type === 'quote') {
@@ -1172,9 +1172,9 @@ export class AbcParseHeader {
 					if (e > 0) {
 						let tempo = this.setTempo(line, i + 3, e);
 						if (tempo.type === 'delaySet')
-							this.tune.appendElement('tempo', -1, -1, this.calcTempo(tempo.tempo) as unknown as TempoElement);
+							this.tune.appendElement('tempo', -1, -1, this.calcTempo(tempo.tempo) as unknown as ABCElement);
 						else if (tempo.type === 'immediate')
-							this.tune.appendElement('tempo', -1, -1, tempo.tempo as unknown as TempoElement);
+							this.tune.appendElement('tempo', -1, -1, tempo.tempo as unknown as ABCElement);
 						return [e - i + 1 + ws, line.charAt(i + 1), line.substring(i + 3, e)];
 					}
 					break;
@@ -1224,8 +1224,8 @@ export class AbcParseHeader {
 					let e = line.indexOf('\x12', i + 2);
 					if (e === -1) e = line.length;
 					const tempo = this.setTempo(line, i + 2, e);
-					if (tempo.type === 'delaySet') this.tune.appendElement('tempo', -1, -1, this.calcTempo(tempo.tempo) as unknown as TempoElement);
-					else if (tempo.type === 'immediate') this.tune.appendElement('tempo', -1, -1, tempo.tempo as unknown as TempoElement);
+					if (tempo.type === 'delaySet') this.tune.appendElement('tempo', -1, -1, this.calcTempo(tempo.tempo) as unknown as ABCElement);
+					else if (tempo.type === 'immediate') this.tune.appendElement('tempo', -1, -1, tempo.tempo as unknown as ABCElement);
 					return [e, line.charAt(i), line.substring(i + 2).trim()];
 				case "V:":
 					this.parseVoice(line, 2, line.length);

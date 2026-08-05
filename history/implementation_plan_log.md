@@ -728,3 +728,21 @@
 ### 風險評估 (Risks & Mitigations)
 - **多軌時音高或休止符偏移**：多音符同時 startNote 時，`silencelength` 的重置順序可能被干擾。
   - *對策*：在 startNote 當中寫入 `toDurationHex(this.silencelength)` 後立即將 `this.silencelength` 清零，確保不會在多音高之間產生意外的靜音偏移。
+
+---
+## [2026-07-23 14:08:00] 測試沙盒環境重設優化與 DOM 狀態隔離
+
+### 步驟與技術方案 (Step-by-step Technical Plans)
+1. **MockElement 擴充清空功能**：
+   - 於 `test/helpers/browserSandbox.js` 的 `MockElement` 類別中新增 `clear()` 方法，將 `childNodes` 與 `children` 陣列清空，並把 `textContent` 設為空字串，以允許重置 DOM 節點狀態。
+2. **測試案例執行完畢後的 DOM 清除**：
+   - 於 `test/compare_ast.js` 的 `testABCStrings.forEach` 迴圈底部（或 Stage D 完畢後），對 `newContext.document.body` 呼叫 `clear()`。
+   - 同時亦對 `oldContext.document.body` 呼叫 `clear()`，確保下一個測試案例在完全乾淨的 `document.body` 中渲染。
+
+### 影響檔案 (Affected Files)
+- `test/helpers/browserSandbox.js` (修改)
+- `test/compare_ast.js` (修改)
+
+### 風險評估 (Risks & Mitigations)
+- **DOM 清理影響未預期之全域變數**：`document.body` 的子節點被清空是否會影響其他掛載在 body 上的全域 API？
+  - *對策*：因 `compare_ast.js` 的測試流程皆為同步解析與同步渲染繪製，在繪圖完成並比對 `drawLog` 結束後才執行 `clear()`，不會干擾該案例的比對。

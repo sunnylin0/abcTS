@@ -84,12 +84,12 @@ export class MultilineVars {
 			}
 		}
 		this.iChar = 0;
-		this.key = { accidentals: [] };
-		this.meter = { type: 'specified', value: [{ num: '4', den: '4' }] };
-		this.origMeter = { type: 'specified', value: [{ num: '4', den: '4' }] };
+		this.key = { accidentals: [] } as KeySigElement;
+		this.meter = { type: 'specified', value: [{ num: '4', den: '4' }] } as MeterElement;
+		this.origMeter = { type: 'specified', value: [{ num: '4', den: '4' }] } as MeterElement;
 		this.hasMainTitle = false;
 		this.default_length = 0.125;
-		this.clef = { type: 'treble', verticalPos: 0 };
+		this.clef = { type: 'treble', verticalPos: 0 } as ClefElement;
 		this.next_note_duration = 0;
 		this.start_new_line = true;
 		this.is_in_header = true;
@@ -996,7 +996,7 @@ export class AbcParse {
 							ret = this.letter_to_grace(line, i);
 							// TODO-PER: Be sure there aren't already grace notes defined. That is an error.
 							if (ret[0] > 0) {
-								el.gracenotes = ret[1] as NOTES_Element[];
+								el.gracenotes = ret[1];
 								i += ret[0];
 							} else {
 								break;
@@ -1015,7 +1015,7 @@ export class AbcParse {
 						this.tune.appendElement('note', startOfLine + i, startOfLine + i + ret[0], el);
 						el = {};
 					}
-					let bar: BarElement = { type: ret[1] };
+					let bar: BarElement = { type: ret[1] } as BarElement;
 					if (bar.type.length === 0) {
 						this.warn("Unknown bar type", line, i);
 					} else {
