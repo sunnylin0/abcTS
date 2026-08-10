@@ -324,3 +324,11 @@
 - 在 `ABCStaffGroupElement.draw` 中隱藏簡譜聲部的五線譜線繪製。
 - 實作 `ABCVoiceElement.draw` 在遇到簡譜譜號時分流至 `drawJianpu` 空 stub，為後續數字與時值渲染做準備。
 - 新增 `test-jianpu-02.js` 驗證橋接管線數據流，保證 regression 測試正常。
+
+---
+## [2026-08-11] 簡譜 (Jianpu) 支援 - Ticket 03 Scale Degree 數字渲染 (v1.15.0)
+- 建立 `src/abc_jianpu_write.ts` 新模組，提供首調唱名音高與八度計算器 `pitchToJianpu`。
+- 於 `src/index.ts` 導出 `pitchToJianpu` 並掛載至全域。
+- 在 `ABCVoiceElement` 中實作 `drawJianpuNote` 渲染簡譜數字 `0`（休止符）與 `1`-`7`（音符，多音高和弦只取最高音）。
+- 整合小節線與拍號的渲染。
+- 新增 `test-jianpu-03.js` 完備測試音符數字的推導與渲染位置，維持 TDD 綠燈。

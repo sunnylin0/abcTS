@@ -18,6 +18,7 @@
 
 import { getDurlog } from "./abc_layout"
 import { AbcSpacing } from "./abc_write"
+import { pitchToJianpu } from "./abc_jianpu_write"
 
 export interface StaffLayoutInfo {
 	y: number;
@@ -302,8 +303,52 @@ export class ABCVoiceElement {
 		this.nextx += dx;
 	}
 
+	drawJianpuNote(child: ABCAbsoluteElement, printer: ABCPrinter, bartop: number): void {
+		const note = child.abcelem;
+		let textStr = "";
+
+		if ((note as any).rest) {
+			textStr = "0";
+		} else if ((note as any).pitches && (note as any).pitches.length > 0) {
+			const pitches = (note as any).pitches;
+			const highestPitch = pitches[pitches.length - 1];
+			
+			const keyRoot = (this.jianpuKey && this.jianpuKey.root) || "C";
+			const refOctave = this.jianpuOctave !== undefined ? this.jianpuOctave : 0;
+			const res = pitchToJianpu(highestPitch.pitch, keyRoot, refOctave);
+			textStr = String(res.degree);
+		}
+
+		if (textStr) {
+			// 數字在五線譜中心位置 Y 軸繪製
+			const x = child.x;
+			const y = this.y;
+			const textEl = printer.paper.text(x, y, textStr).attr({
+				"font-size": 22,
+				"font-family": "sans-serif",
+				"font-weight": "bold",
+				"text-anchor": "middle"
+			});
+			
+			let self = child;
+			textEl.mouseup(function (e) {
+				printer.notifySelect(self);
+			});
+		}
+	}
+
 	drawJianpu(printer: ABCPrinter, bartop: number): void {
-		// Stub for Ticket 02
+		for (let i = 0, ii = this.children.length; i < ii; i++) {
+			const child = this.children[i];
+			const type = child.abcelem ? child.abcelem.el_type : null;
+			if (type === 'bar') {
+				child.draw(printer, bartop);
+			} else if (type === 'note') {
+				this.drawJianpuNote(child, printer, bartop);
+			} else if (type === 'meter') {
+				child.draw(printer, bartop);
+			}
+		}
 	}
 
 	draw(printer: ABCPrinter, bartop: number): void {

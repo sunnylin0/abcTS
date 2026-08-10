@@ -847,3 +847,23 @@
 - `pnpm run build` 打包編譯成功。
 - 新增的 TDD 測試檔案 `test-jianpu-02.js` 執行無誤。
 - Cooley's 等傳統五線譜測試（regression）在 `test.js` 跑過後，SVG 繪圖筆數與表現無任何變化。
+
+---
+## [2026-08-11 03:00:00] 簡譜 (Jianpu) 支援 - Ticket 03 Scale Degree 數字渲染
+
+### 目標 (Objectives)
+- 實作簡譜數字唱名音高的計算核心，並在簡譜聲部繪圖時將音符與休止符渲染為對應的數字字元 `0`-`7`。
+
+### 需求 (Requirements)
+1. 建立 `src/abc_jianpu_write.ts` 模組，實作純函數 `pitchToJianpu` 以根據 key root 和基準八度，將 diatonic pitch 轉換為首調簡譜數字 `1`-`7` 與八度偏置。
+2. 於 `src/index.ts` 導出 `pitchToJianpu` 並掛載至全域 `window` 供單元測試使用。
+3. `ABCVoiceElement` 實作 `drawJianpuNote()` 方法：
+   - 識別 rest 休止符，渲染字元 `"0"`。
+   - 識別 note 音符，對於和弦 `[CEG]` 僅取其最高音的 `pitch`，傳入 `pitchToJianpu` 計算後，渲染對應數字 `"1"`-`"7"`。
+   - 以 `sans-serif` 粗體、字級 22 的 SVG 文字繪製於 `child.x` 與 `this.y` 處，並附加 mouseup select 監聽事件。
+4. `ABCVoiceElement.drawJianpu()` 遍歷子節點，渲染小節線、拍號，並透過 `drawJianpuNote()` 渲染音符和休止符。
+
+### 驗收條件 (Acceptance Criteria)
+- `pnpm run build` 打包編譯成功。
+- 新增的 TDD 測試檔案 `test-jianpu-03.js` 執行無誤（12 個單元測試與音高數字渲染斷言全部通過）。
+- 所有現有的測試（compare_ast、Cooley's 渲染）皆能 100% 通過無 regression。

@@ -802,3 +802,32 @@
 ### 風險評估 (Risks & Mitigations)
 - **多聲部與 staff 共用問題**：一個 staff 上若混有 treble 與 jianpu 聲部（比如配置錯誤），此時 stave 行是否會渲染錯亂？
   - *對策*：在 `ABCStaffGroupElement.draw` 中使用 `v.staff === staff && v.clef === 'jianpu'` 來精確判定某一個 staff 是否是 jianpu staff，如果是則不畫該 staff 的五線，其他 treble staff 正常繪製。
+
+---
+## [2026-08-11 03:00:00] 簡譜 (Jianpu) 支援 - Ticket 03 Scale Degree 數字渲染
+
+### 步驟與技術方案 (Step-by-step Technical Plans)
+1. **建立新檔案 `src/abc_jianpu_write.ts`**：
+   - 實作 `pitchToJianpu(pitch, keyRoot, refOctave)`。
+   - 透過 key root 音名首字母確定 diatonic 位移 `rootDiatonic` (C=0, D=1...)。
+   - 度數 `degree = ((pitch % 7 - rootDiatonic + 7) % 7) + 1`。
+   - 八度差 `octaveDelta = Math.floor(pitch / 7) - refOctave`。
+2. **index 導出 (`src/index.ts`)**：
+   - 導入並於全域掛載與 ESM export `pitchToJianpu` 函數。
+3. **渲染實現 (`src/abc_graphelements.ts`)**：
+   - 導入 `pitchToJianpu`。
+   - 實作 `drawJianpuNote(child, printer, bartop)`：
+     - 若為 `rest` 則 `textStr = "0"`。
+     - 若為音符則取 `pitches[pitches.length - 1]` (最高音) 音高計算其首調唱名數字。
+     - 調用 `printer.paper.text(child.x, this.y, textStr)` 繪製，屬性設置：`"font-size": 22`、`"text-anchor": "middle"`、`"font-weight": "bold"`。
+     - 調用 `textEl.mouseup` 綁定 `printer.notifySelect(child)` 支持交互選取。
+   - 於 `drawJianpu` 內，若是 `'bar'`、`'meter'` 等非音符元素，照舊調用 `child.draw(printer, bartop)` 進行渲染，若是 `'note'` 則調用 `drawJianpuNote()`。
+
+### 影響檔案 (Affected Files)
+- `src/abc_jianpu_write.ts` (新增)
+- `src/index.ts` (修改)
+- `src/abc_graphelements.ts` (修改)
+
+### 風險評估 (Risks & Mitigations)
+- **和弦音高判定**：簡譜不支援和弦並列，只取最高音。
+  - *對策*：取得 `pitches` 陣列的最後一個元素 `pitches[pitches.length - 1]` 確保不論輸入順序為何，都取得最高音高（在 Layout 排序後最後一個為最高音）。

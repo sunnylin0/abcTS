@@ -14,6 +14,7 @@ import { ABCGlyphs } from './abc_glyphs';
 import { ABCStaffGroupElement, ABCVoiceElement, ABCAbsoluteElement, ABCRelativeElement } from './abc_graphelements';
 import { AbcParseHeader } from './abc_parse_header';
 import { Svg } from './svg';
+import { pitchToJianpu } from './abc_jianpu_write';
 import './jsonschema-b4.js';
 import './Maestro_500.js';
 
@@ -38,6 +39,7 @@ if (typeof window !== 'undefined') {
 	(window as any).ABCRelativeElement = ABCRelativeElement;
 	(window as any).AbcParseHeader = AbcParseHeader;
 	(window as any).Svg = Svg;
+	(window as any).pitchToJianpu = pitchToJianpu;
 	if (typeof abcParser !== 'undefined') (window as any).abcParser = abcParser;
 	if (typeof processAbc !== 'undefined') (window as any).processAbc = processAbc;
 }
@@ -49,5 +51,6 @@ export {
 	ABCPrinter,
 	AbcTokenizer,
 	ABCLayout,
-	Svg
+	Svg,
+	pitchToJianpu
 };

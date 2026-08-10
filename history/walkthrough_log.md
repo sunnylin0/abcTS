@@ -432,5 +432,19 @@
 
 ### 驗證與測試日誌 (Verification & Test Logs)
 1. 執行 `pnpm run build` 通過，生成 UMD 包。
-2. 執行 `node test-jianpu-02.js` 成功，所有 4 個測試項目全數通過。
+2. 執行 `node test-jianpu-02.js` 成功，所有 4 個測試項目全數通過.
 3. 執行 `node test.js` 傳統 Cooley's 渲染測試結果與 Golden DrawLog 100% 一致。
+
+---
+## [2026-08-11 03:00:00] 簡譜 (Jianpu) 支援 - Ticket 03 Scale Degree 數字渲染 (完成)
+
+### 變更摘要 (Change Summary)
+1. **新增簡譜核心模組**：建立 `src/abc_jianpu_write.ts` 並實作 `pitchToJianpu` 以高精度計算音符的簡譜首調唱名數字（`1`–`7`）與八度 delta。
+2. **全域掛載與導出**：修改 `src/index.ts` 把 `pitchToJianpu` 暴露至 `window.pitchToJianpu` 與標準 ESM 導出，提供完備的測試能力。
+3. **實作數字與休止符渲染**：於 `abc_graphelements.ts` 中導入 `pitchToJianpu`，並實作 `ABCVoiceElement.drawJianpuNote` 渲染休止符（`"0"`）與一般音符（`"1"`-`"7"`），對於和弦（如 `[CEG]`）只取得其最頂部的音高，並以 `text-anchor: middle` 與 Y 軸水平對齊繪製。同時保留小節線和拍號的繪製。
+4. **單元與整合測試**：新增 `test-jianpu-03.js`，包含 9 個 `pitchToJianpu` 單元測試以及 C 大調、G 大調與和弦的高音簡譜字元 DrawLog 測試，全數通過。
+
+### 驗證與測試日誌 (Verification & Test Logs)
+1. 執行 `pnpm run build` 通過，生成 UMD 包。
+2. 執行 `node test-jianpu-03.js` 成功，12 個測試項目全部通過。
+3. 執行 `node test.js` 回歸測試 100% 一致。
