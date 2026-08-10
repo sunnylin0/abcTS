@@ -324,6 +324,24 @@ export class AbcParseHeader {
 				str = str.substring(retMode.len);
 			}
 			ret = this.deepCopyKey(this.keys[key]);
+			// ── 計算 KeySigElement.root（首調唱名法基準，供簡譜聲部使用） ──────────
+			{
+				const pitchNote = retPitch.token as string;                       // 'C','D','E','F','G','A','B'
+				const accToken  = retAcc.len > 0 ? (retAcc.token as string) : ''; // '#','b',''
+				const modeToken = retMode.len > 0 ? (retMode.token as string) : '';
+				const baseRoot  = pitchNote + accToken;                           // e.g. 'G', 'Bb', 'F#'
+				const isMinor   = modeToken === 'm' || modeToken.toLowerCase().startsWith('min');
+				if (isMinor) {
+					const minorToMajor: Record<string, string> = {
+						'A': 'C',   'E': 'G',   'B': 'D',  'F#': 'A', 'C#': 'E', 'G#': 'B', 'D#': 'F#',
+						'D': 'F',   'G': 'Bb',  'C': 'Eb', 'F': 'Ab', 'Bb': 'Db', 'Eb': 'Gb', 'Ab': 'Cb'
+					};
+					ret.root = minorToMajor[baseRoot] ?? baseRoot;
+				} else {
+					ret.root = baseRoot;
+				}
+			}
+
 		} else if (str.startsWith('HP')) {
 			this.addDirective("bagpipes");
 			ret.accidentals = [];
@@ -818,6 +836,10 @@ export class AbcParseHeader {
 					case 'spc':
 						addNextTokenToStaffInfo('spacing');
 						break;
+					case 'octave':
+					case 'oct':
+						addNextTokenToStaffInfo('octave');
+						break;
 				}
 			}
 			start += this.tokenizer.eatWhiteSpace(line, start);
@@ -852,6 +874,9 @@ export class AbcParseHeader {
 		}
 		if (staffInfo.verticalPos) {
 			s.verticalPos = staffInfo.verticalPos;
+		}
+		if (staffInfo.octave) {
+			this.multilineVars.voices[id].jianpuOctave = parseInt(staffInfo.octave, 10);
 		}
 
 		if (staffInfo.name) {

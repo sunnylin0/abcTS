@@ -179,10 +179,14 @@ export class ABCStaffGroupElement {
 			printer.printStem(this.startx, 0.6, top, bottom);
 		}
 
-		for (const staff of this.staffs) {
+		for (let i = 0; i < this.staffs.length; i++) {
+			const staff = this.staffs[i];
 			if (staff) {
 				printer.y = staff.y;
-				printer.printStave(this.startx, this.w);
+				const isJianpu = this.voices.some(v => v.staff === staff && v.clef === 'jianpu');
+				if (!isJianpu) {
+					printer.printStave(this.startx, this.w);
+				}
 			}
 		}
 	}
@@ -210,6 +214,9 @@ export class ABCVoiceElement {
 	barbottom: number;
 	header: string;
 	staff: StaffLayoutInfo;
+	clef: ClefType = 'treble';
+	jianpuOctave?: number;
+	jianpuKey?: KeySigElement;
 
 	constructor(y: number, voicenumber: number, voicetotal: number) {
 		this.y = y;
@@ -295,7 +302,15 @@ export class ABCVoiceElement {
 		this.nextx += dx;
 	}
 
+	drawJianpu(printer: ABCPrinter, bartop: number): void {
+		// Stub for Ticket 02
+	}
+
 	draw(printer: ABCPrinter, bartop: number): void {
+		if (this.clef === 'jianpu') {
+			this.drawJianpu(printer, bartop);
+			return;
+		}
 		const width = this.w - 1;
 		if (this.staff) {
 			printer.y = this.staff.y;

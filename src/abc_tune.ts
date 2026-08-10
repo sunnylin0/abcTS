@@ -434,6 +434,7 @@ export class AbcTune {
 			if (params.bracket) This.getCurrentStaff().bracket = params.bracket;
 			if (params.brace) This.getCurrentStaff().brace = params.brace;
 			if (params.connectBarLines) This.getCurrentStaff().connectBarLines = params.connectBarLines;
+			if (params.jianpuOctave !== undefined) This.getCurrentStaff().jianpuOctave = params.jianpuOctave;
 			createVoice(params);
 			// Some stuff just happens for the first voice
 			if (params.part)

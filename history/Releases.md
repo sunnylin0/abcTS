@@ -310,3 +310,17 @@
 - 重構 `writeNote` 以遍歷和弦下的所有 `elem.pitches`，一次性寫入整個和弦的多音高 note；並修正三連音結束判定為 `elem.endTriplet`。
 - 在 `setKeySignature` 中補上風笛 `formatting.bagpipes` 專屬調號適配。
 - 順利通過 UMD 打包與 TypeScript 靜態型別檢查。
+
+---
+## [2026-08-11] 簡譜 (Jianpu) 支援 - Ticket 01 Type 系統與 Parser 基礎實作 (v1.13.0)
+- 正式支援 `clef=jianpu` 譜號，避免 parser 產生 "Unknown clef" 警告。
+- 實作首調唱名法的大調主音自動推算機制，解析 `K:` 時在 `KeySigElement` 身上附加相對大調之主音音名 `root` 屬性。
+- 修復 `abc_parse.ts` 換行建置時 `deepCopyKey` 遺漏複製 `root` 欄位之 Bug。
+- 新增 `test-jianpu-01.js` 全面測試各種大/小調與升降調號 the `root` 推算正確性，確保 TDD 迴圈綠燈。
+
+---
+## [2026-08-11] 簡譜 (Jianpu) 支援 - Ticket 02 Layout 到 Write 橋接管線 (v1.14.0)
+- 實作簡譜聲部 clef 資訊、jianpuOctave 與 jianpuKey 經由 Layout 傳遞至 Write 聲部元件的橋接管線。
+- 在 `ABCStaffGroupElement.draw` 中隱藏簡譜聲部的五線譜線繪製。
+- 實作 `ABCVoiceElement.draw` 在遇到簡譜譜號時分流至 `drawJianpu` 空 stub，為後續數字與時值渲染做準備。
+- 新增 `test-jianpu-02.js` 驗證橋接管線數據流，保證 regression 測試正常。

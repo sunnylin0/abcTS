@@ -746,3 +746,59 @@
 ### 風險評估 (Risks & Mitigations)
 - **DOM 清理影響未預期之全域變數**：`document.body` 的子節點被清空是否會影響其他掛載在 body 上的全域 API？
   - *對策*：因 `compare_ast.js` 的測試流程皆為同步解析與同步渲染繪製，在繪圖完成並比對 `drawLog` 結束後才執行 `clear()`，不會干擾該案例的比對。
+
+---
+## [2026-08-11 02:40:00] 簡譜 (Jianpu) 支援 - Ticket 01 Type 系統與 Parser 基礎實作
+
+### 步驟與技術方案 (Step-by-step Technical Plans)
+1. **修改全域型別宣告 (`src/all.d.ts`)**：
+   - 擴充 `ClefType` 聯集型別，加入 `"jianpu"`。
+   - `KeySigElement` 新增可選屬性 `root?: string;`。
+2. **更新譜號解析與 Tokenizer (`src/abc_tokenizer.ts`, `src/abc_parse_header.ts`)**：
+   - 擴充 `abc_tokenizer.ts` 的 `getClef()` 以識別 `'jianpu'`。
+   - `abc_parse_header.ts` 的 `calcMiddle()` 遇到 `'jianpu'` 時回傳 `0`，與 treble 對齊。
+   - `abc_parser_lint.ts` 中 `clef` 屬性的 schema 加入 `'jianpu'` 的列舉支持。
+3. **實作大調主音 (Tonic) 與相對大調推算 (`src/abc_parse_header.ts`)**：
+   - 解析 `K:` 時，從 `retPitch`、`retAcc`、`retMode` 計算其 `baseRoot`。
+   - 若為小調（Minor），使用映射表（例如 `Am` -> `C`，`Em` -> `G`）將其轉換為相對大調主音。
+   - 賦值給 `ret.root`。
+4. **修復 AST 複製遺漏 (`src/abc_parse.ts`)**：
+   - 修正 `abc_parse.ts` 在 `startNewLine` 時呼叫 `deepCopyKey` 後遺失 `root` 的問題，顯式將 `params.key.root = this.multilineVars.key.root` 補上。
+
+### 影響檔案 (Affected Files)
+- `src/all.d.ts` (修改)
+- `src/abc_tokenizer.ts` (修改)
+- `src/abc_parse_header.ts` (修改)
+- `src/abc_parse.ts` (修改)
+- `src/abc_parser_lint.ts` (修改)
+
+### 風險評估 (Risks & Mitigations)
+- **破壞現有 AST 比對**：新加入的 `root` 欄位可能會使現有的 AST 比對出錯。
+  - *對策*：確認 `root` 是可選屬性，且舊有對比代碼並未對 `root` 進行嚴格校驗或已透過 `test-jianpu-01.js` 確認 regression 為零。
+
+---
+## [2026-08-11 02:54:00] 簡譜 (Jianpu) 支援 - Ticket 02 Layout 到 Write 橋接管線
+
+### 步驟與技術方案 (Step-by-step Technical Plans)
+1. **型別對齊 (`src/all.d.ts`)**：
+   - `Staff` 介面新增可選屬性 `jianpuOctave?: number`。
+   - `ParamsOther` 介面新增可選屬性 `jianpuOctave?: number`。
+2. **AST 資訊流通與 Layout 綁定 (`src/abc_parse.ts`, `src/abc_tune.ts`, `src/abc_layout.ts`, `src/abc_graphelements.ts`)**：
+   - `abc_parse.ts` 的 `startNewLine` 在拷貝 properties 時將 `currentVoice.jianpuOctave` 帶入 `params.jianpuOctave`。
+   - `abc_tune.ts` 的 `createStaff` 從 `params.jianpuOctave` 寫入 `This.getCurrentStaff().jianpuOctave`。
+   - `abc_graphelements.ts` 內 `ABCVoiceElement` 定義 `clef`、`jianpuOctave` 與 `jianpuKey`。
+   - `abc_layout.ts` 的 `printABCStaff` 對 `this.voice` 賦值這三個屬性。
+3. **Write 層分流與五線不繪製 (`src/abc_graphelements.ts`)**：
+   - 在 `ABCStaffGroupElement.draw()` 中，透過 `this.voices.some` 檢測對應的 staff 是否包含 jianpu voice，如果是則跳過 `printer.printStave(this.startx, this.w)`。
+   - 在 `ABCVoiceElement.draw()` 開頭新增 `if (this.clef === 'jianpu')` 分流到 `drawJianpu()` 空 stub並 return。
+
+### 影響檔案 (Affected Files)
+- `src/all.d.ts` (修改)
+- `src/abc_parse.ts` (修改)
+- `src/abc_tune.ts` (修改)
+- `src/abc_graphelements.ts` (修改)
+- `src/abc_layout.ts` (修改)
+
+### 風險評估 (Risks & Mitigations)
+- **多聲部與 staff 共用問題**：一個 staff 上若混有 treble 與 jianpu 聲部（比如配置錯誤），此時 stave 行是否會渲染錯亂？
+  - *對策*：在 `ABCStaffGroupElement.draw` 中使用 `v.staff === staff && v.clef === 'jianpu'` 來精確判定某一個 staff 是否是 jianpu staff，如果是則不畫該 staff 的五線，其他 treble staff 正常繪製。

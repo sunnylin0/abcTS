@@ -614,3 +614,236 @@
 ### 驗收條件 (Acceptance Criteria)
 - `pnpm run build` 打包編譯成功。
 - 執行 `node abcTS/test/compare_ast.js` 通過所有測試，無 DOM 狀態干擾。
+
+---
+## [2026-08-11 02:40:00] 簡譜 (Jianpu) 支援 - Ticket 01 Type 系統與 Parser 基礎實作
+
+### 目標 (Objectives)
+- 讓 abcTS 能夠識別簡譜 `clef=jianpu` 譜號宣告，並在解析調號時計算並附帶大調主音 `KeySigElement.root` 資訊，為後續首調唱名法奠定基礎。
+
+### 需求 (Requirements)
+1. 擴充 `ClefType` 支援 `"jianpu"`。
+2. 更新 `getClef()` tokenizer 與 `calcMiddle()` 處理以支援 `"jianpu"`，避免噴出 "Unknown clef" 警告。
+3. `KeySigElement` 新增 `root?: string` 屬性。
+### 需求 (Requirements)
+1. 修正 `all.d.ts` 中 `KeySigElement.accidentals` 陣列元素定義，補上 `verticalPos?: number;` 欄位。
+2. 於 `abc_parse_header.ts` 中為 `HeaderToken` 宣告專用介面，並將指令 `tokens` 進行強型別轉換以清除其成員屬性（`type`、`token`）可能為 `undefined` 的波浪線。
+3. 修正 `all.d.ts` 中的 `ParseStaff` 與 `ParseVoice`，補上 `index`、`spacing_below_offset`、`verticalPos` 與 `suppressChords` 等屬性，使 voice/staff 初始化 `{}` 與賦值安全無虞。
+4. 修正 `all.d.ts` 中 `TempoInfo.duration` 定義為 `number[]`（陣列），修復其 `.length` 呼叫錯誤。
+5. 修改 `abc_tune.ts` 中的 `appendElement` 的第四個參數為 `NOTES_Element`，並在 `abc_parse_header.ts` 中呼叫時，將 `TempoInfo` 斷言為 `unknown as TempoElement` 以相容於聯集型別。
+
+### 驗收條件 (Acceptance Criteria)
+- 所有列舉行在編輯器內皆無紅線。
+- `npx tsc --noEmit` 除外部依賴外，`src/` 底下 0 錯誤。
+- `pnpm run build` 通過。
+
+---
+## [2026-07-20 11:15:00] 生成功能移植任務之頂級提示詞與測試機制
+
+### 目標 (Objectives)
+- 產出一份用於指導後續 AI 進行 `abcjs_20100604` 功能移植至 `abcTS` 任務的「頂級提示詞」Markdown 檔。
+- 設計並在提示詞中提供完整的測試與驗證機制（包含靜態編譯、自動化 AST 深度比對腳本、瀏覽器手動測試）。
+
+### 需求 (Requirements)
+1. 提示詞需引導 AI 自行使用本地 Git (`git diff --no-index`) 比對原始 JavaScript 同名檔案的差異。
+2. 移植時必須採取「最少變更的直譯」原則。
+3. 移植時必須確保 TypeScript 強型別化，不得使用 `any`，並在 `all.d.ts` 補齊型別。
+4. 移植順序需採用「分檔案/分模組」逐步進行。
+5. 需保留並更新 `abcTS/history/` 下的四大歷史紀錄檔案。
+
+### 驗收條件 (Acceptance Criteria)
+- 在 `c:\github\abcMain\migration_prompt.md` 產出對應提示詞，且內容完整、規格清晰。
+
+---
+## [2026-07-20 11:20:00] 移植 abc_tune.ts 及 all.d.ts 功能與 bug 修正
+
+### 目標 (Objectives)
+- 移植 `abcjs_20100604` 的 `abc_tune.js` 功能與 bug 修正至 `abcTS` 的對應 TS 模組。
+
+### 需求 (Requirements)
+1. 重構 `cleanUpSlursInLine` 算法，改用 `number[]` 型態的 `currSlur`，並為連音線計算傳入 `chordPos` 以實現多聲部與和弦的獨立連音線處理。
+2. 在 `appendElement` 的 beam 結束邏輯中，新增對 `force_end_beam_last` 的判定，以支援強制在「上一個音符」結束 beam 的行為，並在結尾處清除該臨時變數。
+3. 在 `all.d.ts` 擴充 `ABCElement` 屬性 `force_end_beam_last?: boolean;`。
+
+### 驗收條件 (Acceptance Criteria)
+- 專案靜態編譯與 UMD 打包 `pnpm run build` 通過。
+- 自動化對比測試 `node test/compare_ast.js` 100% 通過，確保與新版 JS 的 AST 解析輸出完全一致。
+
+---
+## [2026-07-20 13:50:00] 移植 abc_parse.ts 及型別調整
+
+### 目標 (Objectives)
+- 移植 `abcjs_20100604` 的 `abc_parse.js` 功能與 bug 修正至 `abcTS`，並微調 `abc_layout.ts` 保持編譯相容。
+
+### 需求 (Requirements)
+1. 擴展和弦（Annotations）解析以支援多個和弦（改用 `Chord[]` 陣列），並支援 `<` (left) 與 `>` (right) 方向定位。
+2. 當和弦解析後若有空格，設定 `el.force_end_beam_last = true` 以在上一音符正確結束 Beam。
+3. 擴展裝飾音符號（Accent），在 `letter_to_accent` 中新增快捷鍵 `L`（accent）與 `P`（pralltriller）。
+4. 優化續行符（Line Continuation）正則，用與註解同等長度的空格填充（引進 `continuationReplacement`），避免定位索引（iChar）偏移。
+5. 在 `all.d.ts` 擴充 `Chord` 的 `position` 支援左/右方向，並將 `ABCElement.chord` 修改為 `Chord[]`。
+6. 同步修改 `abc_layout.ts` 以遍歷 `elem.chord` 陣列，維持專案型別相容與建置編譯成功。
+
+### 驗收條件 (Acceptance Criteria)
+- 專案靜態編譯與 UMD 打包 `pnpm run build` 通過。
+- 分離 context 沙盒後的自動化 AST 對比測試 `node test/compare_ast.js` 100% 通過，確認與新版 JS 解析輸出完全對齊。
+
+---
+## [2026-07-20 14:10:00] 移植 abc_parse_header.ts 功能
+
+### 目標 (Objectives)
+- 移植 `abcjs_20100604` 的 `abc_parse_header.js` 功能與 bug 修正至 `abcTS` 的對應 TS 模組。
+
+### 需求 (Requirements)
+1. 修正低音譜號 (Bass Clef) 下的調號預設升降音符 (accidentals) 的八度 (octave) 調整邏輯。
+2. 在 `metaTextHeaders` 詮釋資料欄位對照中，新增 `'G'` 字元對應 `'group'`。
+3. 在 `all.d.ts` 的 `MetaText` 介面中加入 `group?: string;` 欄位以支援型別檢查。
+
+### 驗收條件 (Acceptance Criteria)
+- 專案靜態編譯與 UMD 打包 `pnpm run build` 通過且無編譯錯誤。
+- 專案程式碼邏輯與新版 JS 完全對齊。
+
+---
+## [2026-07-20 17:15:00] 移植 abc_graphelements.ts 功能
+
+### 目標 (Objectives)
+- 移植 `abcjs_20100604` 的 `abc_graphelements.js` 功能與 bug 修正至 `abcTS` 的對應 TS 模組，並修正 `abc_layout.ts` 保持編譯與打包一致性。
+
+### 需求 (Requirements)
+1. 實作 `ABCVoiceElement.getDurationIndex()` 並於 `ABCStaffGroupElement.layout` 中呼叫，調整多聲部無時值元素（如譜號、調號等）排版優先對齊邏輯。
+2. 補齊 `ABCStaffGroupElement.addVoice` 雙引數 `(voice, staffnumber)` 並以 `StaffLayoutInfo` 保存最高與最低音高，且在 `ABCVoiceElement.layoutOneItem` 內動態累計更新邊界。
+3. 修正 `ABCVoiceElement.draw` 中對 `otherchildren` 繪製的偏移參數為 `this.startx + 10`。
+4. 支援 `ABCTieElem.force` 的 `'up' | 'down'` 強制方向與音高位移偏量處理。
+5. 補齊 `ABCRelativeElement.draw` 在 `'symbol'` 繪製時對 `printSymbol` 的 `scalex`/`scaley` 縮放引數傳遞。
+6. 修改 `abc_layout.ts` 中對 `addVoice` 的呼叫為 `addVoice(this.voice, this.s)`。
+
+### 驗收條件 (Acceptance Criteria)
+- 專案靜態編譯與 UMD 打包 `pnpm run build` 成功，順利編譯出 UMD 格式 bundle。
+
+---
+## [2026-07-20 17:30:00] 移植 abc_layout.ts 剩餘功能
+
+### 目標 (Objectives)
+- 移植 `abcjs_20100604` 的 `abc_layout.js` 剩餘核心排版功能至 `abcTS` 的對應 TS 模組。
+
+### 需求 (Requirements)
+1. 宣告 `roomtakenright` 屬性，並在 `printNote` 初始化為 `0`。
+2. 重構休止符音高適配，並更新 `this.roomtakenright` 最值空間，支援依據 `this.stemdir` 的 Y 軸音高動態調整。
+3. 修正 slur 判定，使其整合 `this.stemdir` 與 `dir` 以正確放置連音線。
+4. 修正歌詞 debugLow 元素繪圖從 `addChild` 改為 `addRight` 並賦予寬度估計值 `lyricStr.length * 5`。
+5. 重構 `elem.chord` 多重和弦與 annotations 定位渲染，支援 `left`/`right`/`below` 及預設定位排版。
+6. 修正 `printNoteHead` 屬性中的 `extreme` 方向，並在其中累計 `dotshiftx` 寬度。
+7. 修正 `startTie`、`endSlur`、`startSlur` 當中 `ABCTieElem` 的強制方向引數傳入。
+8. 在 `printBarLine` 內新增 `bar_invisible` 隱形小節線支持，並修正 `thick` 粗體小節線的 linewidth 為 `4`。
+
+### 驗收條件 (Acceptance Criteria)
+- 專案靜態編譯與 UMD 打包 `pnpm run build` 成功，順利編譯出 UMD 格式 bundle，未產生 regression。
+
+---
+## [2026-07-20 17:40:00] 移植 abc_write.ts 功能
+
+### 目標 (Objectives)
+- 移植 `abcjs_20100604` 的 `abc_write.js` 性能優化路徑合併與邊界控制至 `abcTS` 的對應 TS 模組，並修正 `abc_graphelements.ts` 以實現 stave 行高 Y 軸座標的正確指派與累計。
+
+### 需求 (Requirements)
+1. 在 `ABCPrinter` 中宣告並實作 `beginGroup`, `addPath`, `endGroup` 進行性能優化之 SVG 路徑合併，修正大寫 "M" 不應重複累加相對坐標增量的 Bug。
+2. 於 `printStem` 中補齊 `dx < 0` 的手性校正，使符幹與其它元素求交集時 handedness 正確。
+3. 微調 `drawArc` 最大拱拱度由 `35` 降為 `25`，使長連音線渲染美觀。
+4. 修正 `debugMsgLow` 調試文字對齊靠左並以 `this.staffbottom` 定位代替絕對值 Y 軸位移。
+5. 修改 `printABC` 預設紙張寬度由 `700` 改為 `740`。修正 `printABCLine` 呼叫為單引數。
+6. 修改縱向 staff 佈局間距公式為 `this.y = staffgroup.y + staffgroup.height; this.y += AbcSpacing.STAVEHEIGHT * 0.2;` 動態累加。
+7. 重構 `abc_graphelements.ts` 當中的 `ABCStaffGroupElement.draw` 以接收 `y` 座標並正確初始化 `this.staffs[i].y`（解決五線譜高度不指派、重疊在 y=0 處的 Bug）。
+
+### 驗收條件 (Acceptance Criteria)
+- 專案靜態編譯與 UMD 打包 `pnpm run build` 成功。
+
+---
+## [2026-07-20 18:30:00] 修復 AST 與繪圖對比 Mismatches，實現 100% 對齊
+
+### 目標 (Objectives)
+- 排查並修正新舊版在黑箱對比測試 `compare_ast.js` 執行時產生的繪圖日誌（DrawLog）mismatches。
+- 修復 `abcTS` 自研 SVG 封裝與 `abc_write.ts`、`abc_glyphs.ts` 模組的底層相容性缺陷，防範引用污染 Bug。
+
+### 需求 (Requirements)
+1. **防止 Glyphs 引用污染**：在 `abc_glyphs.ts` 當中，將 `printSymbol` 取用 `d` 屬性時以 `JSON.parse(JSON.stringify(...))` 進行深度拷貝，防止多次調用時 x, y 偏移量被無限累加修改原始資料。
+2. **對齊紙張與繪圖對比格式**：將 `abc_glyphs.ts` 中的 `paper.path({...})` 改回無引數 `paper.path().attr(...)`，並將 `abc_write.ts` 中的五線譜與連音線的 `sprintf` 格式從高精度 `%.3f` 還原為 `%f`，以保證與舊版 JS 的 MockPaper 比對日誌字串完全一致。
+3. **實作 SVG toBack 方法**：擴充 `_svg.d.ts` 與 `svg.ts` 中 `SVGElement` 的 `toBack()` 宣告與實作，並在 `abc_write.ts` 中恢復 stave line 及連音線繪製時被註解掉的 `.toBack()` 呼叫。
+4. **重構 Stave 縱向高度與定位計算**：將 `abc_graphelements.ts` 中 `ABCStaffGroupElement.draw` 寫死的 40 像素高度更新，恢復舊版基於 `highest` / `lowest` 音高、`STEP` 及 `STAVEHEIGHT` 的動態計算，修復 Y 座標與 setSize 高度少 53.875 像素的 Bug。
+
+### 驗收條件 (Acceptance Criteria)
+- 專案靜態編譯與 UMD 打包 `pnpm run build` 成功且無報錯。
+- 繪圖日誌中的 `toBack: true` 遺失、`path` 陣列轉字串格式不一致、Y 軸與 setSize 高度不匹配等 mismatches 全數解決。
+
+---
+## [2026-07-20 18:40:00] 移植 abc_midiwriter.ts 功能與 bug 修正
+
+### 目標 (Objectives)
+- 移植 `abcjs_20100604` 的 `abc_midiwriter.js` 核心多軌 MIDI 生成功能至 `abcTS` 的對應 TS 模組。
+- 修復目前 TS 版在多聲部/譜表遍歷、三連音判定、和弦多音高寫入、以及風笛專用調號處理上的嚴重功能退化。
+
+### 需求 (Requirements)
+1. **重構 Midi 軌道控制**：於 `Midi` 類別補齊 `trackstrings` 與 `trackcount` 屬性，實作 `setTempo`, `startTrack`, `endTrack` 以拼裝多軌 MIDI 檔。
+2. **NoteOn 狀態碼與 Rest 累加**：在 `Midi.startNote` 中，當為軌道首個音符時正確追加 NoteOn `"%90"` 位元組。在 `Midi.addRest` 中，將休止符時值改為 `this.silencelength += length` 累加而非直接字串覆蓋。
+3. **多聲部/譜表雙重外層迴圈遍歷**：在 `ABCMidiWriter.writeABC` 中補回 staff 和 voice 的雙重外層遍歷迴圈以建構正確的 multi-track。
+4. **修正 getter 越界與 base 參數**：
+   - 修正 `getStaff` 對 `staff` 的索引為 `this.mark.staff`（此前筆誤為 `this.mark.voice`）。
+   - 將 `baseduration` 還原為定值 `1920` (480*4)，並移除與 `wholeduration` 重複相乘的錯誤。
+5. **遍歷和弦多音高與風笛調號**：
+   - 在 `writeNote` 當中遍歷所有 `elem.pitches`，一次性寫入該和弦下的所有 MIDI notes，並在一般/連線結束時發送對應的 NoteOff。
+   - 修正三連音結束判定為 `elem.endTriplet`。
+   - 在 `setKeySignature` 中，當 `abctune.formatting.bagpipes` 存在時將調號複寫為風笛專用升降號。
+
+### 驗收條件 (Acceptance Criteria)
+- 專案靜態編譯與 UMD 打包 `pnpm run build` 成功且無型別報錯。
+- 順利生成多軌與和弦音符無誤的 MIDI 序列。
+
+---
+## [2026-07-23 14:08:00] 測試沙盒環境重設優化與 DOM 狀態隔離
+
+### 目標 (Objectives)
+- 優化比對測試中的瀏覽器沙盒，確保測試案例之間的 DOM 狀態是隔離且會重設的，避免記憶體洩漏與跨案例的 DOM 干擾。
+
+### 需求 (Requirements)
+1. 擴充 `MockElement` 使其支援清空子節點與文字內容的方法 `clear()`。
+2. 在比對測試流程中，當每個測試案例渲染與比對完成後，對舊版與新版沙盒的 `document.body` 執行 `clear()` 方法，完成 DOM 清理。
+
+### 驗收條件 (Acceptance Criteria)
+- `pnpm run build` 打包編譯成功。
+- 執行 `node abcTS/test/compare_ast.js` 通過所有測試，無 DOM 狀態干擾。
+
+---
+## [2026-08-11 02:40:00] 簡譜 (Jianpu) 支援 - Ticket 01 Type 系統與 Parser 基礎實作
+
+### 目標 (Objectives)
+- 讓 abcTS 能夠識別簡譜 `clef=jianpu` 譜號宣告，並在解析調號時計算並附帶大調主音 `KeySigElement.root` 資訊，為後續首調唱名法奠定基礎。
+
+### 需求 (Requirements)
+1. 擴充 `ClefType` 支援 `"jianpu"`。
+2. 更新 `getClef()` tokenizer 與 `calcMiddle()` 處理以支援 `"jianpu"`，避免噴出 "Unknown clef" 警告。
+3. `KeySigElement` 新增 `root?: string` 屬性。
+4. 解析 `K:` 欄位時，依照升降號數量與大/小調屬性，推算其相對大調之主音（如 `K:Am` -> `root: "C"`，`K:G` -> `root: "G"`），並填入 `KeySigElement.root`。
+5. 在 `abc_parse.ts` 行首與行重置處，確保 `KeySigElement.root` 被複製至 `params.key` 中，保留到 AST。
+6. `abc_parser_lint.ts` 的 schema 對應加入 `"jianpu"`，避免 Stage B lint 報錯。
+
+### 驗收條件 (Acceptance Criteria)
+- 執行 `pnpm run build` 打包編譯成功。
+- 新增的 TDD 測試檔案 `test-jianpu-01.js` 執行無誤（18 個 Key 根音與譜號測試全部通過）。
+- 所有現有的測試案例（compare_ast）皆能 100% 通過無 regression。
+
+---
+## [2026-08-11 02:54:00] 簡譜 (Jianpu) 支援 - Ticket 02 Layout 到 Write 橋接管線
+
+### 目標 (Objectives)
+- 建立 jianpu 譜號資訊從 AST 經過 Layout 傳遞至 Write 繪圖層的通道，並讓 jianpu 聲部預設渲染為空白（無五線譜線）。
+
+### 需求 (Requirements)
+1. 在 `ABCVoiceElement` 上定義 `clef`、`jianpuOctave`、`jianpuKey` 屬性。
+2. `abc_parse.ts` 在 `startNewLine` 時把 `jianpuOctave` 拷貝至 `params`。
+3. `abc_tune.ts` 在 `createStaff` 時把 `jianpuOctave` 存入 `Staff` 結構。
+4. `abc_layout.ts` 在 `printABCStaff` 建立 `ABCVoiceElement` 時，從 `Staff` 結構把屬性複製給該 voice。
+5. `ABCStaffGroupElement.draw()` 遇到該 staff 下有 `clef === 'jianpu'` 的 voice 時，跳過該 staff 的 `printStave` 呼叫（即不繪製五線）。
+6. `ABCVoiceElement.draw()` 在 `this.clef === 'jianpu'` 時分流呼叫 `drawJianpu()` 空 stub 並提前返回。
+
+### 驗收條件 (Acceptance Criteria)
+- `pnpm run build` 打包編譯成功。
+- 新增的 TDD 測試檔案 `test-jianpu-02.js` 執行無誤。
+- Cooley's 等傳統五線譜測試（regression）在 `test.js` 跑過後，SVG 繪圖筆數與表現無任何變化。

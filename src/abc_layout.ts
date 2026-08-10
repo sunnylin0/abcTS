@@ -125,6 +125,9 @@ export class ABCLayout {
 
 		for (this.v = 0; this.v < abcstaff.voices.length; this.v++) {
 			this.voice = new ABCVoiceElement(this.y, this.v, abcstaff.voices.length);
+			if (abcstaff.clef) this.voice.clef = abcstaff.clef.type || 'treble';
+			if (abcstaff.jianpuOctave !== undefined) this.voice.jianpuOctave = abcstaff.jianpuOctave;
+			if (abcstaff.key) this.voice.jianpuKey = abcstaff.key;
 			if (this.v === 0) {
 				this.voice.barfrom = (abcstaff.connectBarLines === "start" || abcstaff.connectBarLines === "continue");
 				this.voice.barto = (abcstaff.connectBarLines === "continue" || abcstaff.connectBarLines === "end");

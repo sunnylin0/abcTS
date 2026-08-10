@@ -63,7 +63,7 @@ export class AbcParserLint {
 			}
 		};
 		this.clefProperties = {
-			type: { type: 'string', Enum: ['treble', 'tenor', 'bass', 'alto', 'treble+8', 'tenor+8', 'bass+8', 'alto+8', 'treble-8', 'tenor-8', 'bass-8', 'alto-8', 'none'] },
+			type: { type: 'string', Enum: ['treble', 'tenor', 'bass', 'alto', 'treble+8', 'tenor+8', 'bass+8', 'alto+8', 'treble-8', 'tenor-8', 'bass-8', 'alto-8', 'none', 'jianpu'] },
 			middle: { type: 'number', minimum: -20, maximum: 8 } // the pitch that goes in the middle of the staff C=0
 		};
 		this.barProperties = {
@@ -147,7 +147,8 @@ export class AbcParserLint {
 						verticalPos: { type: 'number', minimum: 0, maximum: 13 }
 					}
 				}
-			}
+			},
+			root: { type: 'string', optional: true }
 		};
 		this.meterProperties = {
 			type: { type: 'string', Enum: ['common_time', 'cut_time', 'specified'] },

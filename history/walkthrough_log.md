@@ -407,3 +407,30 @@
 1. 執行 `tsc --noEmit` 通過，無任何型別錯誤。
 2. 執行 `pnpm run build` 成功建置 UMD bundle 且無任何報錯。
 3. 程式碼邏輯在與舊版 JS 對照下已 100% 對齊且完成了 TypeScript 強型別重構。
+
+---
+## [2026-08-11 02:40:00] 簡譜 (Jianpu) 支援 - Ticket 01 Type 系統與 Parser 基礎實作 (完成)
+
+### 變更摘要 (Change Summary)
+1. **型別與 Tokenizer 擴充**：於 `src/all.d.ts` 與 `src/abc_parser_lint.ts` 中擴展 `ClefType` 支持 `"jianpu"`，並在 `src/abc_tokenizer.ts` 中使其被正確識別。
+2. **大調主音 (Tonic) 自動推算**：於 `abc_parse_header.ts` 解析 `K:` 調號時，自動推算該調大調主音（首調唱名 Do = 1 基準點），若是小調（Minor）則自動轉換為其相對大調之主音（例如 `K:Am` -> `C`）。
+3. **修復關鍵 AST 複製漏失**：修正了 `abc_parse.ts` 在 `startNewLine` 時透過 `deepCopyKey` 建立新 key 物件時未將 `root` 拷貝的 Bug，確保 `KeySigElement.root` 能順利傳遞到最終生成的 AST 內。
+4. **TDD 測試覆蓋**：新增了 `test-jianpu-01.js` 測試檔案，對 15 個不同的調號（包含大調、小調、升降號調號）與 `jianpu` 譜號在單/雙聲部下的解析結果與 `warnings` 進行斷言驗證。
+
+### 驗證與測試日誌 (Verification & Test Logs)
+1. 執行 `pnpm run build` 通過，生成 UMD 包。
+2. 執行 `node test-jianpu-01.js` 成功，18 個測試案例（3 個譜號相關、15 個根音相對大調推算）全部順利通過（0 failed）。
+
+---
+## [2026-08-11 02:54:00] 簡譜 (Jianpu) 支援 - Ticket 02 Layout 到 Write 橋接管線 (完成)
+
+### 變更摘要 (Change Summary)
+1. **Layout 與 Write 管線對接**：在 `ABCVoiceElement` 新增了 `clef`、`jianpuOctave` 與 `jianpuKey` 屬性，並通過 `abc_parse.ts` -> `abc_tune.ts` -> `abc_layout.ts` 逐步把 AST 解析得到的譜表資訊與 octave 偏置正確寫入 voice 繪圖屬性中。
+2. **Jianpu Staff 隱藏五線**：於 `ABCStaffGroupElement.draw` 中遍歷各個 `staff` 時，檢測其是否有關聯之 `jianpu` 聲部，若有則跳過 `printStave`，使簡譜聲部所屬區域不再出現五條橫線。
+3. **Write 繪圖分流**：於 `ABCVoiceElement.draw` 中辨識 `this.clef === 'jianpu'`，將繪圖邏輯轉移到 `drawJianpu()` 空 stub，從而使簡譜聲部的音符暫不輸出，留下空白區域。
+4. **TDD 驗證與 regression 測試**：新增 `test-jianpu-02.js` 測試對接是否完全，驗證 `voice` 元數據流通與簡譜 staff 無五線的狀態。跑 `test.js` 驗證 regression 為 0。
+
+### 驗證與測試日誌 (Verification & Test Logs)
+1. 執行 `pnpm run build` 通過，生成 UMD 包。
+2. 執行 `node test-jianpu-02.js` 成功，所有 4 個測試項目全數通過。
+3. 執行 `node test.js` 傳統 Cooley's 渲染測試結果與 Golden DrawLog 100% 一致。

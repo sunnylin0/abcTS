@@ -732,6 +732,7 @@ export class AbcParse {
 			? this.multilineVars.staves[this.multilineVars.currentVoice.staffNum].clef
 			: this.multilineVars.clef;
 		params.key = this.header.deepCopyKey(this.multilineVars.key.accidentals);
+		params.key.root = this.multilineVars.key.root;
 		this.header.addPosToKey(params.clef, params.key);
 		if (this.multilineVars.meter !== null) {
 			if (this.multilineVars.currentVoice) {
@@ -773,6 +774,9 @@ export class AbcParse {
 			}
 			if (this.multilineVars.currentVoice.stem) {
 				params.stem = this.multilineVars.currentVoice.stem;
+			}
+			if (this.multilineVars.currentVoice.jianpuOctave !== undefined) {
+				params.jianpuOctave = this.multilineVars.currentVoice.jianpuOctave;
 			}
 		}
 		this.tune.startNewLine(params);

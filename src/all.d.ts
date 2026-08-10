@@ -93,7 +93,7 @@ type BarType =
 	| "bar_dbl_repeat"
 	| "bar_invisible";
 
-type ClefType = "none" | "treble" | "tenor" | "alto" | "alto1" | "alto2" | "bass" | "bass3" |
+type ClefType = "none" | "treble" | "tenor" | "alto" | "alto1" | "alto2" | "bass" | "bass3" | "jianpu" |
 	'treble+8' | 'tenor+8' | 'bass+8' | 'alto+8' | 'treble-8' | 'tenor-8' | 'bass-8' | 'alto-8';
 type KeySigDir = "sharp" | "flat";
 type MeterType = "" | "common_time" | "cut_time" | "specified";
@@ -293,6 +293,8 @@ interface KeySigElement extends Omit<ABCElement, 'el_type'> {
 		verticalPos?: number;
 	}[];
 	extraAccidentals?: any[];
+	/** 大調主音音名（首調唱名法基準），如 'C'、'G'、'Bb'。小調取相對大調主音。由 abc_parse_header 填入。 */
+	root?: string;
 }
 
 interface MeterElement extends Omit<ABCElement, 'el_type'> {
@@ -443,6 +445,7 @@ interface Staff {
 	bracket?: string;
 	brace?: string;
 	connectBarLines?: string;
+	jianpuOctave?: number;
 }
 
 /** 僅存在於 abc_parse.ts 與 abc_parse_header.ts */
@@ -469,6 +472,7 @@ interface ParseVoice {
 	subname?: string;
 	stem?: 'up' | 'down';
 	suppressChords?: boolean;
+	jianpuOctave?: number;
 }
 
 interface SlursAndTriplets {
@@ -490,6 +494,7 @@ interface StaffInfo {
 	startStaff?: boolean;
 	middle?: number;
 	verticalPos?: number;
+	octave?: string;
 }
 
 interface Separator {
