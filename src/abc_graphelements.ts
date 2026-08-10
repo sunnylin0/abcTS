@@ -149,18 +149,54 @@ export class ABCStaffGroupElement {
 		this.y = y;
 		for (let i = 0; i < this.staffs.length; i++) {
 			if (this.staffs[i]) {
-				const shiftabove = this.staffs[i].highest - ((i === 0) ? 20 : 15);
-				const shiftbelow = this.staffs[i].lowest - ((i === this.staffs.length - 1) ? 0 : 0);
-				this.staffs[i].top = y;
-				if (shiftabove > 0) {
-					y += shiftabove * AbcSpacing.STEP;
+				const isJianpu = this.voices.some(v => v.staff === this.staffs[i] && v.clef === 'jianpu');
+				if (isJianpu) {
+					this.staffs[i].top = y;
+					let maxAbove = 0;
+					let maxBelow = 0;
+					for (const voice of this.voices) {
+						if (voice.staff === this.staffs[i] && voice.clef === 'jianpu') {
+							for (const child of voice.children) {
+								if (child.abcelem && child.abcelem.el_type === 'note') {
+									if ((child.abcelem as any).pitches) {
+										const pitches = (child.abcelem as any).pitches;
+										if (pitches.length > 0) {
+											const highestPitch = pitches[pitches.length - 1];
+											const keyRoot = (voice.jianpuKey && voice.jianpuKey.root) || "C";
+											const refOctave = voice.jianpuOctave !== undefined ? voice.jianpuOctave : 0;
+											const res = pitchToJianpu(highestPitch.pitch, keyRoot, refOctave);
+											if (res.octaveDelta > 0) {
+												maxAbove = Math.max(maxAbove, res.octaveDelta);
+											} else if (res.octaveDelta < 0) {
+												maxBelow = Math.max(maxBelow, Math.abs(res.octaveDelta));
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+					const jianpuShiftAbove = 15 + maxAbove * 4;
+					y += jianpuShiftAbove;
+					this.staffs[i].y = y;
+					y += 30; // baseHeight
+					const jianpuShiftBelow = maxBelow * 4 + 10;
+					y += jianpuShiftBelow;
+					this.staffs[i].bottom = y;
+				} else {
+					const shiftabove = this.staffs[i].highest - ((i === 0) ? 20 : 15);
+					const shiftbelow = this.staffs[i].lowest - ((i === this.staffs.length - 1) ? 0 : 0);
+					this.staffs[i].top = y;
+					if (shiftabove > 0) {
+						y += shiftabove * AbcSpacing.STEP;
+					}
+					this.staffs[i].y = y;
+					y += AbcSpacing.STAVEHEIGHT * 0.9; // position of the words
+					if (shiftbelow < 0) {
+						y -= shiftbelow * AbcSpacing.STEP;
+					}
+					this.staffs[i].bottom = y;
 				}
-				this.staffs[i].y = y;
-				y += AbcSpacing.STAVEHEIGHT * 0.9; // position of the words
-				if (shiftbelow < 0) {
-					y -= shiftbelow * AbcSpacing.STEP;
-				}
-				this.staffs[i].bottom = y;
 			}
 		}
 		this.height = y - this.y;
@@ -306,6 +342,7 @@ export class ABCVoiceElement {
 	drawJianpuNote(child: ABCAbsoluteElement, printer: ABCPrinter, bartop: number): void {
 		const note = child.abcelem;
 		let textStr = "";
+		let octaveDelta = 0;
 
 		if ((note as any).rest) {
 			textStr = "0";
@@ -317,10 +354,10 @@ export class ABCVoiceElement {
 			const refOctave = this.jianpuOctave !== undefined ? this.jianpuOctave : 0;
 			const res = pitchToJianpu(highestPitch.pitch, keyRoot, refOctave);
 			textStr = String(res.degree);
+			octaveDelta = res.octaveDelta;
 		}
 
 		if (textStr) {
-			// 數字在五線譜中心位置 Y 軸繪製
 			const x = child.x;
 			const y = this.y;
 			const textEl = printer.paper.text(x, y, textStr).attr({
@@ -334,6 +371,26 @@ export class ABCVoiceElement {
 			textEl.mouseup(function (e) {
 				printer.notifySelect(self);
 			});
+
+			// 繪製八度點
+			if (octaveDelta > 0) {
+				for (let k = 0; k < octaveDelta; k++) {
+					const dotY = y - 12 - k * 4;
+					const dotEl = printer.paper.circle(x, dotY, 1.5);
+					dotEl.mouseup(function (e) {
+						printer.notifySelect(self);
+					});
+				}
+			} else if (octaveDelta < 0) {
+				const absDelta = Math.abs(octaveDelta);
+				for (let k = 0; k < absDelta; k++) {
+					const dotY = y + 10 + k * 4;
+					const dotEl = printer.paper.circle(x, dotY, 1.5);
+					dotEl.mouseup(function (e) {
+						printer.notifySelect(self);
+					});
+				}
+			}
 		}
 	}
 

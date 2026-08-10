@@ -448,3 +448,17 @@
 1. 執行 `pnpm run build` 通過，生成 UMD 包。
 2. 執行 `node test-jianpu-03.js` 成功，12 個測試項目全部通過。
 3. 執行 `node test.js` 回歸測試 100% 一致。
+
+---
+## [2026-08-11 03:05:00] 簡譜 (Jianpu) 支援 - Ticket 04 Octave Dots 八度點 (完成)
+
+### 變更摘要 (Change Summary)
+1. **新增 SVG 繪圓接口**：在 `src/svg.ts` 為 `Svg` 類別補上強型別的 `circle` 繪製方法，用以繪製實心的小圓點標記。
+2. **實作高低八度點渲染與選取互動**：在 `abc_graphelements.ts` 的 `drawJianpuNote` 中，精確定位 `octaveDelta` 上下圓點。上方第一點定位於 `y - 12`，下方第一點定位於 `y + 10`，其餘按 4px 間距延伸，並統一綁定點擊事件。
+3. **修復舊測試 mock paper 容錯性**：更新 `test-jianpu-02.js` 與 `test-jianpu-03.js`，避免當中有簡譜時呼叫 `circle` 出現 `TypeError`。
+4. **TDD 測試驗證**：新增 `test-jianpu-04.js` 完整校驗 `c`、`c'` 與 `C,` 在簡譜下產生之圓點個數與座標，保證 100% 正確性。
+
+### 驗證與測試日誌 (Verification & Test Logs)
+1. 執行 `pnpm run build` 通過，生成 UMD 包。
+2. 執行 `node test-jianpu-04.js` 成功，7 個斷言（圓點數、cy 定位）全部順利通過。
+3. 執行傳統的 `test.js` 與其餘三個 jianpu TDD 測試，回歸測試 100% 綠燈。

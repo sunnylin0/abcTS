@@ -108,6 +108,10 @@ function createMockPaper() {
             drawLog.push({ type: 'rect', attr: attr ? JSON.parse(JSON.stringify(attr)) : undefined });
             return mockElement;
         },
+        circle: (cx, cy, r) => {
+            drawLog.push({ type: 'circle', cx, cy, r });
+            return mockElement;
+        },
         setSize: function (w, h) { drawLog.push({ type: 'setSize', w, h }); return this; },
         setResponsiveWidth: function (w, h) { drawLog.push({ type: 'setResponsiveWidth', w, h }); return this; },
         set: function () {

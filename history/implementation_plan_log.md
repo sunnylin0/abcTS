@@ -831,3 +831,27 @@
 ### 風險評估 (Risks & Mitigations)
 - **和弦音高判定**：簡譜不支援和弦並列，只取最高音。
   - *對策*：取得 `pitches` 陣列的最後一個元素 `pitches[pitches.length - 1]` 確保不論輸入順序為何，都取得最高音高（在 Layout 排序後最後一個為最高音）。
+
+---
+## [2026-08-11 03:05:00] 簡譜 (Jianpu) 支援 - Ticket 04 Octave Dots 八度點
+
+### 步驟與技術方案 (Step-by-step Technical Plans)
+1. **擴充 `Svg` 繪圖介面 (`src/svg.ts`)**：
+   - 新增 `circle(cx, cy, r)` 方法。建立並設定 circle 的屬性：`cx`、`cy`、`r`，並以 `fill = "#000000"`、`stroke = "none"` 調用 `this.append` 插入 DOM 中。
+2. **實作八度點定位繪製 (`src/abc_graphelements.ts`)**：
+   - 於 `drawJianpuNote` 中利用 `res.octaveDelta` 進行點定位。
+   - 上方點：Y 座標序列為 `y - 12 - k * 4`。
+   - 下方點：Y 座標序列為 `y + 10 + k * 4`。
+   - 圓點半徑設定為 `1.5`，且每個點皆綁定 `mouseup` 到 `printer.notifySelect(child)` 進行互動選取。
+3. **修復舊測試 Mock (`test-jianpu-02.js`, `test-jianpu-03.js`)**：
+   - 在 MockPaper 中補齊 `circle` 屬性方法，避免執行期調用報錯。
+
+### 影響檔案 (Affected Files)
+- `src/svg.ts` (修改)
+- `src/abc_graphelements.ts` (修改)
+- `test-jianpu-02.js` (修改)
+- `test-jianpu-03.js` (修改)
+
+### 風險評估 (Risks & Mitigations)
+- **點重疊與點位移**：若八度偏移過大（如大於3個八度），圓點可能重疊或超出 staff 空間。
+  - *對策*：每個圓點間隔 4px 為業界簡譜標準設計，且實際使用中少有大於三個八度之極端音高，若有則依序遞增/遞減，在 SVG 畫布上可正常渲染。

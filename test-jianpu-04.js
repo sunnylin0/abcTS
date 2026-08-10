@@ -1,7 +1,8 @@
-// test-jianpu-03.js  — Ticket 03 TDD
-// Seam A: pitchToJianpu function exists and returns correct degree & octaveDelta
-// Seam B: drawLog contains text elements with values "1"–"7" at correct coordinates for a jianpu voice
-// Run: pnpm run build && node test-jianpu-03.js
+﻿// test-jianpu-04.js  — Ticket 04 TDD
+// Seam A: c (pitch 7, root C) -> octaveDelta=1 -> exactly 1 circle at (x, y - 12)
+// Seam B: c' (pitch 14, root C) -> octaveDelta=2 -> exactly 2 circles above
+// Seam C: C, (pitch -7, root C) -> octaveDelta=-1 -> exactly 1 circle at (x, y + 10)
+// Run: pnpm run build && node test-jianpu-04.js
 
 const fs = require("fs");
 const path = require("path");
@@ -68,9 +69,9 @@ function createMockPaper() {
         setAttributeNS: function (ns, k, v) { this.attributes[k] = String(v); return this; },
         getAttribute(k) { return this.attributes[k]; },
         removeAttribute(k) { delete this.attributes[k]; },
-        appendChild(c) { if (c) c.parentNode = this; this.childNodes.push(c); return c; },
-        insertBefore(c) { if (c) c.parentNode = this; this.childNodes.unshift(c); return c; },
-        removeChild(c) { return c; },
+        appendChild(child) { if (child) child.parentNode = this; this.childNodes.push(child); return child; },
+        insertBefore(child) { if (child) child.parentNode = this; this.childNodes.unshift(child); return child; },
+        removeChild(child) { return child; },
         getBBox: () => ({ x: 0, y: 0, width: 50, height: 15 })
     };
     dummySvg.parentNode = dummySvg;
@@ -108,6 +109,7 @@ function createMockPaper() {
             drawLog.push({ type: 'rect', attr: attr ? JSON.parse(JSON.stringify(attr)) : undefined });
             return mockElement;
         },
+        // We add svg circle support in MockPaper
         circle: (cx, cy, r) => {
             drawLog.push({ type: 'circle', cx, cy, r });
             return mockElement;
@@ -131,42 +133,7 @@ const AbcTuneBook = context.AbcTuneBook || context.window.AbcTuneBook;
 const AbcParse = context.AbcParse || context.window.AbcParse;
 const ABCPrinter = context.ABCPrinter || context.window.ABCPrinter;
 
-// ── Seam A: pitchToJianpu unit verification ─────────────────────────────────
-console.log("\n--- Seam A: pitchToJianpu unit tests ---");
-// Since pitchToJianpu is exported from the bundle or we can access it on ABCPrinter
-// Let's verify if ABCPrinter or the global context has it.
-// We will export pitchToJianpu to global or check if we can test it through the printer instance.
-const pitchToJianpu = context.pitchToJianpu || (context.window && context.window.pitchToJianpu);
-
-if (!pitchToJianpu) {
-    console.log("  FAIL: pitchToJianpu is not globally exported. We will test via drawLog.");
-    failed++;
-} else {
-    const testCases = [
-        // [pitch, keyRoot, refOctave, expectedDegree, expectedOctaveDelta]
-        [0, 'C', 0, 1, 0], // C in C Major -> 1
-        [1, 'C', 0, 2, 0], // D in C Major -> 2
-        [6, 'C', 0, 7, 0], // B in C Major -> 7
-        [7, 'C', 0, 1, 1], // c in C Major -> 1 (octave + 1)
-        [-1, 'C', 0, 7, -1], // B, in C Major -> 7 (octave - 1)
-        
-        [4, 'G', 0, 1, 0], // G in G Major -> 1
-        [5, 'G', 0, 2, 0], // A in G Major -> 2
-        [3, 'G', 0, 7, 0], // F# (pitch 3 is F, which is diatonic index 3) -> 7 in G Major (G=4, F=3 -> degree 7)
-        
-        [5, 'A', 0, 1, 0], // A in A Major -> 1
-    ];
-    for (const [p, root, ref, expDeg, expOct] of testCases) {
-        const res = pitchToJianpu(p, root, ref);
-        assert(`pitch=${p}, root=${root}, ref=${ref} -> deg=${expDeg}, oct=${expOct}`,
-            res.degree === expDeg && res.octaveDelta === expOct,
-            `got deg=${res.degree}, oct=${res.octaveDelta}`);
-    }
-}
-
-// ── Seam B: DrawLog number rendering ─────────────────────────────────────────
-console.log("\n--- Seam B: drawLog number rendering ---");
-function getJianpuNumbers(abcStr) {
+function renderJianpu(abcStr) {
     const book = new AbcTuneBook(abcStr);
     const parser = new AbcParse();
     parser.parse(book.tunes[0].abc);
@@ -174,44 +141,53 @@ function getJianpuNumbers(abcStr) {
     const mockPaper = createMockPaper();
     const printer = new ABCPrinter(mockPaper);
     printer.printABC(tune);
-    return mockPaper.drawLog
-        .filter(item => item.type === 'text')
-        .map(item => item.text)
-        .filter(t => /^[0-7]$/.test(t));
+    return { drawLog: mockPaper.drawLog, yValue: printer.staffgroups[0].voices[0].y };
 }
 
+// ── Seam A: c (1 dot above) ─────────────────────────────────────────────────
+console.log("\n--- Seam A: c (1 dot above) ---");
 {
-    // C Major scale C D E F G A B
-    const abc = "X:1\nT:T\nM:4/4\nL:1/8\nK:C\nV:1 clef=jianpu\n[V:1] C D E F | G A B c |";
-    const numbers = getJianpuNumbers(abc);
-    console.log("C Major rendered numbers:", JSON.stringify(numbers));
-    // We expect the scale degrees: 1, 2, 3, 4, 5, 6, 7, 1 (the high c is also degree 1)
-    const expected = ["1", "2", "3", "4", "5", "6", "7", "1"];
-    assert("C Major scale degrees correctly rendered", 
-        JSON.stringify(numbers) === JSON.stringify(expected),
-        `got=${JSON.stringify(numbers)}`);
+    const abc = "X:1\nT:T\nM:4/4\nL:1/8\nK:C\nV:1 clef=jianpu\n[V:1] c2 |";
+    const { drawLog, yValue } = renderJianpu(abc);
+    const circles = drawLog.filter(item => item.type === 'circle');
+    console.log("Circles for c2:", JSON.stringify(circles));
+    assert("c2 renders exactly 1 dot", circles.length === 1, "got count=" + circles.length);
+    if (circles.length === 1) {
+        const expectedY = yValue - 12;
+        assert("dot position is y - 12", Math.abs(circles[0].cy - expectedY) < 0.1, `got cy=${circles[0].cy}, expected=${expectedY}`);
+    }
 }
 
+// ── Seam B: c' (2 dots above) ────────────────────────────────────────────────
+console.log("\n--- Seam B: c' (2 dots above) ---");
 {
-    // G Major scale G A B c d e f g
-    const abc = "X:1\nT:T\nM:4/4\nL:1/8\nK:G\nV:1 clef=jianpu\n[V:1] G A B c | d e f g |";
-    const numbers = getJianpuNumbers(abc);
-    console.log("G Major rendered numbers:", JSON.stringify(numbers));
-    const expected = ["1", "2", "3", "4", "5", "6", "7", "1"];
-    assert("G Major scale degrees correctly rendered", 
-        JSON.stringify(numbers) === JSON.stringify(expected),
-        `got=${JSON.stringify(numbers)}`);
+    const abc = "X:1\nT:T\nM:4/4\nL:1/8\nK:C\nV:1 clef=jianpu\n[V:1] c'2 |";
+    const { drawLog, yValue } = renderJianpu(abc);
+    const circles = drawLog.filter(item => item.type === 'circle');
+    console.log("Circles for c'2:", JSON.stringify(circles));
+    assert("c'2 renders exactly 2 dots", circles.length === 2, "got count=" + circles.length);
+    if (circles.length === 2) {
+        // Order: first is y-12, second is y-16
+        const yCoords = circles.map(c => c.cy).sort((a, b) => b - a); // largest Y (closest to note) to smallest Y (furthest)
+        const expectedFirst = yValue - 12;
+        const expectedSecond = yValue - 16;
+        assert("first dot is y - 12", Math.abs(yCoords[0] - expectedFirst) < 0.1, `got=${yCoords[0]}`);
+        assert("second dot is y - 16", Math.abs(yCoords[1] - expectedSecond) < 0.1, `got=${yCoords[1]}`);
+    }
 }
 
+// ── Seam C: C, (1 dot below) ────────────────────────────────────────────────
+console.log("\n--- Seam C: C, (1 dot below) ---");
 {
-    // Chord [CEG] only renders highest note (E is 3, G is 5, C is 1. Highest is G (pitch 4) -> 5)
-    // Wait! Let's check pitches: C is 0, E is 2, G is 4. Highest is G -> degree 5.
-    const abc = "X:1\nT:T\nM:4/4\nL:1/8\nK:C\nV:1 clef=jianpu\n[V:1] [CEG]2 |";
-    const numbers = getJianpuNumbers(abc);
-    console.log("Chord rendered numbers:", JSON.stringify(numbers));
-    assert("Chord [CEG] only renders highest note G -> 5",
-        JSON.stringify(numbers) === JSON.stringify(["5"]),
-        `got=${JSON.stringify(numbers)}`);
+    const abc = "X:1\nT:T\nM:4/4\nL:1/8\nK:C\nV:1 clef=jianpu\n[V:1] C,2 |";
+    const { drawLog, yValue } = renderJianpu(abc);
+    const circles = drawLog.filter(item => item.type === 'circle');
+    console.log("Circles for C,2:", JSON.stringify(circles));
+    assert("C,2 renders exactly 1 dot", circles.length === 1, "got count=" + circles.length);
+    if (circles.length === 1) {
+        const expectedY = yValue + 10;
+        assert("dot position is y + 10", Math.abs(circles[0].cy - expectedY) < 0.1, `got cy=${circles[0].cy}, expected=${expectedY}`);
+    }
 }
 
 // ── 結果 ─────────────────────────────────────────────────────────────────────

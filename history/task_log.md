@@ -867,3 +867,22 @@
 - `pnpm run build` 打包編譯成功。
 - 新增的 TDD 測試檔案 `test-jianpu-03.js` 執行無誤（12 個單元測試與音高數字渲染斷言全部通過）。
 - 所有現有的測試（compare_ast、Cooley's 渲染）皆能 100% 通過無 regression。
+
+---
+## [2026-08-11 03:05:00] 簡譜 (Jianpu) 支援 - Ticket 04 Octave Dots 八度點
+
+### 目標 (Objectives)
+- 實作高低八度音符在簡譜數字上方或下方的八度圓點標記繪製。
+
+### 需求 (Requirements)
+1. 擴充 `Svg` 類別，新增並實作 `circle(cx, cy, r)` 方法以支持繪製圓點。
+2. 於 `ABCVoiceElement.drawJianpuNote()` 讀取 `pitchToJianpu` 的 `octaveDelta`：
+   - 若 `octaveDelta > 0`，繪製 `octaveDelta` 個八度圓點在數字上方（第一個點在 `y - 12` 處，往上每個點 Y 軸減 4px）。
+   - 若 `octaveDelta < 0`，繪製 `|octaveDelta|` 個八度圓點在數字下方（第一個點在 `y + 10` 處，往下每個點 Y 軸加 4px）。
+   - 使用圓點半徑 `r = 1.5`，填充顏色 `fill = "#000000"`，並為其附加與數字一致的 mouseup select 監聽事件。
+3. 修正先前 Ticket 02 與 Ticket 03 測試腳本中的 `MockPaper`，使其支援 `circle` 空 stub 方法以維持測試相容性。
+
+### 驗收條件 (Acceptance Criteria)
+- `pnpm run build` 打包編譯成功。
+- 新增的 TDD 測試檔案 `test-jianpu-04.js` 執行無誤（高/低八度圓點渲染數量與座標斷言全數通過）。
+- 所有先前與傳統的測試（compare_ast、Cooley's 渲染）皆能 100% 通過無 regression。

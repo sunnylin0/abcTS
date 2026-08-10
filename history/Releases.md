@@ -332,3 +332,10 @@
 - 在 `ABCVoiceElement` 中實作 `drawJianpuNote` 渲染簡譜數字 `0`（休止符）與 `1`-`7`（音符，多音高和弦只取最高音）。
 - 整合小節線與拍號的渲染。
 - 新增 `test-jianpu-03.js` 完備測試音符數字的推導與渲染位置，維持 TDD 綠燈。
+
+---
+## [2026-08-11] 簡譜 (Jianpu) 支援 - Ticket 04 Octave Dots 八度點 (v1.16.0)
+- 於 `src/svg.ts` 之 `Svg` 類別中新增實作 `circle` 繪圖介面。
+- 於 `ABCVoiceElement.drawJianpuNote` 中實作高八度（上方圓點）與低八度（下方圓點）渲染，第一點分別定位於 `y - 12` 與 `y + 10`，多點間隔 4px 垂直延伸，並附加互動選取事件。
+- 更新舊 TDD 測試腳本以支援 `circle` 繪圖 mock，預防 TypeError。
+- 新增 `test-jianpu-04.js` 進行高低八度音符圓點渲染的完整 TDD 驗收，維持綠燈。

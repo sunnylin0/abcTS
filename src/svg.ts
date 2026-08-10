@@ -430,6 +430,17 @@ export class Svg {
 		return el;
 	};
 
+	circle(cx: number, cy: number, r: number): SVGElement {
+		var el = document.createElementNS(svgNS, 'circle') as SVGElement;
+		el.setAttribute("cx", cx.toString());
+		el.setAttribute("cy", cy.toString());
+		el.setAttribute("r", r.toString());
+		el.setAttribute("fill", "#000000");
+		el.setAttribute("stroke", "none");
+		this.append(el);
+		return el;
+	};
+
 	pathToBack(attr: any): SVGPathElement {
 		var el: SVGPathElement = document.createElementNS(svgNS, "path") as SVGPathElement;
 		for (var key in attr) {
