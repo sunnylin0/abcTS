@@ -8,11 +8,15 @@ const DIATONIC_MAP: Record<string, number> = { 'C': 0, 'D': 1, 'E': 2, 'F': 3, '
  * @param pitch 音符的 diatonic index (C=0, D=1, E=2, F=3, G=4, A=5, B=6, c=7...)
  * @param keyRoot 調號大調主音名稱，如 'C'、'G'、'Bb'。如果無效則預設為 'C'
  * @param refOctave 基準八度（通常由 V: 行的 octave=N 設定，預設為 0）
+ * @param pitchAccidental 音符自帶的臨時升降號（如 'sharp', 'flat', 'natural'）
+ * @param keyAccidentals 調號預設的升降號列表
  */
 export function pitchToJianpu(
 	pitch: number,
 	keyRoot: string,
-	refOctave: number = 0
+	refOctave: number = 0,
+	pitchAccidental?: string,
+	keyAccidentals?: { acc?: string; note?: string }[]
 ) {
 	const rootLetter = keyRoot.charAt(0).toUpperCase();
 	const rootDiatonic = DIATONIC_MAP[rootLetter] ?? 0;
@@ -24,11 +28,30 @@ export function pitchToJianpu(
 	// 計算八度偏差
 	const octaveDelta = Math.floor(pitch / 7) - refOctave;
 	
+	// 判斷是否為臨時記號
+	let isChromatic = false;
+	let acc: 'sharp' | 'flat' | 'natural' | '' = '';
+	
+	if (pitchAccidental) {
+		const noteName = ['c', 'd', 'e', 'f', 'g', 'a', 'b'][diatonicPitch];
+		const inKeyAcc = keyAccidentals?.find(a => a.note === noteName)?.acc || 'natural';
+		if (pitchAccidental !== inKeyAcc) {
+			isChromatic = true;
+			if (pitchAccidental === 'sharp' || pitchAccidental === 'dblsharp') {
+				acc = 'sharp';
+			} else if (pitchAccidental === 'flat' || pitchAccidental === 'dblflat') {
+				acc = 'flat';
+			} else if (pitchAccidental === 'natural') {
+				acc = 'natural';
+			}
+		}
+	}
+	
 	return {
 		degree,
 		octaveDelta,
-		isChromatic: false, // 暫留，Ticket 06 處理
-		acc: '' as const    // 暫留，Ticket 06 處理
+		isChromatic,
+		acc
 	};
 }
 

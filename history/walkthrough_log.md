@@ -476,3 +476,17 @@
 1. 執行 `pnpm run build` 通過，生成 UMD 包。
 2. 執行 `node test-jianpu-05.js` 成功，9 個時值線與附點相關斷言全部通過。
 3. 所有測試（ regressions + Ticket 01~05）全數綠燈。
+
+---
+## [2026-08-11 03:15:00] 簡譜 (Jianpu) 支援 - Ticket 06 臨時記號 Glyph + 行首標記 (完成)
+
+### 變更摘要 (Change Summary)
+1. **強健的臨時記號判定**：於 `abc_jianpu_write.ts` 更新 `pitchToJianpu`，根據當前調號所包含的預設升降（如 G 大調 F#），比較音符當前標記，精確過濾掉調內原有升降，唯有真正的調外臨時音（如 F♮ 於 G 大調）才觸發 `isChromatic = true`。
+2. **臨時升降還原記號渲染**：於 `abc_graphelements.ts` 的 `drawJianpuNote` 中，對調外臨時音以 `x - 12` 的 X 座標，調用 `printer.glyphs.printSymbol` 來輸出複用 Emmentaler 字型之 `#`、`b`、`♮` 符號，全數綁定選取事件。
+3. **行首 `1=Key` 與 `拍號` 標記**：於 `abc_graphelements.ts` 的 `drawJianpu` 最前端，以 `text-anchor: start` 分別在 X 軸 `20` 與 `55` 繪製 `1=Key`（如 `1=G`）與拍號（如 `4/4`）文字，完成完整簡譜行頭宣告。
+4. **TDD 與整合驗證**：新增 `test-jianpu-06.js` 完整覆蓋 G 大調 F# (不畫)、F♮ (畫自然還原號)、以及行首 `1=G` 與 `4/4` 文字內容及座標等 11 個斷言項目，全數通過。
+
+### 驗證與測試日誌 (Verification & Test Logs)
+1. 執行 `pnpm run build` 通過，生成 UMD 包。
+2. 執行 `node test-jianpu-06.js` 成功，11 個斷言全數通過。
+3. 執行傳統的 `test.js` 與所有 6 個 jianpu TDD 測試腳本，100% 順利綠燈通過。

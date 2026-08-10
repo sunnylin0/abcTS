@@ -880,3 +880,24 @@
 ### 風險評估 (Risks & Mitigations)
 - **多層底線重疊與極端音符**：若區間內有休止符或某些音符無底線，如何處理？
   - *對策*：`getUnderlineCount` 準確回傳每一音符或休止符所需底線層數，掃描時遇到 `count < L` 的元素即中斷當前區間並繪製，之後再開啟新區間，保證休止符或無底線音符處底線正確斷開，符合音樂簡譜規範。決。
+
+---
+## [2026-08-11 03:15:00] 簡譜 (Jianpu) 支援 - Ticket 06 臨時記號 Glyph + 行首標記
+
+### 步驟與技術方案 (Step-by-step Technical Plans)
+1. **調外臨時音判斷 (`src/abc_jianpu_write.ts`)**：
+   - 更新 `pitchToJianpu`。音符臨時記號與 `keyAccidentals` 對應音名的 `acc` 屬性比對（若無，預設與 `'natural'` 比較）。不一致時判定 `isChromatic = true`，並將 `dblsharp`/`sharp` 歸一化為 `'sharp'`，`dblflat`/`flat` 歸一化為 `'flat'`，`natural` 歸一化為 `'natural'`。
+2. **臨時升降記號渲染 (`src/abc_graphelements.ts`)**：
+   - 若音符判定為調外臨時升降，在 `x - 12` 座標調用 `printer.glyphs.printSymbol(x - 12, y, symbol_name, printer.paper)` 繪製，並綁定 mouseup select 互動。
+3. **行首標記資訊繪製 (`src/abc_graphelements.ts`)**：
+   - `drawJianpu` 開頭調用 `printer.paper.text` 繪製 `1=Key` 文字於 `x = 20`，高度 `y = this.y`，`text-anchor: "start"`。
+   - 尋找 `this.children` 中包含 `'meter'` 的元素或具有 `specified`/`common_time`/`cut_time` 拍號定義的 `abcelem` 作為 `meterChild`。
+   - 讀取拍號字串，繪製文字於 `x = 55`，高度相同。
+
+### 影響檔案 (Affected Files)
+- `src/abc_jianpu_write.ts` (修改)
+- `src/abc_graphelements.ts` (修改)
+
+### 風險評估 (Risks & Mitigations)
+- **拍號結構相容性**：拍號元素可能在調用時因 `el_type` 未定義而遺漏。
+  - *對策*：在 `drawJianpu` 的拍號查找中，同時檢查 `child.abcelem.el_type === 'meter'` 以及是否帶有拍號專屬屬性 `specified` / `common_time` / `cut_time` 等，確保各個時機點產生的拍號均能順利匹配繪製。

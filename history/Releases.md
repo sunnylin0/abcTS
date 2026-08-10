@@ -346,3 +346,10 @@
 - 在 `ABCVoiceElement.drawJianpuNote` 實作延音橫線（二分音符 1 條，全音符 3 條）與右側附點繪製。
 - 在 `ABCVoiceElement` 實作底線（Underlines）繪製，支援獨立底線、多層底線（1-3 層）以及連梁 beam group 的共享連續底線，並整合低八度點進行自動縱向避讓。
 - 新增 `test-jianpu-05.js` 完成時值線與連線底線功能之 TDD 驗收，維持綠燈。
+
+---
+## [2026-08-11] 簡譜 (Jianpu) 支援 - Ticket 06 臨時記號 Glyph + 行首標記 (v1.18.0)
+- 於 `src/abc_jianpu_write.ts` 的 `pitchToJianpu` 中加入調內外音與 key signature 升降比對的臨時記號 chromatic 判定邏輯。
+- 於 `ABCVoiceElement.drawJianpuNote` 中實作調外臨時升降還原符號的複用繪製（放置於數字左側 12px 處）。
+- 在 `ABCVoiceElement.drawJianpu` 實作行首調名 `1=Key`（X=20）與拍號（X=55）宣告文字的繪製。
+- 新增 `test-jianpu-06.js` 完成簡譜臨時記號與行首宣告的完整 TDD 驗收，維持綠燈。

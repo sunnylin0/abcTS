@@ -353,9 +353,32 @@ export class ABCVoiceElement {
 			
 			const keyRoot = (this.jianpuKey && this.jianpuKey.root) || "C";
 			const refOctave = this.jianpuOctave !== undefined ? this.jianpuOctave : 0;
-			const res = pitchToJianpu(highestPitch.pitch, keyRoot, refOctave);
+			const pitchAcc = highestPitch.accidental;
+			const keyAccs = this.jianpuKey ? this.jianpuKey.accidentals : undefined;
+			
+			const res = pitchToJianpu(highestPitch.pitch, keyRoot, refOctave, pitchAcc, keyAccs);
 			textStr = String(res.degree);
 			octaveDelta = res.octaveDelta;
+
+			// 繪製調外臨時升降音
+			const x = child.x;
+			const y = this.y;
+			if (res.isChromatic && res.acc) {
+				let symbol_name = "";
+				if (res.acc === 'sharp') symbol_name = 'accidentals.sharp';
+				else if (res.acc === 'flat') symbol_name = 'accidentals.flat';
+				else if (res.acc === 'natural') symbol_name = 'accidentals.natural';
+
+				if (symbol_name) {
+					const accEl = printer.glyphs.printSymbol(x - 12, y, symbol_name, printer.paper);
+					if (accEl) {
+						let self = child;
+						accEl.mouseup(function (e) {
+							printer.notifySelect(self);
+						});
+					}
+				}
+			}
 		}
 
 		if (textStr) {
@@ -523,6 +546,60 @@ export class ABCVoiceElement {
 	}
 
 	drawJianpu(printer: ABCPrinter, bartop: number): void {
+		// 繪製行首標記：1=Key 與 拍號
+		const keyRoot = (this.jianpuKey && this.jianpuKey.root) || "C";
+		const keyText = `1=${keyRoot}`;
+		const keyX = 20;
+		const labelY = this.y;
+		
+		const keyEl = printer.paper.text(keyX, labelY, keyText).attr({
+			"font-size": 16,
+			"font-family": "sans-serif",
+			"font-weight": "bold",
+			"text-anchor": "start"
+		});
+		let selfVoice = this;
+		keyEl.mouseup(function (e) {
+			// Click to select voice
+		});
+
+		// 尋找拍號 (Meter)
+		let meterText = "";
+		const meterChild = this.children.find(child => {
+			if (!child.abcelem) return false;
+			const type = child.abcelem.el_type;
+			const meterType = child.abcelem.type;
+			return type === 'meter' || meterType === 'specified' || meterType === 'common_time' || meterType === 'cut_time';
+		});
+		if (meterChild && meterChild.abcelem) {
+			const meterEl = meterChild.abcelem as any;
+			if (meterEl.value && meterEl.value.length > 0) {
+				const num = meterEl.value[0].num || "";
+				const den = meterEl.value[0].den || "";
+				if (num && den) {
+					meterText = `${num}/${den}`;
+				}
+			} else if (meterEl.type === 'common_time') {
+				meterText = "4/4";
+			} else if (meterEl.type === 'cut_time') {
+				meterText = "2/2";
+			}
+		}
+
+		if (meterText) {
+			const meterX = 55;
+			const meterEl = printer.paper.text(meterX, labelY, meterText).attr({
+				"font-size": 16,
+				"font-family": "sans-serif",
+				"font-weight": "bold",
+				"text-anchor": "start"
+			});
+			meterEl.mouseup(function (e) {
+				// Click to select voice
+			});
+		}
+
+		// 繪製子節點
 		for (let i = 0, ii = this.children.length; i < ii; i++) {
 			const child = this.children[i];
 			const type = child.abcelem ? child.abcelem.el_type : null;

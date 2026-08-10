@@ -909,3 +909,21 @@
 - `pnpm run build` 打包編譯成功。
 - 新增的 TDD 測試檔案 `test-jianpu-05.js` 執行無誤（長音橫線數量、底線寬度與連續連梁、附點 Y 軸座標等斷言全數通過）。
 - 所有先前與傳統的測試（compare_ast、Cooley's 渲染）皆能 100% 通過無 regression。
+
+---
+## [2026-08-11 03:15:00] 簡譜 (Jianpu) 支援 - Ticket 06 臨時記號 Glyph + 行首標記
+
+### 目標 (Objectives)
+- 實作調外臨時升降音與還原記號在簡譜數字左側的繪製，並於每行簡譜聲部行首輸出「1=Key」調名標記與拍號文字。
+
+### 需求 (Requirements)
+1. 擴充 `pitchToJianpu()` 實作 `isChromatic` 檢測邏輯：當音符有臨時升降號且與調號在該音名上的升降規則不一致時判定為 chromatic，並返回對應 `acc`（'sharp' | 'flat' | 'natural'）。
+2. 在 `ABCVoiceElement.drawJianpuNote` 中利用 `isChromatic` 進行繪製。若為調外升降音，在數字左側 12px 處複用 `printer.glyphs.printSymbol` 機制繪製 Emmentaler 的 `'accidentals.sharp'`、`'accidentals.flat'` 或 `'accidentals.natural'` 向量路徑。
+3. `ABCVoiceElement.drawJianpu` 實作行首標記：
+   - 取得當前大調主音 `1=Key`（如 `1=G`），並以 16 級粗體字級在 X 軸 `20` 座標繪製文字。
+   - 檢測並從 `MeterElement` 中讀取當前拍號（如 `4/4`、`2/2`），以 16 級粗體字級緊接於 X 軸 `55` 座標繪製文字。
+
+### 驗收條件 (Acceptance Criteria)
+- `pnpm run build` 打包編譯成功。
+- 新增的 TDD 測試檔案 `test-jianpu-06.js` 執行無誤（11 個臨時記號與行首調號拍號字元/座標斷言全部通過）。
+- 所有先前與傳統的測試（compare_ast、Cooley's 鋪渲染）皆能 100% 通過無 regression。
