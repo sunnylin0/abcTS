@@ -886,3 +886,26 @@
 - `pnpm run build` 打包編譯成功。
 - 新增的 TDD 測試檔案 `test-jianpu-04.js` 執行無誤（高/低八度圓點渲染數量與座標斷言全數通過）。
 - 所有先前與傳統的測試（compare_ast、Cooley's 渲染）皆能 100% 通過無 regression。
+
+---
+## [2026-08-11 03:10:00] 簡譜 (Jianpu) 支援 - Ticket 05 Duration Lines 時值線
+
+### 目標 (Objectives)
+- 實作簡譜時值輔助線，包含長音的延音橫線（dashes）、短音的底線（underlines，支援連梁 beam 共享與獨立底線）以及附點圓點。
+
+### 需求 (Requirements)
+1. 於 `src/abc_jianpu_write.ts` 新增並導出 `decomposeDuration` 函數，用於從相對時值分解出基準時值與附點個數。
+2. 於 `src/index.ts` 導出 `decomposeDuration` 並掛載至全域。
+3. `ABCVoiceElement.drawJianpuNote` 實作：
+   - 繪製延音橫線：當基準時值為二分音符 (`0.5`) 時，繪製 1 條橫線；當為全音符 (`1.0`) 時，繪製 3 條橫線。
+   - 繪製附點：若包含附點（`dots > 0`），在數字右側以 `y - 6` 為高度、圓半徑 `r = 1.5` 繪製實心點。
+4. `ABCVoiceElement` 實作底線與連梁繪製：
+   - `getUnderlineCount(el)`：時值為八分/十六分/三記二分音符時，回傳底線層數 1 / 2 / 3。
+   - `drawJianpuUnderlines(printer)`：遍歷子音符。若音符包含 `child.beam` 且尚未處理，將同 beam 組的所有 elements 取出進行 `drawUnderlineGroup` 連續繪製；若無 beam，則作為獨立音符傳入。
+   - `drawUnderlineGroup` 在每層底線（1-3）掃描連續需要該層底線的子區段（Run），呼叫 `drawUnderlineSegment` 繪製從區段首音符 `x1 - 8` 到尾音符 `x2 + 8` 的橫線。
+   - 橫線 Y 軸高度為防止與低八度點重合，取區段內最大低八度點數 `maxDotsBelow` 動態向下偏移：`y + 10 + (maxDotsBelow > 0 ? maxDotsBelow * 4 + 2 : 0) + (L - 1) * 4`。
+
+### 驗收條件 (Acceptance Criteria)
+- `pnpm run build` 打包編譯成功。
+- 新增的 TDD 測試檔案 `test-jianpu-05.js` 執行無誤（長音橫線數量、底線寬度與連續連梁、附點 Y 軸座標等斷言全數通過）。
+- 所有先前與傳統的測試（compare_ast、Cooley's 渲染）皆能 100% 通過無 regression。

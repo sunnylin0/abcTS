@@ -339,3 +339,10 @@
 - 於 `ABCVoiceElement.drawJianpuNote` 中實作高八度（上方圓點）與低八度（下方圓點）渲染，第一點分別定位於 `y - 12` 與 `y + 10`，多點間隔 4px 垂直延伸，並附加互動選取事件。
 - 更新舊 TDD 測試腳本以支援 `circle` 繪圖 mock，預防 TypeError。
 - 新增 `test-jianpu-04.js` 進行高低八度音符圓點渲染的完整 TDD 驗收，維持綠燈。
+
+---
+## [2026-08-11] 簡譜 (Jianpu) 支援 - Ticket 05 Duration Lines 時值線 (v1.17.0)
+- 於 `src/abc_jianpu_write.ts` 新增並導出 `decomposeDuration` 計算相對時值之基準與附點個數。
+- 在 `ABCVoiceElement.drawJianpuNote` 實作延音橫線（二分音符 1 條，全音符 3 條）與右側附點繪製。
+- 在 `ABCVoiceElement` 實作底線（Underlines）繪製，支援獨立底線、多層底線（1-3 層）以及連梁 beam group 的共享連續底線，並整合低八度點進行自動縱向避讓。
+- 新增 `test-jianpu-05.js` 完成時值線與連線底線功能之 TDD 驗收，維持綠燈。

@@ -855,3 +855,28 @@
 ### 風險評估 (Risks & Mitigations)
 - **點重疊與點位移**：若八度偏移過大（如大於3個八度），圓點可能重疊或超出 staff 空間。
   - *對策*：每個圓點間隔 4px 為業界簡譜標準設計，且實際使用中少有大於三個八度之極端音高，若有則依序遞增/遞減，在 SVG 畫布上可正常渲染。
+
+---
+## [2026-08-11 03:10:00] 簡譜 (Jianpu) 支援 - Ticket 05 Duration Lines 時值線
+
+### 步驟與技術方案 (Step-by-step Technical Plans)
+1. **分解時值演算法 (`src/abc_jianpu_write.ts`)**：
+   - 實作 `decomposeDuration`，檢測時值是否為 `base * 1.5`（單附點）或 `base * 1.75`（雙附點），從而取出二進制 `base` 與 `dots`。
+2. **延音橫線與附點繪製 (`src/abc_graphelements.ts`)**：
+   - 調用 `decomposeDuration` 獲取屬性。
+   - 延音橫線起訖為：`x + 18 + k * 24` 至 `x + 30 + k * 24`，高度在 `y - 6`，寬度 2px。
+   - 右側附點 X 定位在 `x + 12 + k * 6`，高度在 `y - 6`，r = 1.5。
+3. **連梁與底線智慧佈局 (`src/abc_graphelements.ts`)**：
+   - 利用 `child.beam` 識別連梁組。
+   - 逐層（L = 1~3）做 Run-length 掃描：尋找連續 `getUnderlineCount >= L` 的區間。
+   - 橫線座標為 `startX = E[startIdx].x - 8` 到 `endX = E[endIdx].x + 8`。
+   - 高度計算：為避讓八度圓點，取該區段內最大 `dotsBelow` 作為基準向下推移。
+
+### 影響檔案 (Affected Files)
+- `src/abc_jianpu_write.ts` (修改)
+- `src/index.ts` (修改)
+- `src/abc_graphelements.ts` (修改)
+
+### 風險評估 (Risks & Mitigations)
+- **多層底線重疊與極端音符**：若區間內有休止符或某些音符無底線，如何處理？
+  - *對策*：`getUnderlineCount` 準確回傳每一音符或休止符所需底線層數，掃描時遇到 `count < L` 的元素即中斷當前區間並繪製，之後再開啟新區間，保證休止符或無底線音符處底線正確斷開，符合音樂簡譜規範。決。

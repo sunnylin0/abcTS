@@ -462,3 +462,17 @@
 1. 執行 `pnpm run build` 通過，生成 UMD 包。
 2. 執行 `node test-jianpu-04.js` 成功，7 個斷言（圓點數、cy 定位）全部順利通過。
 3. 執行傳統的 `test.js` 與其餘三個 jianpu TDD 測試，回歸測試 100% 綠燈。
+
+---
+## [2026-08-11 03:10:00] 簡譜 (Jianpu) 支援 - Ticket 05 Duration Lines 時值線 (完成)
+
+### 變更摘要 (Change Summary)
+1. **時值分解功能**：於 `abc_jianpu_write.ts` 新增 `decomposeDuration` 輔助函數以高精度解析附點和基準音符時值，並導出與掛載至 `window`。
+2. **延音橫線與附點圓點**：在 `abc_graphelements.ts` 的 `drawJianpuNote` 繪製半音符與全音符後方的橫線標記（Y 為 `y - 6`），以及右側的附點（Y 為 `y - 6`），全部綁定點擊事件。
+3. **連梁與多層底線智慧繪製**：實作 `drawJianpuUnderlines` 遍歷 voice，遇到連梁組時取出所有成員進行 Run-length 連續線段分析，否則獨立繪製。線段起訖寬度設定為 `x1 - 8` 至 `x2 + 8`。高度動態整合區間內最大低八度點高度以避讓碰撞。
+4. **TDD 測試驗證**：新增 `test-jianpu-05.js` 驗證長音橫線數量、底線寬度與連梁（共用底線 X 範圍）、獨立底線、附點位置坐標等，全數通過。
+
+### 驗證與測試日誌 (Verification & Test Logs)
+1. 執行 `pnpm run build` 通過，生成 UMD 包。
+2. 執行 `node test-jianpu-05.js` 成功，9 個時值線與附點相關斷言全部通過。
+3. 所有測試（ regressions + Ticket 01~05）全數綠燈。

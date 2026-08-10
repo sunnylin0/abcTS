@@ -18,7 +18,7 @@
 
 import { getDurlog } from "./abc_layout"
 import { AbcSpacing } from "./abc_write"
-import { pitchToJianpu } from "./abc_jianpu_write"
+import { pitchToJianpu, decomposeDuration } from "./abc_jianpu_write"
 
 export interface StaffLayoutInfo {
 	y: number;
@@ -343,6 +343,7 @@ export class ABCVoiceElement {
 		const note = child.abcelem;
 		let textStr = "";
 		let octaveDelta = 0;
+		let duration = child.duration;
 
 		if ((note as any).rest) {
 			textStr = "0";
@@ -391,6 +392,133 @@ export class ABCVoiceElement {
 					});
 				}
 			}
+
+			// 時值輔助標記：延音線與附點
+			const { base, dots } = decomposeDuration(duration);
+
+			// 繪製延音橫線
+			let numDashes = 0;
+			if (base === 0.5) numDashes = 1;
+			else if (base === 1.0) numDashes = 3;
+
+			for (let k = 0; k < numDashes; k++) {
+				const dx1 = x + 18 + k * 24;
+				const dx2 = x + 30 + k * 24;
+				const lineY = y - 6;
+				const dashEl = printer.paper.path(`M ${dx1} ${lineY} L ${dx2} ${lineY}`).attr({
+					stroke: "#000000",
+					"stroke-width": 2
+				});
+				dashEl.mouseup(function (e) {
+					printer.notifySelect(self);
+				});
+			}
+
+			// 繪製附點
+			if (dots > 0) {
+				for (let k = 0; k < dots; k++) {
+					const dotX = x + 12 + k * 6;
+					const dotY = y - 6;
+					const dotEl = printer.paper.circle(dotX, dotY, 1.5);
+					dotEl.mouseup(function (e) {
+						printer.notifySelect(self);
+					});
+				}
+			}
+		}
+	}
+
+	getUnderlineCount(el: ABCAbsoluteElement): number {
+		if (el.abcelem.el_type !== 'note') return 0;
+		const pitches = (el.abcelem as any).pitches;
+		if (!pitches || pitches.length === 0) {
+			if (!(el.abcelem as any).rest) return 0;
+		}
+		
+		const { base } = decomposeDuration(el.duration);
+		if (base === 0.125) return 1;      // Eighth note
+		if (base === 0.0625) return 2;     // Sixteenth note
+		if (base === 0.03125) return 3;    // Thirty-second note
+		return 0;
+	}
+
+	drawUnderlineSegment(elems: ABCAbsoluteElement[], startIdx: number, endIdx: number, L: number, printer: ABCPrinter): void {
+		const voice = this;
+		const y = this.y;
+		const x1 = elems[startIdx].x - 8;
+		const x2 = elems[endIdx].x + 8;
+
+		let maxDotsBelow = 0;
+		for (let i = startIdx; i <= endIdx; i++) {
+			const el = elems[i];
+			if ((el.abcelem as any).pitches && (el.abcelem as any).pitches.length > 0) {
+				const pitches = (el.abcelem as any).pitches;
+				const highestPitch = pitches[pitches.length - 1];
+				const keyRoot = (voice.jianpuKey && voice.jianpuKey.root) || "C";
+				const refOctave = voice.jianpuOctave !== undefined ? voice.jianpuOctave : 0;
+				const res = pitchToJianpu(highestPitch.pitch, keyRoot, refOctave);
+				if (res.octaveDelta < 0) {
+					maxDotsBelow = Math.max(maxDotsBelow, Math.abs(res.octaveDelta));
+				}
+			}
+		}
+
+		const lineY = y + 10 + (maxDotsBelow > 0 ? maxDotsBelow * 4 + 2 : 0) + (L - 1) * 4;
+		const lineEl = printer.paper.path(`M ${x1} ${lineY} L ${x2} ${lineY}`).attr({
+			stroke: "#000000",
+			"stroke-width": 1.5
+		});
+		
+		const self = elems[startIdx];
+		lineEl.mouseup(function (e) {
+			printer.notifySelect(self);
+		});
+	}
+
+	drawUnderlineGroup(elems: ABCAbsoluteElement[], printer: ABCPrinter): void {
+		for (let L = 1; L <= 3; L++) {
+			let inRun = false;
+			let runStart = -1;
+
+			for (let i = 0; i < elems.length; i++) {
+				const el = elems[i];
+				const count = this.getUnderlineCount(el);
+				const hasLayer = count >= L;
+
+				if (hasLayer) {
+					if (!inRun) {
+						inRun = true;
+						runStart = i;
+					}
+				} else {
+					if (inRun) {
+						this.drawUnderlineSegment(elems, runStart, i - 1, L, printer);
+						inRun = false;
+					}
+				}
+			}
+			if (inRun) {
+				this.drawUnderlineSegment(elems, runStart, elems.length - 1, L, printer);
+			}
+		}
+	}
+
+	drawJianpuUnderlines(printer: ABCPrinter): void {
+		const processedBeams = new Set<any>();
+
+		for (let i = 0; i < this.children.length; i++) {
+			const child = this.children[i];
+			if (child.abcelem.el_type !== 'note') continue;
+
+			if (child.beam) {
+				if (processedBeams.has(child.beam)) continue;
+				processedBeams.add(child.beam);
+				
+				const elems = child.beam.elems;
+				this.drawUnderlineGroup(elems, printer);
+			} else {
+				this.drawUnderlineGroup([child], printer);
+			}
 		}
 	}
 
@@ -406,6 +534,7 @@ export class ABCVoiceElement {
 				child.draw(printer, bartop);
 			}
 		}
+		this.drawJianpuUnderlines(printer);
 	}
 
 	draw(printer: ABCPrinter, bartop: number): void {

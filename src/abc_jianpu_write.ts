@@ -31,3 +31,34 @@ export function pitchToJianpu(
 		acc: '' as const    // 暫留，Ticket 06 處理
 	};
 }
+
+/**
+ * 將音符時值分解為基準時值 (base) 與附點數 (dots)。
+ * 例如 0.375（附點四分音符）-> base = 0.25, dots = 1。
+ * 
+ * @param duration 音符的相對 whole note 時值（如 0.25 代表四分音符，0.125 代表八分音符）
+ */
+export function decomposeDuration(duration: number) {
+	let dots = 0;
+	let base = duration;
+	
+	// 檢測單附點 (base * 1.5)
+	const testBase1 = duration / 1.5;
+	const log2_1 = Math.log2(testBase1);
+	if (Math.abs(log2_1 - Math.round(log2_1)) < 1e-9) {
+		dots = 1;
+		base = testBase1;
+		return { base, dots };
+	}
+	
+	// 檢測雙附點 (base * 1.75)
+	const testBase2 = duration / 1.75;
+	const log2_2 = Math.log2(testBase2);
+	if (Math.abs(log2_2 - Math.round(log2_2)) < 1e-9) {
+		dots = 2;
+		base = testBase2;
+		return { base, dots };
+	}
+	
+	return { base, dots };
+}
