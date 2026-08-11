@@ -15,6 +15,7 @@ import { ABCStaffGroupElement, ABCVoiceElement, ABCAbsoluteElement, ABCRelativeE
 import { AbcParseHeader } from './abc_parse_header';
 import { Svg } from './svg';
 import { pitchToJianpu, decomposeDuration } from './abc_jianpu_write';
+import { JianpuVoiceRenderer } from './abc_jianpu_renderer';
 import './jsonschema-b4.js';
 import './Maestro_500.js';
 
@@ -41,6 +42,7 @@ if (typeof window !== 'undefined') {
 	(window as any).Svg = Svg;
 	(window as any).pitchToJianpu = pitchToJianpu;
 	(window as any).decomposeDuration = decomposeDuration;
+	(window as any).JianpuVoiceRenderer = JianpuVoiceRenderer;
 	if (typeof abcParser !== 'undefined') (window as any).abcParser = abcParser;
 	if (typeof processAbc !== 'undefined') (window as any).processAbc = processAbc;
 }

@@ -108,6 +108,17 @@ export class ABCPrinter {
 		this.ingroup = false;
 	}
 
+	// 綁定互動關聯 (Seam)
+	bindInteraction(svgEl: any, absEl: ABCAbsoluteElement): void {
+		if (!svgEl || !absEl) return;
+		const elements = Array.isArray(svgEl) ? svgEl : [svgEl];
+		for (const el of elements) {
+			if (el) {
+				(el as any)._abcElement = absEl;
+			}
+		}
+	}
+
 
 	// 設定y座標並備份當前y座標
 	setY(y: number): void {
@@ -517,6 +528,21 @@ export class ABCPrinter {
 			this.paper.parentElement.style.height = "" + (this.y + 30 + height) + "px";
 		} else
 			this.paper.parentElement.setAttribute("style", "width:" + (maxwidth + 50) + "px");
+
+		// 全域事件委託綁定
+		const targetEl = (this.paper as any).svg || this.paper;
+		if (targetEl && typeof targetEl.addEventListener === 'function') {
+			targetEl.addEventListener('mouseup', (e: MouseEvent) => {
+				let curr: any = e.target;
+				while (curr && curr !== targetEl) {
+					if (curr._abcElement) {
+						this.notifySelect(curr._abcElement);
+						break;
+					}
+					curr = curr.parentNode;
+				}
+			});
+		}
 	};
 
 

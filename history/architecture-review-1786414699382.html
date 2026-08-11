@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>abcTS 架構審查與模組深化報告</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Mermaid.js -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen pb-16">
+    <div class="max-w-6xl mx-auto px-4 py-12">
+        <!-- Header -->
+        <header class="mb-16 text-center">
+            <span class="px-3 py-1 text-xs font-semibold tracking-wider text-cyan-400 uppercase bg-cyan-950/50 border border-cyan-800 rounded-full">Architecture Review</span>
+            <h1 class="mt-4 text-4xl md:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-cyan-400 via-sky-400 to-indigo-400 bg-clip-text text-transparent">
+                abcTS 代碼庫架構深化機會
+            </h1>
+            <p class="mt-4 text-lg text-slate-400 max-w-2xl mx-auto">
+                基於簡譜 (Jianpu) 子系統的實作，評估當前代碼庫的模組深度、Locality 與測試性，提供優化架構的具體方案。
+            </p>
+        </header>
+
+        <!-- Metrics Overview -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+            <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6 backdrop-blur-sm">
+                <div class="text-sm font-medium text-slate-400">焦點熱點</div>
+                <div class="mt-2 text-2xl font-bold text-cyan-400">Jianpu 渲染子系統</div>
+                <div class="mt-1 text-xs text-slate-500">最近 20 次 Commit 最頻繁的修改區域</div>
+            </div>
+            <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6 backdrop-blur-sm">
+                <div class="text-sm font-medium text-slate-400">主要挑戰</div>
+                <div class="mt-2 text-2xl font-bold text-rose-400">Shallow Module / 職責混雜</div>
+                <div class="mt-1 text-xs text-slate-500">ABCVoiceElement 硬編碼 300+ 行簡譜邏輯</div>
+            </div>
+            <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6 backdrop-blur-sm">
+                <div class="text-sm font-medium text-slate-400">重構目標</div>
+                <div class="mt-2 text-2xl font-bold text-emerald-400">Deep Module / Seam 隔離</div>
+                <div class="mt-1 text-xs text-slate-500">提升測試性 (Testability) 與維護 Locality</div>
+            </div>
+        </div>
+
+        <!-- Candidates Section -->
+        <h2 class="text-2xl font-bold text-slate-200 mb-8 border-b border-slate-800 pb-2">架構改進候選方案</h2>
+        
+        <div class="space-y-12">
+            <!-- Candidate 1 -->
+            <div class="bg-slate-800/30 border border-slate-700/30 rounded-3xl p-8 backdrop-blur-md shadow-xl">
+                <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+                    <h3 class="text-2xl font-bold text-slate-100 flex items-center gap-2">
+                        <span class="flex items-center justify-center w-8 h-8 rounded-lg bg-cyan-900/50 text-cyan-400 border border-cyan-800 text-sm">1</span>
+                        簡譜渲染邏輯從 ABCVoiceElement 解耦
+                    </h3>
+                    <span class="px-3 py-1 text-xs font-semibold text-emerald-400 bg-emerald-950/50 border border-emerald-800 rounded-full">Strong (強力推薦)</span>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- Text Details -->
+                    <div class="space-y-6">
+                        <div>
+                            <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider">涉及檔案</h4>
+                            <p class="mt-1 text-slate-300">
+                                <code class="text-cyan-300 font-mono text-sm">[MODIFY] src/abc_graphelements.ts</code><br>
+                                <code class="text-cyan-300 font-mono text-sm">[MODIFY] src/abc_jianpu_write.ts</code>
+                            </p>
+                        </div>
+
+                        <div>
+                            <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider">摩擦點 (Problem)</h4>
+                            <p class="mt-1 text-slate-300 text-sm leading-relaxed">
+                                <code class="text-slate-200 font-mono">ABCVoiceElement</code> 原本是聲部排版與五線譜渲染的通用容器。但在引入簡譜支援後，包括首調唱名音符、八度圓點、延音線、連梁底線、臨時升降記號及行首標記的繪製邏輯（超過 300 行代碼）全都被<strong>硬編碼</strong>塞入了該類別。這違反了單一職責原則，使 <code class="text-slate-200 font-mono">ABCVoiceElement</code> 變得臃腫，且簡譜渲染細節（樣式、坐標偏移、互動選取）散落各處，缺乏 <strong>Locality</strong>。
+                            </p>
+                        </div>
+
+                        <div>
+                            <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider">解決方案 (Solution)</h4>
+                            <p class="mt-1 text-slate-300 text-sm leading-relaxed">
+                                在 <code class="text-slate-200 font-mono">abc_jianpu_write.ts</code> 中定義一個 <strong>Deep Module</strong> 介面 <code class="text-slate-200 font-mono">JianpuVoiceRenderer</code>，將簡譜特有的繪製與邏輯封裝在此模組內部。
+                                在 <code class="text-slate-200 font-mono">ABCVoiceElement.draw</code> 中建立一個乾淨的 <strong>Seam (介面縫隙)</strong>：當檢測到簡譜譜號時，直接呼叫 <code class="text-slate-200 font-mono">new JianpuVoiceRenderer(printer).render(this, bartop)</code> 委託處理。
+                            </p>
+                        </div>
+
+                        <div>
+                            <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider">效益與可測試性 (Benefits)</h4>
+                            <ul class="mt-1 list-disc list-inside text-slate-300 text-sm space-y-1">
+                                <li><strong>高 Locality</strong>：簡譜渲染的所有數值微調與邏輯完全收攏在一處，易於管理。</li>
+                                <li><strong>介面極小化 (Depth)</strong>：外部調用僅需了解單一 Entry Point 方法，實踐「少介面，多實現」的深化優勢。</li>
+                                <li><strong>降低測試表面積</strong>：可直接針對簡譜渲染模組進行單元 Mock 測試，而不需繞道複雜的五線譜 Layout 流程。</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Diagram Visualisation -->
+                    <div class="bg-slate-950/40 border border-slate-800/80 rounded-2xl p-6 flex flex-col justify-center">
+                        <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4 text-center">架構深化前後比對</h4>
+                        <div class="mermaid text-center">
+                            graph TD
+                                subgraph Before [重構前 (Shallow / Overloaded)]
+                                    VE1[ABCVoiceElement] -->|Layout & Five-Line Staff| VE1
+                                    VE1 -->|drawJianpu 300+ Lines| VE1
+                                    VE1 -->|drawJianpuNote| VE1
+                                    VE1 -->|drawUnderlines| VE1
+                                    VE1 -->|Calls Pure Function| JW1[abc_jianpu_write.ts]
+                                end
+                        </div>
+                        <div class="mermaid text-center mt-6">
+                            graph TD
+                                subgraph After [重構後 (Deep Module / Clean Seam)]
+                                    VE2[ABCVoiceElement] -->|Layout & Five-Line Staff| VE2
+                                    VE2 -.->|Seam: render| JR2[JianpuVoiceRenderer]
+                                    subgraph abc_jianpu_write [abc_jianpu_write.ts - Deep Module]
+                                        JR2 -->|Draw Note & Dots| JR2
+                                        JR2 -->|Draw Underlines| JR2
+                                        JR2 -->|pitchToJianpu| JR2
+                                    end
+                                end
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Candidate 2 -->
+            <div class="bg-slate-800/30 border border-slate-700/30 rounded-3xl p-8 backdrop-blur-md shadow-xl">
+                <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+                    <h3 class="text-2xl font-bold text-slate-100 flex items-center gap-2">
+                        <span class="flex items-center justify-center w-8 h-8 rounded-lg bg-cyan-900/50 text-cyan-400 border border-cyan-800 text-sm">2</span>
+                        互動選取元件化，消除 mouseup 監聽器重複綁定
+                    </h3>
+                    <span class="px-3 py-1 text-xs font-semibold text-sky-400 bg-sky-950/50 border border-sky-800 rounded-full">Worth exploring (值得探索)</span>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- Text Details -->
+                    <div class="space-y-6">
+                        <div>
+                            <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider">涉及檔案</h4>
+                            <p class="mt-1 text-slate-300">
+                                <code class="text-cyan-300 font-mono text-sm">[MODIFY] src/abc_graphelements.ts</code><br>
+                                <code class="text-cyan-300 font-mono text-sm">[MODIFY] src/abc_write.ts</code><br>
+                                <code class="text-cyan-300 font-mono text-sm">[MODIFY] src/svg.ts</code>
+                            </p>
+                        </div>
+
+                        <div>
+                            <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider">摩擦點 (Problem)</h4>
+                            <p class="mt-1 text-slate-300 text-sm leading-relaxed">
+                                目前程式碼在繪製音符、臨時記號、八度點等元件時，為了使其能被使用者點擊並觸發高亮，必須在十幾處地方重複撰寫類似下面的事件綁定代碼：
+                                <pre class="bg-slate-900/80 p-3 rounded-lg text-rose-300 text-xs font-mono mt-2 overflow-x-auto">
+element.mouseup(function (e) {
+    printer.notifySelect(self);
+});</pre>
+                                這種做法讓渲染邏輯與互動控制（狀態通知）緊密耦合，沒有統一的互動處理管道。
+                            </p>
+                        </div>
+
+                        <div>
+                            <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider">解決方案 (Solution)</h4>
+                            <p class="mt-1 text-slate-300 text-sm leading-relaxed">
+                                在 <code class="text-slate-200 font-mono">ABCPrinter</code> 或 <code class="text-slate-200 font-mono">Svg</code> 中封裝一個更深層的互動介面，例如實作一個 <code class="text-slate-200 font-mono">printInteractiveElement(element, drawCallback)</code> 或者是讓 Svg 的繪圖方法（例如 text, circle）能接收關聯的 <code class="text-slate-200 font-mono">ABCAbsoluteElement</code> 元件，並在底層自動註冊 mouseup 選取通知。
+                            </p>
+                        </div>
+
+                        <div>
+                            <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider">效益與可測試性 (Benefits)</h4>
+                            <ul class="mt-1 list-disc list-inside text-slate-300 text-sm space-y-1">
+                                <li><strong>高 Locality</strong>：互動行為與高亮邏輯被統一收攏在 Printer/Svg 層，修改選取交互不需修改渲染細節。</li>
+                                <li><strong>降低代碼冗餘</strong>：大幅清除重複的 event binder 樣板代碼。</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Diagram Visualisation -->
+                    <div class="bg-slate-950/40 border border-slate-800/80 rounded-2xl p-6 flex flex-col justify-center">
+                        <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4 text-center">互動元件 Seam 隔離</h4>
+                        <div class="mermaid text-center">
+                            graph TD
+                                subgraph Before [耦合模式]
+                                    DrawNote[Draw Logic] -->|1. Create SVG| SVG1[SVG Element]
+                                    DrawNote -->|2. Bind mouseup| SVG1
+                                    SVG1 -->|3. Call notifySelect| Printer1[ABCPrinter]
+                                end
+                        </div>
+                        <div class="mermaid text-center mt-6">
+                            graph TD
+                                subgraph After [解耦模式]
+                                    DrawNote2[Draw Logic] -->|1. Request printInteractive| Printer2[ABCPrinter / Svg Seam]
+                                    Printer2 -->|2. Create & Bind| SVG2[SVG Element]
+                                    Printer2 -->|3. Manage selection| Printer2
+                                end
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Recommendation -->
+        <section class="mt-16 bg-gradient-to-br from-cyan-950/40 to-indigo-950/40 border border-cyan-800/40 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
+            <div class="absolute -right-16 -top-16 w-48 h-48 bg-cyan-500/10 rounded-full blur-3xl"></div>
+            <div class="absolute -left-16 -bottom-16 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl"></div>
+            
+            <h3 class="text-xl font-bold text-cyan-400 mb-4 flex items-center gap-2">
+                ★ 首席推薦建議 (Top Recommendation)
+            </h3>
+            <p class="text-slate-300 text-sm leading-relaxed mb-4">
+                建議優先執行 <strong>Candidate 1 (解耦簡譜渲染)</strong>。
+                由於簡譜功能是近期程式碼庫最大的 Hot Spot（經歷頻繁的 Ticket 變更），在這個階段將渲染與佈局解耦可以獲得最大的維護槓桿 (Leverage) 與 Locality。
+                它能徹底分開五線譜（Treble）與簡譜（Jianpu）的職責，為 abcTS 未來可能的其它譜號（如 Clef 擴充）留出乾淨的 Seam。
+            </p>
+            <div class="text-slate-400 text-xs">
+                請在對話框中回覆您希望深入探索的方案，我們將啟動 Grilling Loop 進行詳細設計。
+            </div>
+        </section>
+    </div>
+</body>
+</html>

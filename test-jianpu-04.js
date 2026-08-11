@@ -4,9 +4,9 @@
 // Seam C: C, (pitch -7, root C) -> octaveDelta=-1 -> exactly 1 circle at (x, y + 10)
 // Run: pnpm run build && node test-jianpu-04.js
 
-const fs = require("fs");
-const path = require("path");
-const vm = require("vm");
+const { createBrowserContext, loadJSInContext, createMockPaper } = require('./test-jianpu-helpers');
+const path = require('path');
+const fs = require('fs');
 
 let passed = 0, failed = 0;
 function assert(label, condition, detail) {
@@ -14,121 +14,9 @@ function assert(label, condition, detail) {
     else { console.error("  FAIL " + label + (detail ? " [" + detail + "]" : "")); failed++; }
 }
 
-function createBrowserContext() {
-    class MockElement {
-        constructor(tag) { this.tagName = tag; this.attributes = {}; this.childNodes = []; this.children = []; this.style = {}; }
-        setAttribute(k, v) { this.attributes[k] = String(v); return this; }
-        setAttributeNS(ns, k, v) { this.attributes[k] = String(v); return this; }
-        getAttribute(k) { return this.attributes[k]; }
-        removeAttribute(k) { delete this.attributes[k]; }
-        appendChild(c) { if (c) { c.parentNode = this; this.childNodes.push(c); if (c.tagName) this.children.push(c); } return c; }
-        insertBefore(c) { if (c) { c.parentNode = this; this.childNodes.unshift(c); } return c; }
-        removeChild(c) { return c; }
-        getBBox() { return { x: 0, y: 0, width: 50, height: 15 }; }
-        addEventListener() {}
-        mouseup() { return this; }
-        attr(a) { if (a) for (const k in a) this.setAttribute(k, a[k]); return this; }
-        toBack() { return this; }
-        clear() { this.childNodes = []; this.children = []; return this; }
-    }
-    const mockBody = new MockElement("body");
-    const sandbox = {
-        window: {}, navigator: { userAgent: "node" },
-        document: {
-            body: mockBody, createElement: (t) => new ME(t),
-            createElementNS: (ns, t) => new ME(t),
-            getElementsByTagName: (t) => t === "body" ? [mockBody] : [],
-            createTextNode: (s) => ({ nodeValue: s||"", textContent: s||"" }),
-            querySelector: (sel) => sel === "body" ? mockBody : new ME("div"),
-            createEvent: () => ({ initEvent: () => {} }),
-            write: () => {}, getElementById: (id) => new ME("div")
-        },
-        Event: class {}, Element: MockElement, HTMLElement: MockElement,
-        SVGElement: MockElement, SVGPathElement: MockElement, SVGTextElement: MockElement,
-        SVGRectElement: MockElement, SVGLineElement: MockElement,
-        SVGGElement: MockElement, SVGSVGElement: MockElement,
-        console, setTimeout, clearTimeout
-    };
-    const ME = MockElement;
-    sandbox["$break"] = { name: "$break" };
-    sandbox.window.window = sandbox.window;
-    sandbox.window.document = sandbox.document;
-    sandbox.window.console = console;
-    sandbox.window["$break"] = sandbox["$break"];
-    sandbox.window.Element = MockElement;
-    sandbox.window.SVGElement = MockElement;
-    sandbox.self = sandbox;
-    return vm.createContext(sandbox);
-}
-
-function createMockPaper() {
-    const drawLog = [];
-    const dummySvg = {
-        tagName: "svg", attributes: {}, childNodes: [], parentNode: null,
-        setAttribute: function (k, v) { this.attributes[k] = String(v); return this; },
-        setAttributeNS: function (ns, k, v) { this.attributes[k] = String(v); return this; },
-        getAttribute(k) { return this.attributes[k]; },
-        removeAttribute(k) { delete this.attributes[k]; },
-        appendChild(child) { if (child) child.parentNode = this; this.childNodes.push(child); return child; },
-        insertBefore(child) { if (child) child.parentNode = this; this.childNodes.unshift(child); return child; },
-        removeChild(child) { return child; },
-        getBBox: () => ({ x: 0, y: 0, width: 50, height: 15 })
-    };
-    dummySvg.parentNode = dummySvg;
-    const mockElement = {
-        attr: function (attributes) {
-            if (drawLog.length > 0) drawLog[drawLog.length - 1].attr = JSON.parse(JSON.stringify(attributes));
-            return this;
-        },
-        toBack: function () {
-            if (drawLog.length > 0) drawLog[drawLog.length - 1].toBack = true;
-            return this;
-        },
-        translate: function (x, y) { return this; },
-        getBBox: () => ({ x: 0, y: 0, width: 50, height: 15 }),
-        mouseup: function () { return this; },
-        appendChild: () => {},
-        setAttribute: function (k, v) { return this; },
-        style: {},
-        remove: function () { if (drawLog.length > 0) drawLog.pop(); return this; }
-    };
-    return {
-        drawLog, svg: dummySvg, paper: dummySvg, canvas: { parentNode: dummySvg, style: {} }, parentElement: dummySvg,
-        clear: function () {}, setPaper: function () { return this; },
-        path: (pathVal) => {
-            let pathString = pathVal;
-            if (pathVal && typeof pathVal === 'object') pathString = pathVal.path || pathVal;
-            drawLog.push({ type: 'path', path: pathString });
-            return mockElement;
-        },
-        text: (x, y, textStr, attr) => {
-            drawLog.push({ type: 'text', x, y, text: String(textStr), attr: attr ? JSON.parse(JSON.stringify(attr)) : undefined });
-            return mockElement;
-        },
-        rect: (attr) => {
-            drawLog.push({ type: 'rect', attr: attr ? JSON.parse(JSON.stringify(attr)) : undefined });
-            return mockElement;
-        },
-        // We add svg circle support in MockPaper
-        circle: (cx, cy, r) => {
-            drawLog.push({ type: 'circle', cx, cy, r });
-            return mockElement;
-        },
-        setSize: function (w, h) { drawLog.push({ type: 'setSize', w, h }); return this; },
-        setResponsiveWidth: function (w, h) { drawLog.push({ type: 'setResponsiveWidth', w, h }); return this; },
-        set: function () {
-            return {
-                push: function () { return this; },
-                attr: function (a) { drawLog.push({ type: 'setAttr', attr: a }); return this; },
-                scale: function () { return this; }, mouseup: function () { return this; }, toBack: function () { return this; }
-            };
-        }
-    };
-}
-
 const context = createBrowserContext();
 const filePath = path.resolve(__dirname, "dist/abcjs-basic.js");
-vm.runInContext(fs.readFileSync(filePath, "utf-8"), context);
+loadJSInContext(filePath, context);
 const AbcTuneBook = context.AbcTuneBook || context.window.AbcTuneBook;
 const AbcParse = context.AbcParse || context.window.AbcParse;
 const ABCPrinter = context.ABCPrinter || context.window.ABCPrinter;

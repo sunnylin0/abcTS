@@ -490,3 +490,55 @@
 1. 執行 `pnpm run build` 通過，生成 UMD 包。
 2. 執行 `node test-jianpu-06.js` 成功，11 個斷言全數通過。
 3. 執行傳統的 `test.js` 與所有 6 個 jianpu TDD 測試腳本，100% 順利綠燈通過。
+
+---
+## [2026-08-11 10:18:00] 評估 codebase 架構與深化機會 (完成)
+
+### 變更摘要 (Change Summary)
+1. **生成架構審查 HTML 報告**：於系統暫存目錄中建立 `architecture-review-<timestamp>.html` 自我包含報告檔案，內容包含「解耦簡譜渲染」與「互動元件解耦」兩個改進機會的 Files、Problem、Solution、Benefits、Mermaid 結構圖與 Recommendation 強度評估。
+2. **自動開啟報告進行審查**：使用 `start` 指令使作業系統在瀏覽器中自動載入此報告，以利開發者直觀對比重構前後的 module 深度與 locality 效益。
+3. **完成日誌追蹤與更新**：在 `history` 相關日誌中記錄本 session 探索工作。
+
+### 驗證與測試日誌 (Verification & Test Logs)
+1. 執行 `node C:\Users\ESAO_NB27\.gemini\antigravity-ide\brain\a19a032b-51c1-460a-b155-2f837f6d24cf\scratch\generate_report.js` 成功生成 HTML 檔案，無報錯。
+2. 調用 `start` 指令，確認可以在預設瀏覽器中順利加載與呈現 Tailwind CSS / Mermaid 繪圖。
+
+---
+## [2026-08-11 11:05:00] 簡譜 (Jianpu) 支援 - 方案 1 解耦簡譜渲染 (完成)
+
+### 變更摘要 (Change Summary)
+1. **建立專屬簡譜渲染 Deep Module**：建立 `src/abc_jianpu_renderer.ts`，實作 `JianpuVoiceRenderer` 類別，將 `ABCVoiceElement` 內部臃腫的簡譜渲染代碼（包括行首 `1=Key` 與拍號標記、音符數字唱名、高低八度點避讓、時值輔助橫線與底線、調外臨時記號等 300+ 行實現）全數遷移至此模組中，將其實作細節完全隱藏在 render() 介面下。
+2. **重構 ABCVoiceElement 解耦**：修改 `src/abc_graphelements.ts`。刪除 `ABCVoiceElement` 內的 6 個簡譜專用方法。在 `draw()` 遇到簡譜譜號時，僅 dispatch 一行程式碼：`new JianpuVoiceRenderer().render(this, printer, bartop)`，成功將佈局職責與簡譜渲染職責徹底分離。
+3. **全局掛載以供測試**：修改 `src/index.ts`，導入並於全域掛載 `JianpuVoiceRenderer`，以供 TDD 測試腳本順利從沙盒中取用。
+4. **共享測試工具模組化**：
+   - 建立 `test-jianpu-helpers.js`，將 `test/helpers/` 的 `browserSandbox` 與 `mockPaper` 的共用元件進行對外 re-export。
+   - 批次重構 `test-jianpu-01.js` 到 `06.js`，清除重複貼上的 `createBrowserContext` 與 `createMockPaper` 冗餘代碼，全部改為 require `test-jianpu-helpers.js`。
+   - 同步修正 `test/helpers/mockPaper.js` 加入 `circle` 方法以避免測試執行期錯誤。
+5. **新增 JianpuVoiceRenderer 獨立單元測試**：新增 `test-jianpu-07.js`。直接構造 mock voice 元數據，對 `JianpuVoiceRenderer.render()` 介面進行直接測試與斷言（覆蓋行頭、音符數字、休止符、八度點、時值底線與延音線），確認解耦後其行為與原渲染一致。
+
+### 驗證與測試日誌 (Verification & Test Logs)
+1. 執行 `pnpm run build` 通過，生成 UMD 包。
+2. 執行 `node test-jianpu-07.js` 成功，所有 8 個 Seam 斷言全數通過（0 failed）。
+3. 執行 `node test-jianpu-01.js` 至 `test-jianpu-06.js` 成功，在使用了共享 helper 後仍全數綠燈通過。
+
+---
+## [2026-08-11 16:18:00] 簡譜 (Jianpu) 支援 - 方案 2 互動選取元件化 (完成)
+
+### 變更摘要 (Change Summary)
+1. **設計互動選取 Seam (`bindInteraction`)**：
+   - 在 `src/abc_write.ts` 的 `ABCPrinter` 類別中，實作並封裝了統一的互動綁定方法 `bindInteraction(svgEl, absEl)`。
+   - 簡化了呼叫側的實作難度，無論是單一 SVGElement 還是 SVGElement 陣列，皆可直接調用此方法，不再有重複的事件監聽器邏輯。
+2. **實作全域事件委託 (Event Delegation)**：
+   - 移除所有在個別 DOM 節點上重複綁定 `.mouseup` 監聽器的冗餘代碼。
+   - 在 `ABCPrinter.printABC()` 的末尾，對當前 SVG 樹根節點註冊唯一的 `mouseup` 全域監聽器。
+   - 當使用者點擊樂譜上的任何 SVG 節點時，監聽器會向上（parentNode）冒泡，自動解析出關聯的 `_abcElement` 屬性，並分發至 `notifySelect(absEl)`。
+3. **優化五線譜與簡譜渲染模組**：
+   - 修改 `src/abc_graphelements.ts`：在 `ABCAbsoluteElement.draw` 尾部，移除遍歷手動綁定 `mouseup`，改為直接呼叫：`printer.bindInteraction(this.elemset, this)`。
+   - 修改 `src/abc_jianpu_renderer.ts`：移除全部 7 處手動點擊事件綁定，改為調用 `printer.bindInteraction`，大幅減少程式碼噪聲，提高實作 locality。
+4. **健全單元測試與模擬**：
+   - 修改 `test-jianpu-07.js`：在 mock 繪圖器中模擬並加入了 `bindInteraction`；新增 `Seam G` 測試，手動模擬全域委託事件的氣泡冒泡解析邏輯，驗證互動選取的正確性。
+
+### 驗證與測試日誌 (Verification & Test Logs)
+1. 執行 `pnpm run build` 打包順利通過，無任何靜態型別錯誤。
+2. 執行 `node test-jianpu-07.js` 通過，且新增的 `Seam G` 互動選取斷言全數綠燈。
+3. 執行 `node test-jianpu-01.js` 到 `test-jianpu-06.js` 整合測試 100% 成功。

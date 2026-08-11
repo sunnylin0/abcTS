@@ -353,3 +353,22 @@
 - 於 `ABCVoiceElement.drawJianpuNote` 中實作調外臨時升降還原符號的複用繪製（放置於數字左側 12px 處）。
 - 在 `ABCVoiceElement.drawJianpu` 實作行首調名 `1=Key`（X=20）與拍號（X=55）宣告文字的繪製。
 - 新增 `test-jianpu-06.js` 完成簡譜臨時記號與行首宣告的完整 TDD 驗收，維持綠燈。
+
+---
+## [2026-08-11] 評估 codebase 架構與深化機會 (v1.18.1)
+- 生成包含「解耦簡譜渲染」與「互動元件解耦」候選方案 of HTML 審查報告。
+- 自動以預設瀏覽器開啟審查報告，便於開發者直觀掌握重構方案。
+- 在 `history` 相關日誌中追加本 session 探索紀錄。
+
+---
+## [2026-08-11] 簡譜 (Jianpu) 支援 - 方案 1 解耦簡譜渲染 (v1.19.0)
+- 實作全新模組 `JianpuVoiceRenderer`，將 300+ 行簡譜渲染邏輯從 `ABCVoiceElement` 抽離，保持簡譜渲染的高 locality 與單一職責。
+- 重構 `ABCVoiceElement` 引入 seam 單行呼叫委託，並將測試腳本中的重複 DOM/MockPaper 初始化代碼模組化封裝為 `test-jianpu-helpers.js`。
+- 新增 `test-jianpu-07.js` 直接對 `JianpuVoiceRenderer.render` 的 Seam 進行直接單元測試。
+
+---
+## [2026-08-11] 簡譜 (Jianpu) 支援 - 方案 2 互動選取元件化 (v1.20.0)
+- 在 `ABCPrinter` 中實作統一的互動選取登記方法 `bindInteraction` (Seam)。
+- 引入高效的「全域事件委託」機制，消除在個別音符、圓點、時值線上重複註冊 `mouseup` 監聽器。
+- 優化五線譜 `ABCAbsoluteElement.draw` 與簡譜 `JianpuVoiceRenderer`，全數改為呼叫 `bindInteraction` 元件化註冊。
+- 在 `test-jianpu-07.js` 中新增 `Seam G` 互動選取氣泡冒泡解析斷言測試，確認點擊互動正常。

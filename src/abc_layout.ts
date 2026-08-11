@@ -173,7 +173,7 @@ export class ABCLayout {
 
 	printABCElement(): ABCAbsoluteElement[] {
 		let elemset: ABCAbsoluteElement[] = [];
-		const elem = this.getElem();
+		const elem: NOTES_Element = this.getElem();
 		let abselem: ABCAbsoluteElement;
 		switch (elem.el_type) {
 			case "note":
@@ -445,7 +445,7 @@ export class ABCLayout {
 						break;
 					case "below":
 						cy = -3;
-						// fall through
+					// fall through
 					default:
 						abselem.addChild(new ABCRelativeElement(chordItem.name, cx, 0, cy, { type: "text" }));
 				}
@@ -760,7 +760,7 @@ export class ABCLayout {
 		return abselem;
 	}
 
-	printTimeSignature(elem: ABCElement): ABCAbsoluteElement {
+	printTimeSignature(elem: MeterElement): ABCAbsoluteElement {
 		const abselem = new ABCAbsoluteElement(elem, 0, 20);
 
 		if (elem.type === "specified") {

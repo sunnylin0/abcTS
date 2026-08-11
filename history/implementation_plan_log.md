@@ -901,3 +901,80 @@
 ### 風險評估 (Risks & Mitigations)
 - **拍號結構相容性**：拍號元素可能在調用時因 `el_type` 未定義而遺漏。
   - *對策*：在 `drawJianpu` 的拍號查找中，同時檢查 `child.abcelem.el_type === 'meter'` 以及是否帶有拍號專屬屬性 `specified` / `common_time` / `cut_time` 等，確保各個時機點產生的拍號均能順利匹配繪製。
+
+---
+## [2026-08-11 10:18:00] 評估 codebase 架構與深化機會
+
+### 步驟與技術方案 (Step-by-step Technical Plans)
+1. **探索與定位 (Explore)**：
+   - 使用 `git log` 與 codebase 目錄分析，將最近頻繁更改的簡譜 (Jianpu) 子系統 (包含 `src/abc_graphelements.ts` 與 `src/abc_jianpu_write.ts`) 定位為核心 Hot Spot。
+   - 審查該區域代碼中的 Shallow Module 與 Locality 缺失，找出可重構的 Seam。
+2. **設計與生成報告 (Present Candidates)**：
+   - 撰寫 HTML 審查報告模板，包含「簡譜渲染與佈局解耦 (JianpuVoiceRenderer)」與「互動選取元件化」兩個候選方案。
+   - 運用 Node.js Scratch 腳本將報告寫入系統暫存目錄 `%TEMP%\architecture-review-<timestamp>.html`。
+   - 呼叫系統指令啟動瀏覽器呈現視覺化的 before/after 結構圖。
+3. **等待用戶反饋**：
+   - 停止自動執行，向用戶展示報告路徑並引導其進入 Grilling 決策迴圈。
+
+### 影響檔案 (Affected Files)
+- `C:\Users\ESAO_NB27\.gemini\antigravity-ide\brain\a19a032b-51c1-460a-b155-2f837f6d24cf\scratch\generate_report.js` (新增，臨時)
+- 暫存目錄 HTML 報告 (新增，臨時)
+
+### 風險評估 (Risks & Mitigations)
+- **環境相容性問題**：在 Windows 環境下執行系統 `start` 指令可能會因路徑或環境變數引發錯誤。
+  - *對策*：取得 `$env:TEMP` 的精確絕對路徑，並傳入正確的執行指令。
+
+---
+## [2026-08-11 11:05:00] 簡譜 (Jianpu) 支援 - 方案 1 解耦簡譜渲染
+
+### 步驟與技術方案 (Step-by-step Technical Plans)
+1. **建立獨立 Renderer 類別 (`src/abc_jianpu_renderer.ts`)**：
+   - 封裝 `JianpuVoiceRenderer` 類別，公開唯一的外部 Entry Point `render(voice, printer, bartop)` 方法。
+   - 將原本 `ABCVoiceElement` 中私有的 `drawJianpuNote`、`drawJianpuUnderlines`、`drawUnderlineGroup`、`drawUnderlineSegment` 與 `getUnderlineCount` 遷出，改為 Renderer 內部的私有方法（`_drawNote`、`_drawUnderlines`、`_drawUnderlineGroup` 等）。
+2. **重構 ABCVoiceElement 解耦與 Seam 呼叫**：
+   - 修改 `src/abc_graphelements.ts`。導入 `JianpuVoiceRenderer` 與工具模組中的 `pitchToJianpu`（以供 `ABCStaffGroupElement` 排版高度計算時使用）。
+   - 在 `ABCVoiceElement.draw` 方法中，移除原簡譜繪製的所有 6 個私有方法實現，改為在 `this.clef === 'jianpu'` 時，直接實例化 `JianpuVoiceRenderer` 並呼叫 `render` 委託方法。
+3. **全局掛載與建置對接 (`src/index.ts`)**：
+   - 在主打包檔案中導入並於全域掛載 `JianpuVoiceRenderer` 到 `window` 下，以滿足 TDD 整合測試腳本與 VM 虛擬沙盒環境的調用需求。
+4. **TDD 測試框架優化與單元測試建置**：
+   - 在根目錄建立 `test-jianpu-helpers.js`，將 `test/helpers/` 的 `browserSandbox.js` 和 `mockPaper.js` 的 `createBrowserContext` 與 `createMockPaper` 進行統一封裝轉接。
+   - 在 `test/helpers/mockPaper.js` 中新增 `circle` 模擬方法以防範簡譜八度點和附點繪製時出錯。
+   - 批次重寫 `test-jianpu-01.js` 到 `test-jianpu-06.js`，移除重複的 boilerplate，代以 helpers 載入。
+   - 新建 `test-jianpu-07.js`，手動構造 mock voice 資料結構，進行對 `JianpuVoiceRenderer.render` 的直接單元斷言。
+
+### 影響檔案 (Affected Files)
+- `src/abc_jianpu_renderer.ts` (新增)
+- `src/abc_graphelements.ts` (修改)
+- `src/index.ts` (修改)
+- `test-jianpu-helpers.js` (新增)
+- `test-jianpu-07.js` (新增)
+- `test-jianpu-01.js` ~ `test-jianpu-06.js` (修改)
+- `test/helpers/mockPaper.js` (修改)
+
+### 風險評估 (Risks & Mitigations)
+- **測試沙盒調用失敗**：如果 `JianpuVoiceRenderer` 沒有在 UMD 打包時正確掛載到 `window` 上，單元測試會因找不到參考而崩潰。
+  - *對策*：在 `src/index.ts` 之中 explicitly 掛載到 `(window as any).JianpuVoiceRenderer = JianpuVoiceRenderer`。
+
+---
+## [2026-08-11 16:18:00] 簡譜 (Jianpu) 支援 - 方案 2 互動選取元件化
+
+### 步驟與技術方案 (Step-by-step Technical Plans)
+1. **實作互動選取 Seam (`bindInteraction`)**：
+   - 擴充 `ABCPrinter`。建立 `bindInteraction(svgEl, absEl)` 方法，若傳入陣列或單一 SVG 元素，則在每個元素物件上附加 `_abcElement` 屬性引用，指向 `absEl` (ABCAbsoluteElement)。
+2. **實作全域事件委託**：
+   - 在 `ABCPrinter.printABC()` 的末尾，獲取當前 Svg 畫布節點 `targetEl`。
+   - 動態註冊 `mouseup` 監聽器。利用氣泡冒泡 (bubble up) 機制，遞迴 `parentNode` 搜尋具有 `_abcElement` 的節點，並調用 `notifySelect`。
+3. **優化渲染端綁定**：
+   - 將五線譜（`ABCAbsoluteElement.draw`）與簡譜（`JianpuVoiceRenderer`）中所有手動呼叫的 `mouseup(fn)` 事件綁定，簡化為呼叫單一 `printer.bindInteraction` Seam 介面。
+4. **補全 Mock 測試環境**：
+   - 修正 `test-jianpu-07.js` 當中的 `createMockPrinter`，加入 `bindInteraction` 模擬實作，並新增 `Seam G` 對互動選取及冒泡機制進行嚴格的斷言測試。
+
+### 影響檔案 (Affected Files)
+- `src/abc_write.ts` (修改)
+- `src/abc_graphelements.ts` (修改)
+- `src/abc_jianpu_renderer.ts` (修改)
+- `test-jianpu-07.js` (修改)
+
+### 風險評估 (Risks & Mitigations)
+- **事件冒泡被阻止**：如果某些子 SVG 元素阻止了事件冒泡（`stopPropagation`），全域委託會失效。
+  - *對策*：審查 `abcTS` codebase 中是否有任何地方對繪圖元素呼叫 `stopPropagation`，經查目前完全沒有，皆為預設冒泡。

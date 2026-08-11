@@ -927,3 +927,42 @@
 - `pnpm run build` 打包編譯成功。
 - 新增的 TDD 測試檔案 `test-jianpu-06.js` 執行無誤（11 個臨時記號與行首調號拍號字元/座標斷言全部通過）。
 - 所有先前與傳統的測試（compare_ast、Cooley's 鋪渲染）皆能 100% 通過無 regression。
+
+---
+## [2026-08-11 10:18:00] 評估 codebase 架構與深化機會
+
+### 目標 (Objectives)
+- 分析 abcTS 當前程式碼庫，尋找模組深化機會（Deepening Opportunities），提升代碼的 Locality 與測試性。
+- 生成包含 before/after 架構圖的自我包含 HTML 報告，供開發者審查。
+
+### 需求 (Requirements)
+1. 掃描最近變更頻繁的簡譜（Jianpu）子系統與相關 graphelements/write 類別。
+2. 識別出 Shallow Module 與缺乏 Locality 的問題點，並提出 Deep Module 的重構候選方案。
+3. 產生 `architecture-review-<timestamp>.html` 檔案至系統暫存目錄，並自動使用預設瀏覽器開啟。
+
+### 驗收條件 (Acceptance Criteria)
+- HTML 報告成功生成，包含解耦簡譜渲染與互動元件化兩個候選方案，且有 Mermaid 架構圖。
+- 順利在使用者瀏覽器中開啟報告。
+
+---
+## [2026-08-11 16:18:00] 簡譜 (Jianpu) 支援 - 方案 2 互動選取元件化
+
+### 目標 (Objectives)
+- 重構五線譜與簡譜渲染中的互動選取邏輯，消除重複綁定，實作集中式的 `bindInteraction` 介面與高效的全域事件委託機制。
+
+### 需求 (Requirements)
+1. **建立 bindInteraction Seam 介面**：
+   - 於 `ABCPrinter` (位於 `src/abc_write.ts`) 中實作 `bindInteraction(svgEl, absEl)`。
+   - 用於取代原本直接在 SVG 節點上註冊 mouseup 事件的做法，改為在 SVG 元素物件上標記 `_abcElement` 指針。
+2. **實作全域事件委託 (Event Delegation)**：
+   - 在 `ABCPrinter.printABC()` 的末尾，於最外層畫布 `targetEl` 上動態監聽唯一的 `mouseup` 事件。
+   - 監聽器被觸發時，向上冒泡尋找帶有 `_abcElement` 屬性的節點，一旦找到則呼叫 `notifySelect(absEl)` 觸發選取。
+3. **消除冗餘事件註冊**：
+   - 移除 `ABCAbsoluteElement.draw` (位於 `src/abc_graphelements.ts`) 及 `JianpuVoiceRenderer` (位於 `src/abc_jianpu_renderer.ts`) 中所有的 `mouseup` 事件註冊代碼，統一改為調用 `printer.bindInteraction`。
+4. **單元測試與驗證擴充**：
+   - 修改 `test-jianpu-07.js`。提供 `bindInteraction` 的 mock 實作，並新增 `Seam G` 互動選取氣泡冒泡解析斷言測試。
+
+### 驗收條件 (Acceptance Criteria)
+- `pnpm run build` 打包編譯成功。
+- 所有的 7 個簡譜 TDD 測試（包含新增的 Seam G）皆 100% 綠燈通過。
+- Cooley's 回歸測試不受任何影響。

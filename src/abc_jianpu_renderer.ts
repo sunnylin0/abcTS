@@ -1,0 +1,272 @@
+// abc_jianpu_renderer.ts
+// 簡譜渲染深化模組 (JianpuVoiceRenderer)
+// 職責：封裝所有 Jianpu 聲部的繪製邏輯，由 ABCVoiceElement.draw() 委託呼叫。
+// 對外介面只有 render()，內部細節完全隱藏。
+
+import type { ABCVoiceElement, ABCAbsoluteElement } from './abc_graphelements';
+import type { ABCPrinter } from './abc_write';
+import { pitchToJianpu, decomposeDuration } from './abc_jianpu_write';
+
+export class JianpuVoiceRenderer {
+
+	/**
+	 * 主入口 — 委託點 (Seam)。
+	 * ABCVoiceElement.draw() 在偵測到 clef=jianpu 後呼叫此方法。
+	 */
+	render(voice: ABCVoiceElement, printer: ABCPrinter, bartop: number): void {
+		this._drawHeader(voice, printer);
+		this._drawNotes(voice, printer, bartop);
+		this._drawUnderlines(voice, printer);
+	}
+
+	// ── 行首標記：1=Key 與 拍號 ────────────────────────────────────────────────
+
+	private _drawHeader(voice: ABCVoiceElement, printer: ABCPrinter): void {
+		const keyRoot = (voice.jianpuKey && voice.jianpuKey.root) || 'C';
+		const keyText = `1=${keyRoot}`;
+		const labelY = voice.y;
+
+		printer.paper.text(20, labelY, keyText).attr({
+			'font-size': 16,
+			'font-family': 'sans-serif',
+			'font-weight': 'bold',
+			'text-anchor': 'start',
+		});
+
+		// 尋找拍號 (Meter)
+		const meterText = this._resolveMeterText(voice);
+		if (meterText) {
+			printer.paper.text(55, labelY, meterText).attr({
+				'font-size': 16,
+				'font-family': 'sans-serif',
+				'font-weight': 'bold',
+				'text-anchor': 'start',
+			});
+		}
+	}
+
+	private _resolveMeterText(voice: ABCVoiceElement): string {
+		const meterChild = voice.children.find(child => {
+			if (!child.abcelem) return false;
+			const type = child.abcelem.el_type;
+			const meterType = (child.abcelem as any).type;
+			return (
+				type === 'meter' ||
+				meterType === 'specified' ||
+				meterType === 'common_time' ||
+				meterType === 'cut_time'
+			);
+		});
+		if (!meterChild || !meterChild.abcelem) return '';
+		const meterEl = meterChild.abcelem as any;
+		if (meterEl.value && meterEl.value.length > 0) {
+			const num = meterEl.value[0].num || '';
+			const den = meterEl.value[0].den || '';
+			if (num && den) return `${num}/${den}`;
+		}
+		if (meterEl.type === 'common_time') return '4/4';
+		if (meterEl.type === 'cut_time') return '2/2';
+		return '';
+	}
+
+	// ── 音符、小節線、拍號渲染 ────────────────────────────────────────────────
+
+	private _drawNotes(voice: ABCVoiceElement, printer: ABCPrinter, bartop: number): void {
+		for (let i = 0, ii = voice.children.length; i < ii; i++) {
+			const child = voice.children[i];
+			const type = child.abcelem ? child.abcelem.el_type : null;
+			if (type === 'bar') {
+				child.draw(printer, bartop);
+			} else if (type === 'note') {
+				this._drawNote(child, voice, printer);
+			} else if (type === 'meter') {
+				child.draw(printer, bartop);
+			}
+		}
+	}
+
+	private _drawNote(child: ABCAbsoluteElement, voice: ABCVoiceElement, printer: ABCPrinter): void {
+		const note = child.abcelem;
+		let textStr = '';
+		let octaveDelta = 0;
+		const duration = child.duration;
+
+		if ((note as any).rest) {
+			textStr = '0';
+		} else if ((note as any).pitches && (note as any).pitches.length > 0) {
+			const pitches = (note as any).pitches;
+			const highestPitch = pitches[pitches.length - 1];
+
+			const keyRoot = (voice.jianpuKey && voice.jianpuKey.root) || 'C';
+			const refOctave = voice.jianpuOctave !== undefined ? voice.jianpuOctave : 0;
+			const pitchAcc = highestPitch.accidental;
+			const keyAccs = voice.jianpuKey ? voice.jianpuKey.accidentals : undefined;
+
+			const res = pitchToJianpu(highestPitch.pitch, keyRoot, refOctave, pitchAcc, keyAccs);
+			textStr = String(res.degree);
+			octaveDelta = res.octaveDelta;
+
+			// 調外臨時升降記號
+			const x = child.x;
+			const y = voice.y;
+			if (res.isChromatic && res.acc) {
+				let symbolName = '';
+				if (res.acc === 'sharp') symbolName = 'accidentals.sharp';
+				else if (res.acc === 'flat') symbolName = 'accidentals.flat';
+				else if (res.acc === 'natural') symbolName = 'accidentals.natural';
+
+				if (symbolName) {
+					const accEl = printer.glyphs.printSymbol(x - 12, y, symbolName, printer.paper);
+					printer.bindInteraction(accEl, child);
+				}
+			}
+		}
+
+		if (!textStr) return;
+
+		const x = child.x;
+		const y = voice.y;
+
+		// 數字文字
+		const textEl = printer.paper.text(x, y, textStr).attr({
+			'font-size': 22,
+			'font-family': 'sans-serif',
+			'font-weight': 'bold',
+			'text-anchor': 'middle',
+		});
+		printer.bindInteraction(textEl, child);
+
+		// 八度圓點
+		if (octaveDelta > 0) {
+			for (let k = 0; k < octaveDelta; k++) {
+				const dotY = y - 12 - k * 4;
+				const dotEl = printer.paper.circle(x, dotY, 1.5);
+				printer.bindInteraction(dotEl, child);
+			}
+		} else if (octaveDelta < 0) {
+			const absDelta = Math.abs(octaveDelta);
+			for (let k = 0; k < absDelta; k++) {
+				const dotY = y + 10 + k * 4;
+				const dotEl = printer.paper.circle(x, dotY, 1.5);
+				printer.bindInteraction(dotEl, child);
+			}
+		}
+
+		// 時值輔助標記：延音線與附點
+		const { base, dots } = decomposeDuration(duration);
+
+		// 延音橫線
+		let numDashes = 0;
+		if (base === 0.5) numDashes = 1;
+		else if (base === 1.0) numDashes = 3;
+		for (let k = 0; k < numDashes; k++) {
+			const dx1 = x + 18 + k * 24;
+			const dx2 = x + 30 + k * 24;
+			const lineY = y - 6;
+			const dashEl = printer.paper.path(`M ${dx1} ${lineY} L ${dx2} ${lineY}`).attr({
+				stroke: '#000000',
+				'stroke-width': 2,
+			});
+			printer.bindInteraction(dashEl, child);
+		}
+
+		// 附點
+		if (dots > 0) {
+			for (let k = 0; k < dots; k++) {
+				const dotX = x + 12 + k * 6;
+				const dotY = y - 6;
+				const dotEl = printer.paper.circle(dotX, dotY, 1.5);
+				printer.bindInteraction(dotEl, child);
+			}
+		}
+	}
+
+	// ── 底線（Underlines）繪製 ────────────────────────────────────────────────
+
+	private _drawUnderlines(voice: ABCVoiceElement, printer: ABCPrinter): void {
+		const processedBeams = new Set<any>();
+
+		for (let i = 0; i < voice.children.length; i++) {
+			const child = voice.children[i];
+			if (child.abcelem.el_type !== 'note') continue;
+
+			if (child.beam) {
+				if (processedBeams.has(child.beam)) continue;
+				processedBeams.add(child.beam);
+				this._drawUnderlineGroup(child.beam.elems, voice, printer);
+			} else {
+				this._drawUnderlineGroup([child], voice, printer);
+			}
+		}
+	}
+
+	private _getUnderlineCount(el: ABCAbsoluteElement): number {
+		if (el.abcelem.el_type !== 'note') return 0;
+		const pitches = (el.abcelem as any).pitches;
+		if (!pitches || pitches.length === 0) {
+			if (!(el.abcelem as any).rest) return 0;
+		}
+		const { base } = decomposeDuration(el.duration);
+		if (base === 0.125) return 1;   // 八分音符
+		if (base === 0.0625) return 2;  // 十六分音符
+		if (base === 0.03125) return 3; // 三十二分音符
+		return 0;
+	}
+
+	private _drawUnderlineGroup(elems: ABCAbsoluteElement[], voice: ABCVoiceElement, printer: ABCPrinter): void {
+		for (let L = 1; L <= 3; L++) {
+			let inRun = false;
+			let runStart = -1;
+
+			for (let i = 0; i < elems.length; i++) {
+				const hasLayer = this._getUnderlineCount(elems[i]) >= L;
+				if (hasLayer) {
+					if (!inRun) { inRun = true; runStart = i; }
+				} else {
+					if (inRun) {
+						this._drawUnderlineSegment(elems, runStart, i - 1, L, voice, printer);
+						inRun = false;
+					}
+				}
+			}
+			if (inRun) {
+				this._drawUnderlineSegment(elems, runStart, elems.length - 1, L, voice, printer);
+			}
+		}
+	}
+
+	private _drawUnderlineSegment(
+		elems: ABCAbsoluteElement[],
+		startIdx: number,
+		endIdx: number,
+		L: number,
+		voice: ABCVoiceElement,
+		printer: ABCPrinter,
+	): void {
+		const y = voice.y;
+		const x1 = elems[startIdx].x - 8;
+		const x2 = elems[endIdx].x + 8;
+
+		let maxDotsBelow = 0;
+		for (let i = startIdx; i <= endIdx; i++) {
+			const el = elems[i];
+			if ((el.abcelem as any).pitches && (el.abcelem as any).pitches.length > 0) {
+				const pitches = (el.abcelem as any).pitches;
+				const highest = pitches[pitches.length - 1];
+				const keyRoot = (voice.jianpuKey && voice.jianpuKey.root) || 'C';
+				const refOctave = voice.jianpuOctave !== undefined ? voice.jianpuOctave : 0;
+				const res = pitchToJianpu(highest.pitch, keyRoot, refOctave);
+				if (res.octaveDelta < 0) {
+					maxDotsBelow = Math.max(maxDotsBelow, Math.abs(res.octaveDelta));
+				}
+			}
+		}
+
+		const lineY = y + 10 + (maxDotsBelow > 0 ? maxDotsBelow * 4 + 2 : 0) + (L - 1) * 4;
+		const lineEl = printer.paper.path(`M ${x1} ${lineY} L ${x2} ${lineY}`).attr({
+			stroke: '#000000',
+			'stroke-width': 1.5,
+		});
+		printer.bindInteraction(lineEl, elems[startIdx]);
+	}
+}

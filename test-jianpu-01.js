@@ -1,11 +1,11 @@
-﻿// test-jianpu-01.js  — Ticket 01 TDD
+// test-jianpu-01.js  — Ticket 01 TDD
 // Seam A: clef.type === "jianpu" after parsing V:N clef=jianpu
 // Seam B: KeySigElement.root correct for various keys
 // Run: pnpm run build && node test-jianpu-01.js
 
-const fs = require("fs");
-const path = require("path");
-const vm = require("vm");
+const { createBrowserContext, loadJSInContext } = require('./test-jianpu-helpers');
+const path = require('path');
+const fs = require('fs');
 
 let passed = 0, failed = 0;
 function assert(label, condition, detail) {
@@ -13,58 +13,13 @@ function assert(label, condition, detail) {
     else { console.error("  FAIL " + label + (detail ? " [" + detail + "]" : "")); failed++; }
 }
 
-function createBrowserContext() {
-    class MockElement {
-        constructor(tag) { this.tagName = tag; this.attributes = {}; this.childNodes = []; this.children = []; this.style = {}; }
-        setAttribute(k, v) { this.attributes[k] = String(v); return this; }
-        setAttributeNS(ns, k, v) { this.attributes[k] = String(v); return this; }
-        getAttribute(k) { return this.attributes[k]; }
-        removeAttribute(k) { delete this.attributes[k]; }
-        appendChild(c) { if (c) { c.parentNode = this; this.childNodes.push(c); if (c.tagName) this.children.push(c); } return c; }
-        insertBefore(c) { if (c) { c.parentNode = this; this.childNodes.unshift(c); } return c; }
-        removeChild(c) { return c; }
-        getBBox() { return { x: 0, y: 0, width: 50, height: 15 }; }
-        addEventListener() {}
-        mouseup() { return this; }
-        attr(a) { if (a) for (const k in a) this.setAttribute(k, a[k]); return this; }
-        toBack() { return this; }
-        clear() { this.childNodes = []; this.children = []; return this; }
-    }
-    const mockBody = new MockElement("body");
-    const sandbox = {
-        window: {}, navigator: { userAgent: "node" },
-        document: {
-            body: mockBody, createElement: (t) => new MockElement(t),
-            createElementNS: (ns, t) => new MockElement(t),
-            getElementsByTagName: (t) => t === "body" ? [mockBody] : [],
-            createTextNode: (s) => ({ nodeValue: s||"", textContent: s||"" }),
-            querySelector: (sel) => sel === "body" ? mockBody : new MockElement("div"),
-            createEvent: () => ({ initEvent: () => {} }),
-            write: () => {}, getElementById: (id) => new MockElement("div")
-        },
-        Event: class {}, Element: MockElement, HTMLElement: MockElement,
-        SVGElement: MockElement, SVGPathElement: MockElement, SVGTextElement: MockElement,
-        SVGRectElement: MockElement, SVGLineElement: MockElement,
-        SVGGElement: MockElement, SVGSVGElement: MockElement,
-        console, setTimeout, clearTimeout
-    };
-    sandbox["$break"] = { name: "$break" };
-    sandbox.window.window = sandbox.window;
-    sandbox.window.document = sandbox.document;
-    sandbox.window.console = console;
-    sandbox.window["$break"] = sandbox["$break"];
-    sandbox.window.Element = MockElement;
-    sandbox.window.SVGElement = MockElement;
-    sandbox.self = sandbox;
-    return vm.createContext(sandbox);
-}
-
 const context = createBrowserContext();
 const filePath = path.resolve(__dirname, "dist/abcjs-basic.js");
 if (!fs.existsSync(filePath)) { console.error("Run: pnpm run build first"); process.exit(1); }
-vm.runInContext(fs.readFileSync(filePath, "utf-8"), context);
+loadJSInContext(filePath, context);
 const AbcTuneBook = context.AbcTuneBook || context.window.AbcTuneBook;
 const AbcParse = context.AbcParse || context.window.AbcParse;
+
 
 function parse(abcStr) {
     const book = new AbcTuneBook(abcStr);
