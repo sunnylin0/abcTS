@@ -978,3 +978,59 @@
 ### 風險評估 (Risks & Mitigations)
 - **事件冒泡被阻止**：如果某些子 SVG 元素阻止了事件冒泡（`stopPropagation`），全域委託會失效。
   - *對策*：審查 `abcTS` codebase 中是否有任何地方對繪圖元素呼叫 `stopPropagation`，經查目前完全沒有，皆為預設冒泡。
+
+---
+## [2026-08-12 03:55:00] 修復多聲部下簡譜 Y 座標偏移與重疊 Bug
+
+### 步驟與技術方案 (Step-by-step Technical Plans)
+1. **繪製前 Y 座標初始化 (`src/abc_graphelements.ts`)**：
+   - 在 `ABCVoiceElement.draw` 頂部，若 `clef === 'jianpu'`，在呼叫 `JianpuVoiceRenderer.render` 之前，先利用 `this.staff` 設定 `printer.y` 及 `printer.staffbottom`，並設定 `this.barbottom = printer.calcY(2)`。
+   - 同時，同步更新 `this.y = printer.y;`，確保 `ABCVoiceElement` 內部 `y` 的狀態與實質渲染高度相符。
+2. **改用 printer.y 渲染簡譜元素 (`src/abc_jianpu_renderer.ts`)**：
+   - 於 `JianpuVoiceRenderer.render` 開頭，加入 `if (printer.y === undefined) { printer.y = voice.y; }` 防禦性邏輯，以保持與獨立 renderer 測試 (如 `test-jianpu-07.js`) 的相容性。
+   - 將 `_drawHeader`、`_drawNote` 以及 `_drawUnderlineSegment` 中原本對 `voice.y` 的取值，全數改為 `printer.y`。
+3. **建立與驗證 Regression 測試**：
+   - 建立 `test-jianpu-bug.js` 測試多聲部樂譜，斷言簡譜文字和調號宣告的 Y 座標是否與正確的 `v2.staff.y` 相同而非停留在初始位置 `115`，以確保 bug 被正確修復。
+
+### 影響檔案 (Affected Files)
+- `src/abc_graphelements.ts` (修改)
+- `src/abc_jianpu_renderer.ts` (修改)
+- `test-jianpu-bug.js` (新增，臨時驗證後供 regression 留存)
+
+### 風險評估 (Risks & Mitigations)
+- **測試沙盒相容性**：以前的單元測試並未設定 `printer.y` 且 `voice.staff` 為 `undefined`。
+  - *對策*：在 `JianpuVoiceRenderer.render` 頂部使用 `if (printer.y === undefined) { printer.y = voice.y; }` 防禦，且在 `ABCVoiceElement.draw` 中當簡譜呼叫時同步設定 `this.y = printer.y`，使得原有測試以 `voice.y` 取值比對時，依然能夠正確獲得正確的基準座標，全數回歸測試安全變綠。
+
+---
+## [2026-08-12 05:55:00] 簡譜 Note 佈局與渲染解耦重構
+
+### 步驟與技術方案 (Step-by-step Technical Plans)
+1. **相對繪製型別擴充 (`src/all.d.ts` 與 `src/abc_graphelements.ts`)**：
+   - 擴充 `ABCRelativeElement.type` 支援 `"jianpuNote" | "jianpuDash" | "jianpuDot"` 類型。
+   - 於 `ABCRelativeElement.draw` 實作對應渲染邏輯：
+     - `"jianpuNote"` 呼叫 `printer.paper.text` 繪製 22px 粗體居中唱名數字。
+     - `"jianpuDash"` 呼叫 `printer.paper.path` 繪製橫線，Y軸為 `printer.y - 6`。
+     - `"jianpuDot"` 呼叫 `printer.paper.circle` 繪製圓心於 `printer.y + this.pitch` 處的 1.5 半徑實心圓點。
+2. **排版佈局分流設計 (`src/abc_layout.ts`)**：
+   - 於 `printBeam()` 中，當 `this.voice.clef === 'jianpu'` 時，分流呼叫 `printJianpuNote` 取代原本的 `printNote`。
+   - 實作 `printJianpuNote(elem, nostem)` 和 `printJianpuNoteHead(abselem, c, ...)`。
+   - 根據拍數 `beats = duration * 4` 判定橫線數量與附點數量，以 `addRight` 將 `jianpuDash` 與 `jianpuDot` 附點加進 `abselem`，使佈局期能精確自動累加音符實質寬度，改善 X 軸佈局。
+   - 在 `printJianpuNoteHead` 中，只對調外臨時記號（`res.isChromatic && res.acc` 為真）時，才在左側 `extrax` 處加入對應的還原、升、降 glyph 記號。
+3. **渲染器精簡與高亮互動對齊 (`src/abc_jianpu_renderer.ts`)**：
+   - 刪除 `JianpuVoiceRenderer` 中的 `_drawNote` 方法。
+   - 簡化 `_drawNotes`，當遇到 note 元素時，改為統一呼叫 `child.draw(printer, bartop)` 委託繪製。
+   - 行首標記 `_drawHeader` 與時值底線 `_drawUnderlines` 繼續保留在 renderer 端繪製。
+4. **單元測試適配與修復 (`test-jianpu-06.js` & `test-jianpu-07.js`)**：
+   - 在 `test-jianpu-06.js` 中利用貝茲曲線控制點 `c` 來精確過濾調外還原符號的 path 記錄。
+   - 於 `test-jianpu-07.js` 引入 `ABCAbsoluteElement` 與 `ABCRelativeElement`，在 `makeNoteChild` 中實例化它們並加上對應的簡譜子元素，以符合 child.draw 的真實渲染邏輯；並為 mock printer 補齊 `beginGroup` 和 `endGroup` 的 stub。
+
+### 影響檔案 (Affected Files)
+- `src/abc_graphelements.ts` (修改)
+- `src/abc_layout.ts` (修改)
+- `src/abc_jianpu_renderer.ts` (修改)
+- `test-jianpu-06.js` (修改)
+- `test-jianpu-07.js` (修改)
+
+### 風險評估 (Risks & Mitigations)
+- **測試沙盒缺少屬性報錯**：獨立單元測試 `test-jianpu-07.js` 當中 mock printer 缺少 beginGroup / endGroup 導致崩潰。
+  - *對策*：在該測試檔案的 `createMockPrinter` 中追加 beginGroup 和 endGroup 的 stub 函數。

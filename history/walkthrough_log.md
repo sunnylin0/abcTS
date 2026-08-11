@@ -542,3 +542,41 @@
 1. 執行 `pnpm run build` 打包順利通過，無任何靜態型別錯誤。
 2. 執行 `node test-jianpu-07.js` 通過，且新增的 `Seam G` 互動選取斷言全數綠燈。
 3. 執行 `node test-jianpu-01.js` 到 `test-jianpu-06.js` 整合測試 100% 成功。
+
+---
+## [2026-08-12 03:55:00] 修復多聲部下簡譜 Y 座標偏移與重疊 Bug (完成)
+
+### 變更摘要 (Change Summary)
+1. **繪製前初始化 Y 座標與小節線邊界**：於 `src/abc_graphelements.ts` 的 `ABCVoiceElement.draw` 中，在簡譜 clef 分流呼叫前，先根據 `this.staff` 設定 `printer.y` 及 `printer.staffbottom`，並執行 `this.barbottom = printer.calcY(2);` 與 `this.y = printer.y;` 同步更新。這解決了小節線和行首等元素在簡譜聲部失去正確的高度參照，以及外部測試腳本與內部簡譜渲染狀態高度不一致的問題。
+2. **改用 printer.y 進行簡譜繪製**：於 `src/abc_jianpu_renderer.ts` 的 `JianpuVoiceRenderer` 當中，將 `_drawHeader`、`_drawNote` 與 `_drawUnderlineSegment` 中所有原本寫死之 `voice.y` 取值，全部修改為使用已正確定位好高度 the `printer.y`，並在 `render()` 入口處追加 `if (printer.y === undefined) { printer.y = voice.y; }` 防禦防護以保持單元測試的完全相容。
+3. **增加 TDD Bug 驗證測試**：新建 `test-jianpu-bug.js` 來建立雙聲部樂譜（treble 五線譜 + jianpu 簡譜），嚴格斷言簡譜文字和調號宣告的 Y 座標在多聲部時能正確大於第一聲部，並與 `v2.staff.y` (144) 完美對齊而非停留在初始值 `115`。
+
+### 驗證與測試日誌 (Verification & Test Logs)
+1. 執行 `pnpm run build` 通過，生成 UMD 包。
+2. 執行 `node test-jianpu-bug.js` 成功，3 個有關多聲部 Y 座標的斷言全數通過（Result: 3 passed, 0 failed）。
+3. 執行 `node test-jianpu-01.js` 到 `test-jianpu-07.js` 全數綠燈通過，原有 65 個單元測試與模擬繪圖斷言均正常，且傳統回歸測試 `node test.js` 順利通過，確認 0 regression。
+
+---
+## [2026-08-12 05:55:00] 簡譜 Note 佈局與渲染解耦重構 (完成)
+
+### 變更摘要 (Change Summary)
+1. **相對繪圖元素擴充 (`src/abc_graphelements.ts`)**：
+   - 擴充 `ABCRelativeElement.type` 支援 `"jianpuNote"`、`"jianpuDash"` 及 `"jianpuDot"`。
+   - 於 `ABCRelativeElement.draw` 實作簡譜專屬 SVG 繪製：22px 唱名數字、橫線、高低八度圓點與右側附點。
+2. **排版佈局分流與自動排版 (`src/abc_layout.ts`)**：
+   - 於 `printBeam()` 中，當當前聲部為簡譜時，分流呼叫 `printJianpuNote`。
+   - 實作 `printJianpuNote` 與 `printJianpuNoteHead`。
+   - 依據拍數（beats = duration * 4）計算橫線數量與附點數量，並以 `addRight` 將元素加進 `abselem`。這實現了在排版佈局期自動且精確地累加音符實質寬度，極大改善了 X 軸佈局間距。
+   - 在 `printJianpuNoteHead` 中，只對調外臨時記號（`res.isChromatic && res.acc` 為真）繪製升降符號，防止調內音符被重繪臨時記號。
+3. **渲染器精簡與高亮互動對齊 (`src/abc_jianpu_renderer.ts`)**：
+   - 刪除 `JianpuVoiceRenderer` 中的 `_drawNote` 方法。
+   - 簡化 `_drawNotes`，當遇到 note 元素時，改為統一呼叫 `child.draw(printer, bartop)` 委託繪製。
+   - 藉由 RelativeElement 自動收集至音符的 `elemset` 中，使全域選取高亮與點擊互動氣泡冒泡全自動生效，並大幅精簡渲染器代碼。
+4. **健全測試框架 (`test-jianpu-06.js` & `test-jianpu-07.js`)**：
+   - 於 `test-jianpu-06.js` 當中藉由檢查貝茲控制點 `c` 以精確過濾調外還原符號與普通直線小節線的 path。
+   - 於 `test-jianpu-07.js` 引入真實的 `ABCAbsoluteElement` 與 `ABCRelativeElement`，在 `makeNoteChild` 中實例化它們並加上對應的簡譜子元素；並在 mock printer 中加入了 `beginGroup` 和 `endGroup` 的 stub。
+
+### 驗證與測試日誌 (Verification & Test Logs)
+1. 執行 `pnpm run build` 通過，生成 UMD 包。
+2. 執行 `node test-jianpu-01.js` 到 `test-jianpu-07.js` 全數綠燈通過。
+3. 執行傳統的 `test.js` 回歸測試 100% 通過。

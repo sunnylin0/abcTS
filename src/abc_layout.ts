@@ -15,6 +15,7 @@
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import { AbcSpacing } from "./abc_write"
+import { pitchToJianpu } from "./abc_jianpu_write"
 import {
 	ABCAbsoluteElement, ABCRelativeElement, ABCVoiceElement, ABCStaffGroupElement
 	, ABCTieElem, ABCTripletElem, ABCBeamElem, ABCEndingElem
@@ -213,10 +214,13 @@ export class ABCLayout {
 
 	printBeam(): ABCAbsoluteElement[] {
 		let abselemset: ABCAbsoluteElement[] = [];
+		const isJianpu = this.voice.clef === 'jianpu';
 		if (this.getElem().startBeam && !this.getElem().endBeam) {
 			let beamelem: ABCBeamElem = new ABCBeamElem(this.stemdir);
 			while (this.getElem()) {
-				let abselem: ABCAbsoluteElement = this.printNote(this.getElem(), true);
+				let abselem: ABCAbsoluteElement = isJianpu
+					? this.printJianpuNote(this.getElem(), true)
+					: this.printNote(this.getElem(), true);
 				abselemset.push(abselem);
 				beamelem.add(abselem);
 				if (this.getElem().endBeam) {
@@ -226,7 +230,10 @@ export class ABCLayout {
 			}
 			this.voice.addOther(beamelem);
 		} else {
-			abselemset.push(this.printNote(this.getElem()));
+			let abselem: ABCAbsoluteElement = isJianpu
+				? this.printJianpuNote(this.getElem())
+				: this.printNote(this.getElem());
+			abselemset.push(abselem);
 		}
 		return abselemset;
 	}
@@ -245,6 +252,223 @@ export class ABCLayout {
 				}
 			}
 		} while (!sorted);
+	}
+
+	printJianpuNote(elem: ABCElement, nostem?: boolean): ABCAbsoluteElement {
+		let duration = getDuration(elem);
+		let abselem: ABCAbsoluteElement = new ABCAbsoluteElement(elem, duration, 1);
+		
+		abselem.w = 12; // 預估基本寬度
+		this.roomtaken = 0;
+		this.roomtakenright = 0;
+		let c = "";
+		let highestPitch: any = null;
+
+		if (elem.rest) {
+			c = "0";
+			elem.averagepitch = 7;
+			elem.minpitch = 7;
+			elem.maxpitch = 7;
+			let notehead = this.printJianpuNoteHead(abselem, c, null, duration, 0, -this.roomtaken);
+			if (notehead) abselem.addHead(notehead);
+		} else {
+			this.sortPitch(elem);
+			let sum = 0;
+			for (let p = 0, pp = elem.pitches.length; p < pp; p++) {
+				sum += elem.pitches[p].verticalPos;
+			}
+			elem.averagepitch = sum / elem.pitches.length;
+			elem.minpitch = elem.pitches[0].verticalPos;
+			elem.maxpitch = elem.pitches[elem.pitches.length - 1].verticalPos;
+
+			highestPitch = elem.pitches[elem.pitches.length - 1];
+			
+			const keyRoot = (this.voice.jianpuKey && this.voice.jianpuKey.root) || 'C';
+			const refOctave = this.voice.jianpuOctave !== undefined ? this.voice.jianpuOctave : 0;
+			const pitchAcc = highestPitch.accidental;
+			const keyAccs = this.voice.jianpuKey ? this.voice.jianpuKey.accidentals : undefined;
+			const res = pitchToJianpu(highestPitch.pitch, keyRoot, refOctave, pitchAcc, keyAccs);
+			
+			c = String(res.degree);
+			
+			let notehead = this.printJianpuNoteHead(abselem, c, highestPitch, duration, 0, -this.roomtaken, res.isChromatic, res.acc);
+			if (notehead) abselem.addHead(notehead);
+
+			let octaveDelta = res.octaveDelta;
+			if (octaveDelta > 0) {
+				for (let k = 0; k < octaveDelta; k++) {
+					const dotY = -12 - k * 4;
+					abselem.addChild(new ABCRelativeElement(".", 0, 0, dotY, { type: "jianpuDot" }));
+				}
+			} else if (octaveDelta < 0) {
+				const absDelta = Math.abs(octaveDelta);
+				for (let k = 0; k < absDelta; k++) {
+					const dotY = 10 + k * 4;
+					abselem.addChild(new ABCRelativeElement(".", 0, 0, dotY, { type: "jianpuDot" }));
+				}
+			}
+
+			if (res.isChromatic && res.acc) {
+				this.roomtaken += 12;
+			}
+		}
+
+		let beats = duration * 4;
+		let numDashes = 0;
+		let dot = 0;
+		if (beats >= 1) {
+			if (Math.abs(beats - Math.round(beats)) < 1e-9) {
+				numDashes = Math.round(beats) - 1;
+			} else {
+				let floorBeats = Math.floor(beats);
+				numDashes = floorBeats - 1;
+				let rem = beats - floorBeats;
+				if (Math.abs(rem - 0.5) < 1e-9) {
+					dot = 1;
+				}
+			}
+		} else {
+			let dots = 0;
+			let base = duration;
+			const testBase1 = duration / 1.5;
+			const log2_1 = Math.log2(testBase1);
+			if (Math.abs(log2_1 - Math.round(log2_1)) < 1e-9) {
+				dots = 1;
+				base = testBase1;
+			} else {
+				const testBase2 = duration / 1.75;
+				const log2_2 = Math.log2(testBase2);
+				if (Math.abs(log2_2 - Math.round(log2_2)) < 1e-9) {
+					dots = 2;
+					base = testBase2;
+				}
+			}
+			dot = dots;
+		}
+
+		for (let k = 0; k < numDashes; k++) {
+			let dx1 = 18 + k * 24;
+			abselem.addRight(new ABCRelativeElement("-", dx1, 12, 0, { type: "jianpuDash" }));
+		}
+
+		if (dot > 0) {
+			for (let k = 0; k < dot; k++) {
+				let dotX = 12 + k * 6;
+				abselem.addRight(new ABCRelativeElement(".", dotX, 2, -6, { type: "jianpuDot", linewidth: 1.5 }));
+			}
+		}
+
+		if (elem.lyric !== undefined) {
+			let lyricStr = "";
+			elem.lyric.forEach(function (ly) {
+				lyricStr += ly.syllable + ly.divider + "\n";
+			});
+			abselem.addRight(new ABCRelativeElement(lyricStr, 0, lyricStr.length * 5, 0, { type: "debugLow" }));
+		}
+
+		if (elem.chord !== undefined) {
+			for (let ci = 0; ci < elem.chord.length; ci++) {
+				let cx = 0;
+				let cy = 16;
+				const chordItem = elem.chord[ci];
+				switch (chordItem.position) {
+					case "left":
+						this.roomtaken += 7;
+						cx = -this.roomtaken;
+						cy = elem.averagepitch;
+						abselem.addExtra(new ABCRelativeElement(chordItem.name, cx, 8, cy, { type: "text" }));
+						break;
+					case "right":
+						this.roomtakenright += 4;
+						cx = this.roomtakenright;
+						cy = elem.averagepitch;
+						abselem.addRight(new ABCRelativeElement(chordItem.name, cx, 8, cy, { type: "text" }));
+						break;
+					case "below":
+						cy = -3;
+					default:
+						abselem.addChild(new ABCRelativeElement(chordItem.name, cx, 0, cy, { type: "text" }));
+				}
+			}
+		}
+
+		if (elem.startTriplet) {
+			this.triplet = new ABCTripletElem(elem.startTriplet, null, null, true);
+			this.voice.addOther(this.triplet);
+		}
+		if (elem.endTriplet) {
+			this.triplet = null;
+		}
+
+		abselem.extraw = -this.roomtaken;
+		if (this.roomtakenright > 0) {
+			abselem.w += this.roomtakenright;
+		}
+
+		return abselem;
+	}
+
+	printJianpuNoteHead(
+		abselem: ABCAbsoluteElement,
+		c: string,
+		pitchelem: any,
+		duration: number,
+		headx: number,
+		extrax: number,
+		isChromatic?: boolean,
+		acc?: string
+	): ABCRelativeElement {
+		let notehead = new ABCRelativeElement(c, headx, 12, 0, { type: "jianpuNote" });
+
+		if (pitchelem && isChromatic && acc) {
+			let symb: string = "";
+			switch (acc) {
+				case "sharp": symb = "accidentals.sharp"; break;
+				case "flat": symb = "accidentals.flat"; break;
+				case "natural": symb = "accidentals.nat"; break;
+			}
+			if (symb) {
+				this.accidentalshiftx = 12;
+				abselem.addExtra(new ABCRelativeElement(symb, extrax - this.accidentalshiftx, 8, 0, { type: "symbol" }));
+			}
+		}
+
+		if (pitchelem) {
+			if (pitchelem.endTie) {
+				if (this.ties[0]) {
+					this.ties[0].anchor2 = notehead;
+					this.ties = this.ties.slice(1, this.ties.length);
+				}
+			}
+			if (pitchelem.startTie) {
+				let tie: ABCTieElem = new ABCTieElem(notehead, null, false, true);
+				this.ties[this.ties.length] = tie;
+				this.voice.addOther(tie);
+			}
+			if (pitchelem.endSlur) {
+				for (let i = 0; i < pitchelem.endSlur.length; i++) {
+					let slurid = pitchelem.endSlur[i];
+					let slur;
+					if (this.slurs[slurid]) {
+						slur = this.slurs[slurid].anchor2 = notehead;
+						delete this.slurs[slurid];
+					} else {
+						slur = new ABCTieElem(null, notehead, false, true);
+						this.voice.addOther(slur);
+					}
+				}
+			}
+			if (pitchelem.startSlur) {
+				for (let i = 0; i < pitchelem.startSlur.length; i++) {
+					let slurid = pitchelem.startSlur[i];
+					let slur: ABCTieElem = new ABCTieElem(notehead, null, false, true);
+					this.slurs[slurid] = slur;
+					this.voice.addOther(slur);
+				}
+			}
+		}
+
+		return notehead;
 	}
 
 	printNote(elem: ABCElement, nostem?: boolean): ABCAbsoluteElement {

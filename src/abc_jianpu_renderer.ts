@@ -14,6 +14,9 @@ export class JianpuVoiceRenderer {
 	 * ABCVoiceElement.draw() 在偵測到 clef=jianpu 後呼叫此方法。
 	 */
 	render(voice: ABCVoiceElement, printer: ABCPrinter, bartop: number): void {
+		if (printer.y === undefined) {
+			printer.y = voice.y;
+		}
 		this._drawHeader(voice, printer);
 		this._drawNotes(voice, printer, bartop);
 		this._drawUnderlines(voice, printer);
@@ -24,7 +27,7 @@ export class JianpuVoiceRenderer {
 	private _drawHeader(voice: ABCVoiceElement, printer: ABCPrinter): void {
 		const keyRoot = (voice.jianpuKey && voice.jianpuKey.root) || 'C';
 		const keyText = `1=${keyRoot}`;
-		const labelY = voice.y;
+		const labelY = printer.y;
 
 		printer.paper.text(20, labelY, keyText).attr({
 			'font-size': 16,
@@ -78,105 +81,9 @@ export class JianpuVoiceRenderer {
 			if (type === 'bar') {
 				child.draw(printer, bartop);
 			} else if (type === 'note') {
-				this._drawNote(child, voice, printer);
+				child.draw(printer, bartop);
 			} else if (type === 'meter') {
 				child.draw(printer, bartop);
-			}
-		}
-	}
-
-	private _drawNote(child: ABCAbsoluteElement, voice: ABCVoiceElement, printer: ABCPrinter): void {
-		const note = child.abcelem;
-		let textStr = '';
-		let octaveDelta = 0;
-		const duration = child.duration;
-
-		if ((note as any).rest) {
-			textStr = '0';
-		} else if ((note as any).pitches && (note as any).pitches.length > 0) {
-			const pitches = (note as any).pitches;
-			const highestPitch = pitches[pitches.length - 1];
-
-			const keyRoot = (voice.jianpuKey && voice.jianpuKey.root) || 'C';
-			const refOctave = voice.jianpuOctave !== undefined ? voice.jianpuOctave : 0;
-			const pitchAcc = highestPitch.accidental;
-			const keyAccs = voice.jianpuKey ? voice.jianpuKey.accidentals : undefined;
-
-			const res = pitchToJianpu(highestPitch.pitch, keyRoot, refOctave, pitchAcc, keyAccs);
-			textStr = String(res.degree);
-			octaveDelta = res.octaveDelta;
-
-			// 調外臨時升降記號
-			const x = child.x;
-			const y = voice.y;
-			if (res.isChromatic && res.acc) {
-				let symbolName = '';
-				if (res.acc === 'sharp') symbolName = 'accidentals.sharp';
-				else if (res.acc === 'flat') symbolName = 'accidentals.flat';
-				else if (res.acc === 'natural') symbolName = 'accidentals.natural';
-
-				if (symbolName) {
-					const accEl = printer.glyphs.printSymbol(x - 12, y, symbolName, printer.paper);
-					printer.bindInteraction(accEl, child);
-				}
-			}
-		}
-
-		if (!textStr) return;
-
-		const x = child.x;
-		const y = voice.y;
-
-		// 數字文字
-		const textEl = printer.paper.text(x, y, textStr).attr({
-			'font-size': 22,
-			'font-family': 'sans-serif',
-			'font-weight': 'bold',
-			'text-anchor': 'middle',
-		});
-		printer.bindInteraction(textEl, child);
-
-		// 八度圓點
-		if (octaveDelta > 0) {
-			for (let k = 0; k < octaveDelta; k++) {
-				const dotY = y - 12 - k * 4;
-				const dotEl = printer.paper.circle(x, dotY, 1.5);
-				printer.bindInteraction(dotEl, child);
-			}
-		} else if (octaveDelta < 0) {
-			const absDelta = Math.abs(octaveDelta);
-			for (let k = 0; k < absDelta; k++) {
-				const dotY = y + 10 + k * 4;
-				const dotEl = printer.paper.circle(x, dotY, 1.5);
-				printer.bindInteraction(dotEl, child);
-			}
-		}
-
-		// 時值輔助標記：延音線與附點
-		const { base, dots } = decomposeDuration(duration);
-
-		// 延音橫線
-		let numDashes = 0;
-		if (base === 0.5) numDashes = 1;
-		else if (base === 1.0) numDashes = 3;
-		for (let k = 0; k < numDashes; k++) {
-			const dx1 = x + 18 + k * 24;
-			const dx2 = x + 30 + k * 24;
-			const lineY = y - 6;
-			const dashEl = printer.paper.path(`M ${dx1} ${lineY} L ${dx2} ${lineY}`).attr({
-				stroke: '#000000',
-				'stroke-width': 2,
-			});
-			printer.bindInteraction(dashEl, child);
-		}
-
-		// 附點
-		if (dots > 0) {
-			for (let k = 0; k < dots; k++) {
-				const dotX = x + 12 + k * 6;
-				const dotY = y - 6;
-				const dotEl = printer.paper.circle(dotX, dotY, 1.5);
-				printer.bindInteraction(dotEl, child);
 			}
 		}
 	}
@@ -243,7 +150,7 @@ export class JianpuVoiceRenderer {
 		voice: ABCVoiceElement,
 		printer: ABCPrinter,
 	): void {
-		const y = voice.y;
+		const y = printer.y;
 		const x1 = elems[startIdx].x - 8;
 		const x2 = elems[endIdx].x + 8;
 

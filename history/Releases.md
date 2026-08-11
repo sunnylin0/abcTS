@@ -372,3 +372,18 @@
 - 引入高效的「全域事件委託」機制，消除在個別音符、圓點、時值線上重複註冊 `mouseup` 監聽器。
 - 優化五線譜 `ABCAbsoluteElement.draw` 與簡譜 `JianpuVoiceRenderer`，全數改為呼叫 `bindInteraction` 元件化註冊。
 - 在 `test-jianpu-07.js` 中新增 `Seam G` 互動選取氣泡冒泡解析斷言測試，確認點擊互動正常。
+
+---
+## [2026-08-12] 修復多聲部下簡譜 Y 座標偏移與重疊 Bug (v1.21.0)
+- 修正多聲部排版時，簡譜（jianpu）聲部之 Y 座標偏上且與上方五線譜重疊的問題。
+- 於 `ABCVoiceElement.draw` 頂部新增對 `printer.y`、`printer.staffbottom`、`this.barbottom` 以及 `this.y` 的初始化指派，確保簡譜渲染時有正確的基準座標。
+- 於 `JianpuVoiceRenderer` 中將所有的 `voice.y` 取值，全部改用已定位好高度的 `printer.y`，並在 `render()` 入口處追加 defensive 判斷以防範獨立 renderer 測試 (如 `test-jianpu-07.js`) 的相容性問題。
+- 新增 `test-jianpu-bug.js` 驗證多聲部簡譜與五線譜混用下的 Y 座標排版對齊。
+
+---
+## [2026-08-12] 簡譜 (Jianpu) 支援 - Note 佈局與渲染解耦重構 (v1.22.0)
+- 於 `ABCRelativeElement.type` 與 `draw()` 中擴充支援 `"jianpuNote"` (唱名數字)、`"jianpuDash"` (時值橫線) 及 `"jianpuDot"` (圓點) 的 SVG 繪製。
+- 重構 `abc_layout.ts` 在 `printBeam()` 簡譜聲部時分流呼叫 `printJianpuNote`，並依拍數在佈局期生成橫線和附點 RelativeElement，利用 `addRight` 機制自動精確累加音符實質寬度以優化 X 軸佈局間距。
+- 精簡 `JianpuVoiceRenderer`，刪除私有 `_drawNote` 繪圖代碼，`_drawNotes` 改為呼叫 `child.draw` 委託繪圖，底線 `_drawUnderlines` 與行首 `_drawHeader` 保持在 renderer 端繪製。
+- 簡譜數字、橫線、圓點全數自動載入至音符的 `elemset` 之中，使選取高亮與全域事件委託直接生效，極大提升互動性與模組 Locality。
+- 更新與修復 `test-jianpu-06.js` 及 `test-jianpu-07.js` 的斷言與 Mock 機制，確保全數測試綠燈。

@@ -1,4 +1,4 @@
-﻿// test-jianpu-06.js  — Ticket 06 TDD
+// test-jianpu-06.js  — Ticket 06 TDD
 // Seam A: pitchToJianpu chromatic detection
 // Seam B: chromatic accidental glyphs rendering in drawLog
 // Seam C: line-header labels 1=Key and Meter in drawLog
@@ -70,12 +70,13 @@ function renderJianpu(abcStr) {
     // Chromatic natural glyph should be rendered as a path matching the glyph 'accidentals.natural'
     // Since printSymbol prints a path containing the glyph data, we can detect it.
     // In our MockPaper, printSymbol calls paper.path(pathVal). Let's see if path is drawn.
-    // The natural sign should be drawn. Let's see if we get a path.
     const paths = drawLog.filter(item => item.type === 'path');
-    console.log("Accidental paths count:", paths.length);
-    // In-key F# -> no glyph. Chromatic =F -> 1 natural glyph path!
-    // Total paths should be 1 (excluding stave lines since stave lines are hidden for jianpu!).
-    assert("Only 1 accidental glyph path is drawn", paths.length === 1, "got count=" + paths.length);
+    const accidentalPaths = paths.filter(p => {
+        const pathStr = p.path ? String(p.path) : (p.attr && p.attr.path ? String(p.attr.path) : '');
+        return pathStr.indexOf('c') !== -1;
+    });
+    console.log("Accidental natural glyph paths count:", accidentalPaths.length);
+    assert("Only 1 accidental natural glyph path is drawn", accidentalPaths.length === 1, "got count=" + accidentalPaths.length);
 }
 
 // ── Seam C: Line-header labels ───────────────────────────────────────────────

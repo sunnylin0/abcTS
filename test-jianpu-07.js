@@ -48,6 +48,8 @@ function createMockPrinter() {
                 }
             }
         },
+        beginGroup: () => {},
+        endGroup: () => null,
     };
 }
 
@@ -56,31 +58,98 @@ function makeVoice({ y = 50, jianpuKey = { root: 'C', accidentals: [] }, jianpuO
     return { y, jianpuKey, jianpuOctave, children };
 }
 
+const ABCAbsoluteElement = context.ABCAbsoluteElement || context.window.ABCAbsoluteElement;
+const ABCRelativeElement = context.ABCRelativeElement || context.window.ABCRelativeElement;
+
 function makeNoteChild(pitch, duration = 0.25, x = 100) {
-    return {
-        x,
-        duration,
-        beam: null,
-        abcelem: {
-            el_type: 'note',
-            pitches: [{ pitch, accidental: undefined }],
-        },
-        draw: () => {},
+    const abcelem = {
+        el_type: 'note',
+        pitches: [{ pitch, accidental: undefined }],
+        averagepitch: pitch,
+        minpitch: pitch,
+        maxpitch: pitch,
     };
+    const absEl = new ABCAbsoluteElement(abcelem, duration);
+    absEl.x = x;
+    
+    const keyRoot = 'C';
+    const refOctave = 0;
+    const res = pitchToJianpu(pitch, keyRoot, refOctave);
+    const notehead = new ABCRelativeElement(String(res.degree), 0, 12, 0, { type: 'jianpuNote' });
+    absEl.addHead(notehead);
+
+    const octaveDelta = res.octaveDelta;
+    if (octaveDelta > 0) {
+        for (let k = 0; k < octaveDelta; k++) {
+            absEl.addChild(new ABCRelativeElement('.', 0, 0, -12 - k * 4, { type: 'jianpuDot' }));
+        }
+    } else if (octaveDelta < 0) {
+        const absDelta = Math.abs(octaveDelta);
+        for (let k = 0; k < absDelta; k++) {
+            absEl.addChild(new ABCRelativeElement('.', 0, 0, 10 + k * 4, { type: 'jianpuDot' }));
+        }
+    }
+
+    let beats = duration * 4;
+    let numDashes = 0;
+    let dot = 0;
+    if (beats >= 1) {
+        if (Math.abs(beats - Math.round(beats)) < 1e-9) {
+            numDashes = Math.round(beats) - 1;
+        } else {
+            let floorBeats = Math.floor(beats);
+            numDashes = floorBeats - 1;
+            let rem = beats - floorBeats;
+            if (Math.abs(rem - 0.5) < 1e-9) dot = 1;
+        }
+    } else {
+        let dots = 0;
+        let base = duration;
+        const testBase1 = duration / 1.5;
+        const log2_1 = Math.log2(testBase1);
+        if (Math.abs(log2_1 - Math.round(log2_1)) < 1e-9) {
+            dots = 1;
+            base = testBase1;
+        } else {
+            const testBase2 = duration / 1.75;
+            const log2_2 = Math.log2(testBase2);
+            if (Math.abs(log2_2 - Math.round(log2_2)) < 1e-9) {
+                dots = 2;
+                base = testBase2;
+            }
+        }
+        dot = dots;
+    }
+
+    for (let k = 0; k < numDashes; k++) {
+        absEl.addRight(new ABCRelativeElement('-', 18 + k * 24, 12, 0, { type: 'jianpuDash' }));
+    }
+
+    if (dot > 0) {
+        for (let k = 0; k < dot; k++) {
+            absEl.addRight(new ABCRelativeElement('.', 12 + k * 6, 2, -6, { type: 'jianpuDot', linewidth: 1.5 }));
+        }
+    }
+
+    return absEl;
 }
 
 function makeRestChild(duration = 0.25, x = 100) {
-    return {
-        x,
-        duration,
-        beam: null,
-        abcelem: {
-            el_type: 'note',
-            rest: { type: 'rest' },
-            pitches: [],
-        },
-        draw: () => {},
+    const abcelem = {
+        el_type: 'note',
+        rest: { type: 'rest' },
+        pitches: [],
+        averagepitch: 7,
+        minpitch: 7,
+        maxpitch: 7,
     };
+    const absEl = new ABCAbsoluteElement(abcelem, duration);
+    absEl.x = x;
+
+    const notehead = new ABCRelativeElement('0', 0, 12, 0, { type: 'jianpuNote' });
+    absEl.addHead(notehead);
+
+    return absEl;
 }
 
 function makeBarChild(x = 80) {

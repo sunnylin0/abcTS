@@ -966,3 +966,39 @@
 - `pnpm run build` 打包編譯成功。
 - 所有的 7 個簡譜 TDD 測試（包含新增的 Seam G）皆 100% 綠燈通過。
 - Cooley's 回歸測試不受任何影響。
+
+---
+## [2026-08-12 03:55:00] 修復多聲部下簡譜 Y 座標偏移與重疊 Bug
+
+### 目標 (Objectives)
+- 修正多聲部排版時，簡譜（jianpu）聲部 Y 座標偏上且與上方五線譜重疊的問題，使其能動態對齊正確的實質渲染高度 `voice.staff.y`。
+
+### 需求 (Requirements)
+1. **修正繪圖前 Y 座標初始化**：
+   - 於 `ABCVoiceElement.draw()` (位於 `src/abc_graphelements.ts`) 中，在簡譜譜號分流渲染呼叫前，先執行 `printer.y` 及 `printer.staffbottom` 的指派，並設定 `this.barbottom = printer.calcY(2);`，且將 `this.y = printer.y;` 同步更新，確保簡譜的實質渲染 Y 座標與外部測試屬性一致。
+2. **改用 printer.y 進行渲染**：
+   - 於 `JianpuVoiceRenderer` (位於 `src/abc_jianpu_renderer.ts`) 中，將所有使用 `voice.y` 作為 Y 座標繪圖的部分改為 `printer.y`。
+   - 在 `render()` 開頭對 `printer.y` 做防禦性初始化（當其為 `undefined` 時，設為 `voice.y`），以保持與獨立 renderer 測試 (如 `test-jianpu-07.js`) 的相容性。
+
+### 驗收條件 (Acceptance Criteria)
+- `pnpm run build` 打包編譯成功。
+- 專門建立的 `test-jianpu-bug.js` 測試通過：驗證簡譜的文字與行首調號宣告的 Y 座標在多聲部時能正確大於第一聲部並與 `v2.staff.y` 完美對齊。
+- 所有的 7 個既有簡譜單元測試 (`test-jianpu-01` 至 `07`) 與 `test.js` 傳統回歸測試均 100% 綠燈通過。
+
+---
+## [2026-08-12 05:55:00] 簡譜 Note 佈局與渲染解耦重構
+
+### 目標 (Objectives)
+- 重構簡譜 Note 的生成與渲染架構，將簡譜的音符細節（數字、橫線、圓點、臨時升降記號）的創建從渲染期提前至佈局期，消除冗餘繪圖邏輯，實作高度內聚與完美的 X 軸佈局。
+
+### 需求 (Requirements)
+1. **擴充相對繪圖型別**：在 `ABCRelativeElement.type` 聲明與 `draw()` 中，新增 `"jianpuNote"` (22px唱名數字)、`"jianpuDash"` (延音橫線) 及 `"jianpuDot"` (八度點與附點) 支援。
+2. **Layout 分流與元素生成**：在 `abc_layout.ts` 中新增 `printJianpuNote` 和 `printJianpuNoteHead`。當為簡譜聲部時，在 `printBeam()` 進行分流呼叫，並根據拍數計算橫線與附點數量，以 `addRight` 將元素加進 `abselem`，使佈局期自動精確累加音符實質寬度。
+3. **過濾調內升降記號**：在 `printJianpuNoteHead` 中僅對調外臨時記號（`res.isChromatic` 為真時）繪製升降號，防止調內音符被重繪臨時記號。
+4. **渲染器瘦身**：將 `JianpuVoiceRenderer` 中的 `_drawNote` 刪除，`_drawNotes` 改為一行 `child.draw(printer, bartop)` 委託調用，底線 `_drawUnderlines` 與行首 `_drawHeader` 保持在 renderer 端繪製。
+5. **事件委託與高亮**：藉由 RelativeElement 自動收集至音符的 `elemset` 中，使全域選取高亮與點擊互動氣泡冒泡自動生效。
+
+### 驗收條件 (Acceptance Criteria)
+- `pnpm run build` 打包編譯成功。
+- `test-jianpu-01.js` 到 `test-jianpu-07.js` 的 7 個測試腳本全數 PASS。
+- 傳統五線譜回歸測試 `test.js` 100% 正常。

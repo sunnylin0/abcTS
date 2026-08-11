@@ -44,13 +44,13 @@ var key7flat: KeySignature = { acc: 'flat', note: 'f' };
 
 export class AbcParseHeader {
 	private tokenizer: AbcTokenizer;
-	private warn: (message: string, line: string, start: number) => void;
+	private warnFn: (message: string, line: string, start: number) => void;
 	private multilineVars: MultilineVars
 	private tune: AbcTune;
 
 	constructor(tokenizer: AbcTokenizer, warn: (message: string, line: string, start: number) => void, multilineVars: MultilineVars, tune: AbcTune) {
 		this.tokenizer = tokenizer;
-		this.warn = warn;
+		this.warnFn = warn;
 		this.multilineVars = multilineVars;
 		this.tune = tune;
 
@@ -374,7 +374,7 @@ export class AbcParseHeader {
 			} else {
 				str = str.substring(retExtra.len);
 				if (retExtra.warn) {
-					this.warn("error parsing extra accidentals:", origStr, 0);
+					this.warnFn("error parsing extra accidentals:", origStr, 0);
 				} else {
 					if (!ret.accidentals) {
 						ret.accidentals = [];
@@ -387,7 +387,7 @@ export class AbcParseHeader {
 		retClef = this.tokenizer.getClef(str);
 		if (retClef.len > 0) {
 			if (retClef.warn) {
-				this.warn("error parsing clef:" + retClef.warn, origStr, 0);
+				this.warnFn("error parsing clef:" + retClef.warn, origStr, 0);
 			} else {
 				this.multilineVars.clef = { el_type: "clef", type: retClef.token, verticalPos: this.calcMiddle(retClef.token, 0) };
 				str = str.substring(retClef.len);
@@ -396,7 +396,7 @@ export class AbcParseHeader {
 		}
 
 		if (ret.accidentals === undefined && retClef.token === undefined) {
-			this.warn("error parsing key: ", origStr, 0);
+			this.warnFn("error parsing key: ", origStr, 0);
 			return {};
 		}
 
@@ -594,7 +594,7 @@ export class AbcParseHeader {
 					switch (t.token) {
 						case '(':
 							if (openParen) {
-								this.warn("Can't nest parenthesis in %%score", str, t.start);
+								this.warnFn("Can't nest parenthesis in %%score", str, t.start);
 							} else {
 								openParen = true;
 								justOpenParen = true;
@@ -602,14 +602,14 @@ export class AbcParseHeader {
 							break;
 						case ')':
 							if (!openParen || justOpenParen) {
-								this.warn("Unexpected close parenthesis in %%score", str, t.start);
+								this.warnFn("Unexpected close parenthesis in %%score", str, t.start);
 							} else {
 								openParen = false;
 							}
 							break;
 						case '[':
 							if (openBracket) {
-								this.warn("Can't nest brackets in %%score", str, t.start);
+								this.warnFn("Can't nest brackets in %%score", str, t.start);
 							} else {
 								openBracket = true;
 								justOpenBracket = true;
@@ -617,7 +617,7 @@ export class AbcParseHeader {
 							break;
 						case '':
 							if (!openBracket || justOpenBracket) {
-								this.warn("Unexpected close bracket in %%score", str, t.start);
+								this.warnFn("Unexpected close bracket in %%score", str, t.start);
 							} else {
 								openBracket = false;
 								this.multilineVars.staves[lastVoice.staffNum].bracket = 'end';
@@ -625,7 +625,7 @@ export class AbcParseHeader {
 							break;
 						case '{':
 							if (openBrace) {
-								this.warn("Can't nest braces in %%score", str, t.start);
+								this.warnFn("Can't nest braces in %%score", str, t.start);
 							} else {
 								openBrace = true;
 								justOpenBrace = true;
@@ -633,7 +633,7 @@ export class AbcParseHeader {
 							break;
 						case '}':
 							if (!openBrace || justOpenBrace) {
-								this.warn("Unexpected close brace in %%score", str, t.start);
+								this.warnFn("Unexpected close brace in %%score", str, t.start);
 							} else {
 								openBrace = false;
 								this.multilineVars.staves[lastVoice.staffNum].brace = 'end';
@@ -697,7 +697,7 @@ export class AbcParseHeader {
 		//first space.
 		const id = this.tokenizer.getToken(line, start, end);
 		if (id.length === 0) {
-			this.warn("Expected a voice id", line, start);
+			this.warnFn("Expected a voice id", line, start);
 			return;
 		}
 		let isNew: boolean = false;
@@ -705,7 +705,7 @@ export class AbcParseHeader {
 			this.multilineVars.voices[id] = {};
 			isNew = true;
 			if (this.multilineVars.score_is_present) {
-				this.warn("Can't have an unknown V: id when the %score directive is present", line, i);
+				this.warnFn("Can't have an unknown V: id when the %score directive is present", line, i);
 			}
 		}
 		start += id.length;
@@ -715,9 +715,9 @@ export class AbcParseHeader {
 		const addNextTokenToStaffInfo = (name: string): void => {
 			const attr = this.tokenizer.getVoiceToken(line, start, end);
 			if (attr.warn !== undefined) {
-				this.warn("Expected value for " + name + " in voice: " + attr.warn, line, start);
+				this.warnFn("Expected value for " + name + " in voice: " + attr.warn, line, start);
 			} else if (attr.token.length === 0 && line.charAt(start) !== '"') {
-				this.warn("Expected value for " + name + " in voice", line, start);
+				this.warnFn("Expected value for " + name + " in voice", line, start);
 			} else {
 				staffInfo[name] = attr.token;
 			}
@@ -729,7 +729,7 @@ export class AbcParseHeader {
 			start += token.len;
 
 			if (token.warn) {
-				this.warn("Error parsing voice: " + token.warn, line, start);
+				this.warnFn("Error parsing voice: " + token.warn, line, start);
 			} else {
 				let attr: any;
 				switch (token.token) {
@@ -811,11 +811,11 @@ export class AbcParseHeader {
 					case 'stems':
 						attr = this.tokenizer.getVoiceToken(line, start, end);
 						if (attr.warn !== undefined) {
-							this.warn("Expected value for stems in voice: " + attr.warn, line, start);
+							this.warnFn("Expected value for stems in voice: " + attr.warn, line, start);
 						} else if (attr.token === 'up' || attr.token === 'down') {
 							this.multilineVars.voices[id].stem = attr.token;
 						} else {
-							this.warn("Expected up or down for voice stem", line, start);
+							this.warnFn("Expected up or down for voice stem", line, start);
 						}
 						start += attr.len;
 						break;
@@ -983,7 +983,7 @@ export class AbcParseHeader {
 				}
 				return meter;
 			} catch (e) {
-				this.warn(e, line, 0);
+				this.warnFn(e, line, 0);
 			}
 		}
 		return null;
@@ -1010,7 +1010,7 @@ export class AbcParseHeader {
 	addUserDefinition(line: string, start: number, end: number): void {
 		const equals = line.indexOf('=', start);
 		if (equals === -1) {
-			this.warn("Need an = in a macro definition", line, start);
+			this.warnFn("Need an = in a macro definition", line, start);
 			return;
 		}
 
@@ -1018,16 +1018,16 @@ export class AbcParseHeader {
 		const after = line.substring(equals + 1).strip();
 
 		if (before.length !== 1) {
-			this.warn("Macro definitions can only be one character", line, start);
+			this.warnFn("Macro definitions can only be one character", line, start);
 			return;
 		}
 		const legalChars = "HIJKLMNOPQRSTUVWhijklmnopqrstuvw~";
 		if (legalChars.indexOf(before) === -1) {
-			this.warn("Macro definitions must be H-W, h-w, or tilde", line, start);
+			this.warnFn("Macro definitions must be H-W, h-w, or tilde", line, start);
 			return;
 		}
 		if (after.length === 0) {
-			this.warn("Missing macro definition", line, start);
+			this.warnFn("Missing macro definition", line, start);
 			return;
 		}
 		if (this.multilineVars.macros === undefined) {
@@ -1159,7 +1159,7 @@ export class AbcParseHeader {
 			}
 			return { type: delaySet ? 'delaySet' : 'immediate', tempo: tempo };
 		} catch (msg) {
-			this.warn(String(msg), line, start);
+			this.warnFn(String(msg), line, start);
 			return { type: 'none' };
 		}
 	};
@@ -1173,7 +1173,7 @@ export class AbcParseHeader {
 				case "[I:":
 					const err: string = this.addDirective(line.substring(i + 3, e));
 					if (err)
-						this.warn(err, line, i);
+						this.warnFn(err, line, i);
 					return [e - i + 1 + ws];
 				case "[M:":
 					const meter = this.setMeter(line.substring(i + 3, e));
@@ -1224,7 +1224,7 @@ export class AbcParseHeader {
 			switch (line.substring(i, i + 2)) {
 				case "I:":
 					const err = this.addDirective(line.substring(i + 2));
-					if (err) this.warn(err, line, i);
+					if (err) this.warnFn(err, line, i);
 					return [line.length];
 				case "M:":
 					const meter = this.setMeter(line.substring(i + 2));
@@ -1282,7 +1282,7 @@ export class AbcParseHeader {
 	parseHeader(line: string): { recurse?: boolean, str?: string, newline?: boolean, regular?: boolean, words?: boolean } {
 		if (line.startsWith('%%')) {
 			const err = this.addDirective(line.substring(2));
-			if (err) this.warn(err, line, 2);
+			if (err) this.warnFn(err, line, 2);
 			return {};
 		}
 		line = this.tokenizer.stripComment(line);
@@ -1357,7 +1357,7 @@ export class AbcParseHeader {
 							break;
 						case 'E':
 						case 'm':
-							this.warn("Ignored header", line, 0);
+							this.warnFn("Ignored header", line, 0);
 							break;
 						default:
 							if (nextLine.length) {
