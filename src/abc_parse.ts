@@ -153,35 +153,51 @@ export class AbcParse {
 		this.addWarning(`Music Line:${this.tune.getNumLines()}:${col_num + 1}: ${str}: ${clean_line}`);
 	};
 
-	private letter_to_chord(line: string, i: number): [number, string, (string | boolean)?] {
+	/**
+	 * 解析和弦與 Annotations (以雙引號括起來的標記)
+	 * @param line 當前解析的樂譜文字行
+	 * @param i 當前解析的起始字元索引
+	 * @returns 包含消耗長度、名稱與位置的 ChordParseResult 物件
+	 */
+	private letter_to_chord(line: string, i: number): ChordParseResult {
 		if (line[i] === '"') {
-			let chord: [number, string, string | boolean] = this.tokenizer.getBrackettedSubstring(line, i, 5);
-			if (!chord[2])
+			const chordResult: BrackettedSubstringResult = this.tokenizer.getBrackettedSubstring(line, i, 5);
+			if (!chordResult.closed)
 				this.warn("Missing the closing quote while parsing the chord symbol", line, i);
+
+			let name = chordResult.token;
+			let position: Chord['position'] = 'default';
 
 			// If it starts with ^, then the chord appears above.
 			// If it starts with _ then the chord appears below.
 			// (note that the 2.0 draft standard defines them as not chords, but annotations and also defines < > and @.)
-			if (chord[0] > 0 && chord[1].length > 0 && chord[1][0] === '^') {
-				chord[1] = chord[1].substring(1);
-				chord[2] = 'above';
-			} else if (chord[0] > 0 && chord[1].length > 0 && chord[1][0] === '_') {
-				chord[1] = chord[1].substring(1);
-				chord[2] = 'below';
-			} else if (chord[0] > 0 && chord[1].length > 0 && chord[1][0] === '<') {
-				chord[1] = chord[1].substring(1);
-				chord[2] = 'left';
-			} else if (chord[0] > 0 && chord[1].length > 0 && chord[1][0] === '>') {
-				chord[1] = chord[1].substring(1);
-				chord[2] = 'right';
-			} else
-				chord[2] = 'default';
-			return chord;
+			if (chordResult.len > 0 && name.length > 0 && name[0] === '^') {
+				name = name.substring(1);
+				position = 'above';
+			} else if (chordResult.len > 0 && name.length > 0 && name[0] === '_') {
+				name = name.substring(1);
+				position = 'below';
+			} else if (chordResult.len > 0 && name.length > 0 && name[0] === '<') {
+				name = name.substring(1);
+				position = 'left';
+			} else if (chordResult.len > 0 && name.length > 0 && name[0] === '>') {
+				name = name.substring(1);
+				position = 'right';
+			} else {
+				position = 'default';
+			}
+			return { len: chordResult.len, name, position };
 		}
-		return [0, ""];
+		return { len: 0, name: "" };
 	}
 
-	private letter_to_accent(line: string, i: number): [number, string, boolean?] | boolean {
+	/**
+	 * 解析音符裝飾記號 (如 staccato, roll, fermata 等)
+	 * @param line 當前解析的樂譜文字行
+	 * @param i 當前解析的起始字元索引
+	 * @returns 包含消耗長度與裝飾記號名稱的 AccentParseResult 物件
+	 */
+	private letter_to_accent(line: string, i: number): AccentParseResult {
 		let macro = this.multilineVars.macros[line[i]];
 
 		if (macro !== undefined) {
@@ -192,78 +208,90 @@ export class AbcParse {
 			if (this.legalAccents.detect(function (acc) {
 				return (macro === acc);
 			}))
-				return [1, macro];
+				return { len: 1, accent: macro };
 		}
 
 		switch (line[i]) {
-			case '.': return [1, 'staccato'];
-			case 'u': return [1, 'upbow'];
-			case 'v': return [1, 'downbow'];
-			case '~': return [1, 'roll'];
+			case '.': return { len: 1, accent: 'staccato' };
+			case 'u': return { len: 1, accent: 'upbow' };
+			case 'v': return { len: 1, accent: 'downbow' };
+			case '~': return { len: 1, accent: 'roll' };
 			case '!':
 			case '+':
-				let ret = this.tokenizer.getBrackettedSubstring(line, i, 5);
+				const bracketResult = this.tokenizer.getBrackettedSubstring(line, i, 5);
+				let name = bracketResult.token;
 				// Be sure that the accent is recognizable.
-				if (ret[1].length > 0 && (ret[1][0] === '^' || ret[1][0] === '_'))
-					ret[1] = ret[1].substring(1);	// TODO-PER: The test files have indicators forcing the orniment to the top or bottom, but that isn't in the standard. We'll just ignore them.
+				if (name.length > 0 && (name[0] === '^' || name[0] === '_'))
+					name = name.substring(1);	// TODO-PER: The test files have indicators forcing the ornament to the top or bottom, but that isn't in the standard. We'll just ignore them.
 				if (this.legalAccents.detect(function (acc) {
-					return (ret[1] === acc);
+					return (name === acc);
 				}))
-					return ret;
+					return { len: bracketResult.len, accent: name };
 
 				if (this.accentPsuedonyms.detect(function (acc) {
-					if (ret[1] === acc[0]) {
-						ret[1] = acc[1];
+					if (name === acc[0]) {
+						name = acc[1];
 						return true;
 					} else
 						return false;
 				}))
-					return ret;
+					return { len: bracketResult.len, accent: name };
 
 				// We didn't find the accent in the list, so consume the space, but don't return an accent.
 				// Although it is possible that ! was used as a line break, so accept that.
-				if (line[i] === '!' && (ret[0] === 1 || line[i + ret[0] - 1] !== '!'))
-					return [1, null];
-				this.warn("Unknown decoration: " + ret[1], line, i);
-				ret[1] = "";
-				return ret;
-			case 'H': return [1, 'fermata'];
-			case 'J': return [1, 'slide'];
-			case 'L': return [1, 'accent'];
-			case 'M': return [1, 'mordent'];
-			case 'P': return [1, 'pralltriller'];
-			case 'R': return [1, 'roll'];
-			case 'T': return [1, 'trill'];
+				if (line[i] === '!' && (bracketResult.len === 1 || line[i + bracketResult.len - 1] !== '!'))
+					return { len: 1, accent: null };
+				this.warn("Unknown decoration: " + name, line, i);
+				return { len: bracketResult.len, accent: "" };
+			case 'H': return { len: 1, accent: 'fermata' };
+			case 'J': return { len: 1, accent: 'slide' };
+			case 'L': return { len: 1, accent: 'accent' };
+			case 'M': return { len: 1, accent: 'mordent' };
+			case 'P': return { len: 1, accent: 'pralltriller' };
+			case 'R': return { len: 1, accent: 'roll' };
+			case 'T': return { len: 1, accent: 'trill' };
 		}
-		return [0, ""];
-	};
+		return { len: 0, accent: "" };
+	}
 
-	private letter_to_spacer(line: string, i: number): number[] {
+	/**
+	 * 解析空白 spacer，回傳消耗的字元長度
+	 * @param line 當前解析的樂譜文字行
+	 * @param i 當前解析的起始字元索引
+	 * @returns 包含消耗長度的 SpacerParseResult 物件
+	 */
+	private letter_to_spacer(line: string, i: number): SpacerParseResult {
 		let start = i;
 		while (this.tokenizer.isWhiteSpace(line[i])) {
 			i++;
 		}
-		return [i - start];
-	};
+		return { len: i - start };
+	}
 
 	// returns the class of the bar line
 	// the number of the repeat
 	// and the number of characters used up
 	// if 0 is returned, then the next element was not a bar line
-	private letter_to_bar(line: string, curr_pos: number): [number, string, string?] {
+	/**
+	 * 解析小節線與反覆記號結尾
+	 * @param line 當前解析的樂譜文字行
+	 * @param curr_pos 當前解析的起始字元索引
+	 * @returns 包含消耗長度、小節線類型與可選結尾標記的 BarParseResult 物件
+	 */
+	private letter_to_bar(line: string, curr_pos: number): BarParseResult {
 		let ret = this.tokenizer.getBarLine(line, curr_pos);
 		if (ret.len === 0)
-			return [0, ""];
+			return { len: 0, barType: "" };
 		if (ret?.warn) {
 			this.warn(ret.warn, line, curr_pos);
-			return [ret.len, ""];
+			return { len: ret.len, barType: "" };
 		}
 
 		// Now see if this is a repeated ending
 		// A repeated ending is all of the characters 1,2,3,4,5,6,7,8,9,0,-, and comma
 		// It can also optionally start with '[', which is ignored.
 		// Also, it can have white space before the '['.
-		let ws
+		let ws;
 		for (ws = 0; ws < line.length; ws++)
 			if (line[curr_pos + ret.len + ws] !== ' ')
 				break;
@@ -272,16 +300,16 @@ export class AbcParse {
 			ret.len += ws + 1;
 			// It can also be a quoted string. It is unclear whether that construct requires '[', but it seems like it would. otherwise it would be confused with a regular chord.
 			if (line[curr_pos + ret.len] === '"') {
-				let ending = this.tokenizer.getBrackettedSubstring(line, curr_pos + ret.len, 5);
-				return [ret.len + ending[0], ret.token, ending[1]];
+				let endingResult = this.tokenizer.getBrackettedSubstring(line, curr_pos + ret.len, 5);
+				return { len: ret.len + endingResult.len, barType: ret.token, ending: endingResult.token };
 			}
 		}
 		const retRep = this.tokenizer.getTokenOf(line.substring(curr_pos + ret.len), "1234567890-,");
 		if (retRep.len === 0 || retRep.token[0] === '-')
-			return [orig_bar_len, ret.token];
+			return { len: orig_bar_len, barType: ret.token };
 
-		return [ret.len + retRep.len, ret.token, retRep.token];
-	};
+		return { len: ret.len + retRep.len, barType: ret.token, ending: retRep.token };
+	}
 
 	private letter_to_open_slurs_and_triplets(line: string, i: number): SlursAndTriplets {
 		// consume spaces, and look for all the open parens. If there is a number after the open paren,
@@ -417,23 +445,27 @@ export class AbcParse {
 		};
 	};
 
-	private getBrokenRhythm(line: string, index: number): number[] {
+	/**
+	 * 解析附點或切分音節奏符號 (如 >, <, >>, <<) 並計算其前後時值分配比例
+	 * @param line 當前解析的樂譜文字行
+	 * @param index 當前解析的起始字元索引
+	 * @returns 包含消耗長度與時值乘數的 BrokenRhythmResult 物件，若非折分符號則返回 null
+	 */
+	private getBrokenRhythm(line: string, index: number): BrokenRhythmResult | null {
 		switch (line[index]) {
 			case '>':
 				if (index < line.length - 1 && line[index + 1] === '>')	// double >>
-					return [2, 1.75, 0.25];
+					return { len: 2, factor1: 1.75, factor2: 0.25 };
 				else
-					return [1, 1.5, 0.5];
-				break;
+					return { len: 1, factor1: 1.5, factor2: 0.5 };
 			case '<':
 				if (index < line.length - 1 && line[index + 1] === '<')	// double <<
-					return [2, 0.25, 1.75];
+					return { len: 2, factor1: 0.25, factor2: 1.75 };
 				else
-					return [1, 0.5, 1.5];
-				break;
+					return { len: 1, factor1: 0.5, factor2: 1.5 };
 		}
 		return null;
-	};
+	}
 
 	// TODO-PER: make this a method in el.
 	private addEndBeam(el: ABCElement) {
@@ -689,10 +721,12 @@ export class AbcParse {
 				case '<':
 					if (isComplete(state)) {
 						if (canHaveBrokenRhythm) {
-							const br2: number[] = this.getBrokenRhythm(line, index);
-							index += br2[0] - 1;
-							this.multilineVars.next_note_duration = br2[2] * el.duration;
-							el.duration = br2[1] * el.duration;
+							const br2 = this.getBrokenRhythm(line, index);
+							if (br2) {
+								index += br2.len - 1;
+								this.multilineVars.next_note_duration = br2.factor2 * el.duration;
+								el.duration = br2.factor1 * el.duration;
+							}
 							state = 'end_slur';
 						} else {
 							el.endChar = index;
@@ -791,18 +825,24 @@ export class AbcParse {
 		}
 	};
 
-	private letter_to_grace(line: string, i: number): [number, NOTES_Element[] | string, boolean?] {
+	/**
+	 * 解析裝飾音 (Grace Note，花音，以花括號 {} 括起來的音符)
+	 * @param line 當前解析的樂譜文字行
+	 * @param i 當前解析的起始字元索引
+	 * @returns 包含消耗長度與裝飾音陣列的 GraceParseResult 物件
+	 */
+	private letter_to_grace(line: string, i: number): GraceParseResult {
 		if (line.charAt(i) === '{') {
-			const gra: [number, string, boolean] = this.tokenizer.getBrackettedSubstring(line, i, 1, '}');
-			if (!gra[2]) {
+			const graResult = this.tokenizer.getBrackettedSubstring(line, i, 1, '}');
+			if (!graResult.closed) {
 				this.warn("Missing the closing '}' while parsing grace note", line, i);
 			}
 
 			const gracenotes: NOTES_Element[] = [];
 			let ii = 0;
 			let inTie = false;
-			while (ii < gra[1].length) {
-				const note = this.getCoreNote(gra[1], ii, {}, false);
+			while (ii < graResult.token.length) {
+				const note = this.getCoreNote(graResult.token, ii, {}, false);
 				if (note !== null) {
 					gracenotes.push(note as NOTES_Element);
 
@@ -817,22 +857,22 @@ export class AbcParse {
 					ii = note.endChar;
 					delete note.endChar;
 				} else {
-					if (gra[1].charAt(ii) === ' ') {
+					if (graResult.token.charAt(ii) === ' ') {
 						if (gracenotes.length > 0) {
 							gracenotes[gracenotes.length - 1].end_beam = true;
 						}
 					} else {
-						this.warn("Unknown character '" + gra[1].charAt(ii) + "' while parsing grace note", line, i);
+						this.warn("Unknown character '" + graResult.token.charAt(ii) + "' while parsing grace note", line, i);
 					}
 					ii++;
 				}
 			}
 			if (gracenotes.length) {
-				return [gra[0], gracenotes];
+				return { len: graResult.len, notes: gracenotes };
 			}
 		}
-		return [0, "", false];
-	};
+		return { len: 0, notes: [] };
+	}
 
 	//
 	// Parse line of music
@@ -914,9 +954,9 @@ export class AbcParse {
 		//let inTieChord: { [key: number]: boolean } = {};
 
 		// Check for a header field at the start of the line
-		const retHeader: [number, string?, string?] = this.header.letter_to_body_header(line, i);
-		if (retHeader[0] > 0) {
-			i += retHeader[0];
+		const bodyHeaderResult = this.header.letter_to_body_header(line, i);
+		if (bodyHeaderResult.len > 0) {
+			i += bodyHeaderResult.len;
 			// TODO-PER: Handle inline headers
 		}
 
@@ -928,9 +968,9 @@ export class AbcParse {
 				break;
 			}
 
-			const retInlineHeader: [number, string?, string?] = this.header.letter_to_inline_header(line, i);
-			if (retInlineHeader[0] > 0) {
-				i += retInlineHeader[0];
+			const inlineHeaderResult = this.header.letter_to_inline_header(line, i);
+			if (inlineHeaderResult.len > 0) {
+				i += inlineHeaderResult.len;
 				// TODO-PER: Handle inline headers
 				//multilineVars.start_new_line = false;
 			} else {
@@ -947,61 +987,64 @@ export class AbcParse {
 				// So, loop while we find grace-notes, chords-symbols, or decorations. [It is an error to have more than one grace-note group in a row; the others can be multiple]
 				// Then, if there is a grace-note, we know where to go.
 				// Else see if we have a chord, core-note, slur, triplet, or bar.
-				let ret: any;
+				let whitespaceLen: number;
 
 				while (1) {
-					ret = this.tokenizer.eatWhiteSpace(line, i);
-					if (ret > 0) {
-						i += ret;
+					whitespaceLen = this.tokenizer.eatWhiteSpace(line, i);
+					if (whitespaceLen > 0) {
+						i += whitespaceLen;
 					}
 					if (i > 0 && line[i - 1] === '\x12') {
 						// there is one case where a line continuation isn't the same as being on the same line, and that is if the next character after it is a header.
-						ret = this.header.letter_to_body_header(line, i);
-						if (ret[0] > 0) {
+						const continuationHeader = this.header.letter_to_body_header(line, i);
+						if (continuationHeader.len > 0) {
 							// TODO: insert header here
-							i = ret[0];
+							i = continuationHeader.len;
 							this.multilineVars.start_new_line = false;
 						}
 					}
 					// gather all the grace notes, chord symbols and decorations
-					ret = this.letter_to_spacer(line, i);
-					if (ret[0] > 0) {
-						i += ret[0];
+					const spacerResult = this.letter_to_spacer(line, i);
+					if (spacerResult.len > 0) {
+						i += spacerResult.len;
 					}
 
-					ret = this.letter_to_chord(line, i);
-					if (ret[0] > 0) {
+					const chordResult = this.letter_to_chord(line, i);
+					if (chordResult.len > 0) {
 						if (!el.chord) {
 							el.chord = [];
 						}
-						el.chord.push({ name: this.tokenizer.translateString(ret[1]), position: ret[2] as any });
-						i += ret[0];
+						el.chord.push({ name: this.tokenizer.translateString(chordResult.name), position: chordResult.position });
+						i += chordResult.len;
 						let ii = this.tokenizer.skipWhiteSpace(line.substring(i));
 						if (ii > 0) {
 							el.force_end_beam_last = true;
 						}
 						i += ii;
 					} else {
+						let accentResult: AccentParseResult;
 						if (this.nonDecorations.indexOf(line[i]) === -1)
-							ret = this.letter_to_accent(line, i);
-						else ret = [0];
-						if (ret[0] > 0) {
-							if (ret[1] === null) {
+							accentResult = this.letter_to_accent(line, i);
+						else
+							accentResult = { len: 0, accent: "" };
+
+						if (accentResult.len > 0) {
+							if (accentResult.accent === null) {
 								if (i + 1 < line.length)
 									this.startNewLine();	// There was a ! in the middle of the line. Start a new line if there is anything after it.
-							} else if (ret[1].length > 0) {
+							} else if (accentResult.accent.length > 0) {
 								if (el.decoration === undefined)
 									el.decoration = [];
 
-								el.decoration.push(ret[1]);
+								el.decoration.push(accentResult.accent);
 							}
-							i += ret[0];
+							i += accentResult.len;
 						} else {
-							ret = this.letter_to_grace(line, i);
+							const graceResult = this.letter_to_grace(line, i);
 							// TODO-PER: Be sure there aren't already grace notes defined. That is an error.
-							if (ret[0] > 0) {
-								el.gracenotes = ret[1];
-								i += ret[0];
+							if (graceResult.len > 0) {
+								el.gracenotes = graceResult.notes;
+								i += graceResult.len;
 							} else {
 								break;
 							}
@@ -1009,17 +1052,17 @@ export class AbcParse {
 					}
 				}
 
-				ret = this.letter_to_bar(line, i);
-				if (ret[0] > 0) {
+				const barResult = this.letter_to_bar(line, i);
+				if (barResult.len > 0) {
 					// This is definitely a bar
 					if (el.gracenotes !== undefined) {
 						// Attach the grace note to an invisible note
 						el.rest = { type: 'spacer' };
 						el.duration = 0.125; // TODO-PER: I don't think the duration of this matters much, but figure out if it does.
-						this.tune.appendElement('note', startOfLine + i, startOfLine + i + ret[0], el);
+						this.tune.appendElement('note', startOfLine + i, startOfLine + i + barResult.len, el);
 						el = {};
 					}
-					let bar: BarElement = { type: ret[1] } as BarElement;
+					let bar: BarElement = { type: barResult.barType } as BarElement;
 					if (bar.type.length === 0) {
 						this.warn("Unknown bar type", line, i);
 					} else {
@@ -1027,8 +1070,8 @@ export class AbcParse {
 							bar.endEnding = true;
 							this.multilineVars.inEnding = false;
 						}
-						if (ret[2]) {
-							bar.startEnding = ret[2];
+						if (barResult.ending) {
+							bar.startEnding = barResult.ending;
 							if (this.multilineVars.inEnding)
 								bar.endEnding = true;
 							this.multilineVars.inEnding = true;
@@ -1045,28 +1088,28 @@ export class AbcParse {
 								this.multilineVars.barNumOnNextNote = this.multilineVars.currBarNumber;
 							}
 						}
-						this.tune.appendElement('bar', startOfLine + i, startOfLine + i + ret[0], bar);
+						this.tune.appendElement('bar', startOfLine + i, startOfLine + i + barResult.len, bar);
 						el = {};
 					}
-					i += ret[0];
+					i += barResult.len;
 				} else {
 					// This is definitely a note group
 					//
 					// Look for as many open slurs and triplets as there are. (Note: only the first triplet is valid.)
-					ret = this.letter_to_open_slurs_and_triplets(line, i);
-					if (ret.consumed > 0) {
-						if (ret.startSlur !== undefined) {
-							el.startSlur = ret.startSlur;
+					const slursResult = this.letter_to_open_slurs_and_triplets(line, i);
+					if (slursResult.consumed > 0) {
+						if (slursResult.startSlur !== undefined) {
+							el.startSlur = slursResult.startSlur;
 						}
-						if (ret.triplet !== undefined) {
+						if (slursResult.triplet !== undefined) {
 							if (tripletNotesLeft > 0) {
 								this.warn("Can't nest triplets", line, i);
 							} else {
-								el.startTriplet = ret.triplet;
-								tripletNotesLeft = ret.num_notes === undefined ? ret.triplet : ret.num_notes;
+								el.startTriplet = slursResult.triplet;
+								tripletNotesLeft = slursResult.num_notes === undefined ? slursResult.triplet : slursResult.num_notes;
 							}
 						}
-						i += ret.consumed;
+						i += slursResult.consumed;
 					}
 
 					// Handle chords
@@ -1156,9 +1199,11 @@ export class AbcParse {
 											case '>':
 											case '<':
 												const br2 = this.getBrokenRhythm(line, i);
-												i += br2[0] - 1;	// index gets incremented below, so we'll let that happen
-												this.multilineVars.next_note_duration = br2[2];
-												chordDuration = br2[1];
+												if (br2) {
+													i += br2.len - 1;	// index gets incremented below, so we'll let that happen
+													this.multilineVars.next_note_duration = br2.factor2;
+													chordDuration = br2.factor1;
+												}
 												break;
 											case '1':
 											case '2':

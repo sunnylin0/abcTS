@@ -1002,6 +1002,32 @@
   - *對策*：在 `JianpuVoiceRenderer.render` 頂部使用 `if (printer.y === undefined) { printer.y = voice.y; }` 防禦，且在 `ABCVoiceElement.draw` 中當簡譜呼叫時同步設定 `this.y = printer.y`，使得原有測試以 `voice.y` 取值比對時，依然能夠正確獲得正確的基準座標，全數回歸測試安全變綠。
 
 ---
+## [2026-08-12 15:55:00] 重構解析元組回傳為具名強型別物件
+
+### 步驟與技術方案 (Step-by-step Technical Plans)
+1. **定義 9 個具名強型別介面 (`src/all.d.ts`)**：
+   - 定義並導出 `BrackettedSubstringResult`, `ChordParseResult`, `AccentParseResult`, `SpacerParseResult`, `BarParseResult`, `BrokenRhythmResult`, `GraceParseResult`, `InlineHeaderResult`, `BodyHeaderResult`。
+   - 在每個屬性上撰寫繁體中文的 TSDoc/JSDoc 註解以闡明語意。
+2. **重構分詞與解析核心 (`src/abc_tokenizer.ts`, `src/abc_parse.ts`, `src/abc_parse_header.ts`)**：
+   - 修改 `getBrackettedSubstring` 回傳 `BrackettedSubstringResult` 物件型別。
+   - 修改 `letter_to_chord`、`letter_to_accent`、`letter_to_spacer`、`letter_to_bar`、`getBrokenRhythm`、`letter_to_grace`、`letter_to_inline_header`、`letter_to_body_header` 的函式回傳宣告，改為返回對應的新介面物件。
+3. **呼叫處代碼重構**：
+   - 更新所有呼叫點，將元組索引（如 `ret[0]`）全數替換為屬性取值（如 `result.len`）。
+   - 修復舊 JS 代碼中因全域變數 `ret` 污染在重構後引起的 `ReferenceError` 潛在缺陷，改用具名局部變數（如 `spacerResult`, `slursResult`）承接。
+4. **測試驗證**：
+   - 打包編譯並執行全套傳統及簡譜回歸測試，保證與新版 JS AST 100% 一致。
+
+### 影響檔案 (Affected Files)
+- `src/all.d.ts` (修改)
+- `src/abc_tokenizer.ts` (修改)
+- `src/abc_parse.ts` (修改)
+- `src/abc_parse_header.ts` (修改)
+
+### 風險評估 (Risks & Mitigations)
+- **舊 JS 全域變數污染引起 ReferenceError**：原解析迴圈在函式頂層宣告了 `let ret: any;` 並且在很多不同類型的解析中使用。將其中部分重構為具名局部變數時，可能導致該變數未定義或值被覆蓋。
+  - *對策*：將所有呼叫點精確地宣告為獨立的 `const` 局部變數（如 `barResult`, `chordResult`），並將迴圈剩餘呼叫處（如 `letter_to_open_slurs_and_triplets`）的 `ret` 明確定義為 `const slursResult`，完全隔離污染。
+
+---
 ## [2026-08-12 05:55:00] 簡譜 Note 佈局與渲染解耦重構
 
 ### 步驟與技術方案 (Step-by-step Technical Plans)

@@ -580,3 +580,20 @@
 1. 執行 `pnpm run build` 通過，生成 UMD 包。
 2. 執行 `node test-jianpu-01.js` 到 `test-jianpu-07.js` 全數綠燈通過。
 3. 執行傳統的 `test.js` 回歸測試 100% 通過。
+
+---
+## [2026-08-12 15:55:00] 重構解析元組回傳為具名強型別物件 (完成)
+
+### 變更摘要 (Change Summary)
+1. **新增具名介面與中文 TSDoc (`src/all.d.ts`)**：
+   - 定義並導出 `BrackettedSubstringResult`, `ChordParseResult`, `AccentParseResult`, `SpacerParseResult`, `BarParseResult`, `BrokenRhythmResult`, `GraceParseResult`, `InlineHeaderResult`, `BodyHeaderResult`，為其屬性補齊詳盡繁體中文註解。
+2. **重構解析核心與回傳型別**：
+   - 修改 `abc_tokenizer.ts` 的 `getBrackettedSubstring` 與 `abc_parse.ts`、`abc_parse_header.ts` 內對應的 8 個 `letter_to` 函式，將其元組回傳重構為返回具名介面物件。
+3. **修復呼叫處與清除 `ret` 全域污染**：
+   - 將所有使用 `ret[0]`, `ret[1]` 的索引取值改為具名屬性（如 `barResult.len`），並清除了舊 JS 代碼中因全域變數 `ret` 污染引發的潛在缺陷，改用獨立局部變數隔離。
+
+### 驗證與測試日誌 (Verification & Test Logs)
+1. 執行 `pnpm run build` 通過，無 TypeScript 型別錯誤並順利生成 UMD 套件。
+2. 執行 `node test.js` 成功，核心五線譜樂譜解析正常。
+3. 執行 `node test-jianpu-01.js` 到 `test-jianpu-07.js` 全部為 **ALL PASS**。
+4. 執行 `node test/compare_ast.js` 輸出 `✅ Stage A & B (AST Compare) Passed!`，證明重構後 AST 與舊版完全一致。
