@@ -387,3 +387,10 @@
 - 精簡 `JianpuVoiceRenderer`，刪除私有 `_drawNote` 繪圖代碼，`_drawNotes` 改為呼叫 `child.draw` 委託繪圖，底線 `_drawUnderlines` 與行首 `_drawHeader` 保持在 renderer 端繪製。
 - 簡譜數字、橫線、圓點全數自動載入至音符的 `elemset` 之中，使選取高亮與全域事件委託直接生效，極大提升互動性與模組 Locality。
 - 更新與修復 `test-jianpu-06.js` 及 `test-jianpu-07.js` 的斷言與 Mock 機制，確保全數測試綠燈。
+
+---
+## [2026-08-12] 重構解析元組回傳為具名強型別物件 (v1.23.0)
+- **新增 9 個強型別具名介面**：在 [all.d.ts](file:///c:/github/abcMain/abcTS/src/all.d.ts) 中定義 `BrackettedSubstringResult`, `ChordParseResult`, `AccentParseResult`, `SpacerParseResult`, `BarParseResult`, `BrokenRhythmResult`, `GraceParseResult`, `InlineHeaderResult`, `BodyHeaderResult`，為其屬性補齊詳盡中文註解。
+- **重構 Tokenizer 與 Parser 解析函式**：修改 [abc_tokenizer.ts](file:///c:/github/abcMain/abcTS/src/abc_tokenizer.ts) 的 `getBrackettedSubstring`，以及 [abc_parse.ts](file:///c:/github/abcMain/abcTS/src/abc_parse.ts)、[abc_parse_header.ts](file:///c:/github/abcMain/abcTS/src/abc_parse_header.ts) 的 8 個 letter_to 函式與 getBrokenRhythm，將其無語意 tuple 回傳值重構為上述具名物件。
+- **修復呼叫處與清除 `ret` 全域污染**：重構所有呼叫處以改用物件屬性取值（如 `barResult.len`），並清除了舊 JS 代碼中因全域變數 `ret` 污染引發的潛在缺陷。
+- **測試驗證全數通過**：UMD 打包與 TypeScript 靜態編譯無錯誤，傳統回歸測試、7 個簡譜單元測試以及 AST 語法樹比對測試（100% 對齊）皆順利通過。

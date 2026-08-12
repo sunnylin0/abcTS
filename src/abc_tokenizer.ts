@@ -663,8 +663,15 @@ export class AbcTokenizer {
 		return str;
 	}
 
-	// 取得括號內的子字串
-	getBrackettedSubstring(line: string, i: number, maxErrorChars: number, _matchChar?: string): [number, string, boolean] {
+	/**
+	 * 取得括號內的子字串
+	 * @param line 當前解析的樂譜文字行
+	 * @param i 當前解析的起始字元索引
+	 * @param maxErrorChars 若未尋找到閉合括號，允許向後消耗的最大容錯字元數
+	 * @param _matchChar 可選的指定結束閉合字元。若未提供，則以起始位置的字元為準
+	 * @returns 包含消耗長度、內容字串與是否成功閉合的 BrackettedSubstringResult 物件
+	 */
+	getBrackettedSubstring(line: string, i: number, maxErrorChars: number, _matchChar?: string): BrackettedSubstringResult {
 		// This extracts the sub string by looking at the first character and searching for that
 		// character later in the line (or search for the optional _matchChar).
 		// For instance, if the first character is a quote it will look for
@@ -679,13 +686,21 @@ export class AbcTokenizer {
 			++pos;
 		}
 		if (line.charAt(pos) === matchChar) {
-			return [pos - i + 1, this.substInChord(line.substring(i + 1, pos)), true];
+			return {
+				len: pos - i + 1,
+				token: this.substInChord(line.substring(i + 1, pos)),
+				closed: true
+			};
 		} else { // 到達行尾，選擇任意數量的字元以防止行消失
 			pos = i + maxErrorChars;
 			if (pos > line.length - 1) {
 				pos = line.length - 1;
 			}
-			return [pos - i + 1, this.substInChord(line.substring(i + 1, pos)), false];
+			return {
+				len: pos - i + 1,
+				token: this.substInChord(line.substring(i + 1, pos)),
+				closed: false
+			};
 		}
 	}
 }

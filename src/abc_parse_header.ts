@@ -1164,7 +1164,13 @@ export class AbcParseHeader {
 		}
 	};
 
-	letter_to_inline_header(line: string, i: number): [number, string?, string?] {
+	/**
+	 * 解析行內 Inline 標頭欄位 (例如 [M:3/4])
+	 * @param line 當前解析的樂譜文字行
+	 * @param i 當前解析的起始字元索引
+	 * @returns 包含消耗長度、標頭字母與內容的 InlineHeaderResult 物件
+	 */
+	letter_to_inline_header(line: string, i: number): InlineHeaderResult {
 		const ws: number = this.tokenizer.eatWhiteSpace(line, i);
 		i += ws;
 		if (line.length >= i + 5 && line.charAt(i) === '[' && line.charAt(i + 2) === ':') {
@@ -1174,25 +1180,25 @@ export class AbcParseHeader {
 					const err: string = this.addDirective(line.substring(i + 3, e));
 					if (err)
 						this.warnFn(err, line, i);
-					return [e - i + 1 + ws];
+					return { len: e - i + 1 + ws };
 				case "[M:":
 					const meter = this.setMeter(line.substring(i + 3, e));
 					if (this.tune.hasBeginMusic() && meter)
 						this.tune.appendStartingElement('meter', -1, -1, meter);
-					return [e - i + 1 + ws];
+					return { len: e - i + 1 + ws };
 				case "[K:":
 					const result = this.parseKey(line.substring(i + 3, e));
 					if (result.foundClef && this.tune.hasBeginMusic())
 						this.tune.appendStartingElement('clef', -1, -1, this.multilineVars.clef);
 					if (result.foundKey && this.tune.hasBeginMusic())
 						this.tune.appendStartingElement('key', -1, -1, this.fixKey(this.multilineVars.clef, this.multilineVars.key));
-					return [e - i + 1 + ws];
+					return { len: e - i + 1 + ws };
 				case "[P:":
 					this.tune.appendElement('part', -1, -1, { title: line.substring(i + 3, e) });
-					return [e - i + 1 + ws];
+					return { len: e - i + 1 + ws };
 				case "[L:":
 					this.setDefaultLength(line, i + 3, e);
-					return [e - i + 1 + ws];
+					return { len: e - i + 1 + ws };
 				case "[Q:":
 					if (e > 0) {
 						let tempo = this.setTempo(line, i + 3, e);
@@ -1200,14 +1206,22 @@ export class AbcParseHeader {
 							this.tune.appendElement('tempo', -1, -1, this.calcTempo(tempo.tempo) as unknown as ABCElement);
 						else if (tempo.type === 'immediate')
 							this.tune.appendElement('tempo', -1, -1, tempo.tempo as unknown as ABCElement);
-						return [e - i + 1 + ws, line.charAt(i + 1), line.substring(i + 3, e)];
+						return {
+							len: e - i + 1 + ws,
+							headerLetter: line.charAt(i + 1),
+							content: line.substring(i + 3, e)
+						};
 					}
 					break;
 				case "[V:":
 					if (e > 0) {
 						this.parseVoice(line, i + 3, e);
 						//startNewLine();
-						return [e - i + 1 + ws, line.charAt(i + 1), line.substring(i + 3, e)];
+						return {
+							len: e - i + 1 + ws,
+							headerLetter: line.charAt(i + 1),
+							content: line.substring(i + 3, e)
+						};
 					}
 					break;
 
@@ -1215,53 +1229,66 @@ export class AbcParseHeader {
 				// TODO: complain about unhandled header
 			}
 		}
-		return [0];
-	};
+		return { len: 0 };
+	}
 
-	letter_to_body_header(line: string, i: number): [number, string?, string?] {
-
+	/**
+	 * 解析樂譜 Body 標頭欄位 (例如 K:C)
+	 * @param line 當前解析的樂譜文字行
+	 * @param i 當前解析的起始字元索引
+	 * @returns 包含消耗長度、標頭字母與內容的 BodyHeaderResult 物件
+	 */
+	letter_to_body_header(line: string, i: number): BodyHeaderResult {
 		if (line.length >= i + 3) {
 			switch (line.substring(i, i + 2)) {
 				case "I:":
 					const err = this.addDirective(line.substring(i + 2));
 					if (err) this.warnFn(err, line, i);
-					return [line.length];
+					return { len: line.length };
 				case "M:":
 					const meter = this.setMeter(line.substring(i + 2));
 					if (this.tune.hasBeginMusic() && meter)
 						this.tune.appendStartingElement('meter', -1, -1, meter);
-					return [line.length];
+					return { len: line.length };
 				case "K:":
 					const result = this.parseKey(line.substring(i + 2));
 					if (result.foundClef && this.tune.hasBeginMusic())
 						this.tune.appendStartingElement('clef', -1, -1, this.multilineVars.clef);
 					if (result.foundKey && this.tune.hasBeginMusic())
 						this.tune.appendStartingElement('key', -1, -1, this.fixKey(this.multilineVars.clef, this.multilineVars.key));
-					return [line.length];
+					return { len: line.length };
 				case "P:":
 					if (this.tune.hasBeginMusic())
 						this.tune.appendElement('part', -1, -1, { title: line.substring(i + 2) });
-					return [line.length];
+					return { len: line.length };
 				case "L:":
 					this.setDefaultLength(line, i + 2, line.length);
-					return [line.length];
+					return { len: line.length };
 				case "Q:":
 					let e = line.indexOf('\x12', i + 2);
 					if (e === -1) e = line.length;
 					const tempo = this.setTempo(line, i + 2, e);
 					if (tempo.type === 'delaySet') this.tune.appendElement('tempo', -1, -1, this.calcTempo(tempo.tempo) as unknown as TempoElement);
 					else if (tempo.type === 'immediate') this.tune.appendElement('tempo', -1, -1, tempo.tempo as unknown as TempoElement);
-					return [e, line.charAt(i), line.substring(i + 2).trim()];
+					return {
+						len: e,
+						headerLetter: line.charAt(i),
+						content: line.substring(i + 2).trim()
+					};
 				case "V:":
 					this.parseVoice(line, 2, line.length);
 					//						startNewLine();
-					return [line.length, line.charAt(i), line.substring(i + 2).trim()];
+					return {
+						len: line.length,
+						headerLetter: line.charAt(i),
+						content: line.substring(i + 2).trim()
+					};
 				default:
 				// TODO: complain about unhandled header
 			}
 		}
-		return [0];
-	};
+		return { len: 0 };
+	}
 
 	metaTextHeaders = {
 		A: 'author',

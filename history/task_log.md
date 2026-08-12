@@ -1002,3 +1002,22 @@
 - `pnpm run build` 打包編譯成功。
 - `test-jianpu-01.js` 到 `test-jianpu-07.js` 的 7 個測試腳本全數 PASS。
 - 傳統五線譜回歸測試 `test.js` 100% 正常。
+
+---
+## [2026-08-12 15:55:00] 重構解析元組回傳為具名強型別物件
+
+### 目標 (Objectives)
+- 將 `abcTS` 解析器與分詞器中 9 個核心解析函式的無語意 tuple 回傳值重構為具備明確屬性與 TSDoc 註解的強型別具名物件，消除專案的型別安全盲區。
+
+### 需求 (Requirements)
+1. 於 `src/all.d.ts` 定義 9 個具備詳細中文註解的 Interface 型別。
+2. 重構 `getBrackettedSubstring`、`letter_to_chord`、`letter_to_accent`、`letter_to_spacer`、`letter_to_bar`、`getBrokenRhythm`、`letter_to_grace`、`letter_to_inline_header`、`letter_to_body_header`。
+3. 修改所有呼叫點，將元組索引（`ret[0]`, `ret[1]` 等）改為屬性取值（`result.len`, `result.token` 等）。
+4. 清除舊 JS 中全域變數 `ret` 污染在重構後帶來的 runtime 報錯威脅。
+5. 確保 TypeScript 靜態編譯通過且打包正常。
+
+### 驗收條件 (Acceptance Criteria)
+- `pnpm run build` 打包編譯無誤。
+- `node test.js` 回歸測試 100% 正常。
+- 7 個簡譜單元測試 `test-jianpu-*.js` 全部綠燈通過。
+- `node test/compare_ast.js` 的 AST 遞迴比對 100% 一致。
