@@ -597,3 +597,21 @@
 2. 執行 `node test.js` 成功，核心五線譜樂譜解析正常。
 3. 執行 `node test-jianpu-01.js` 到 `test-jianpu-07.js` 全部為 **ALL PASS**。
 4. 執行 `node test/compare_ast.js` 輸出 `✅ Stage A & B (AST Compare) Passed!`，證明重構後 AST 與舊版完全一致。
+
+---
+## [2026-08-17 16:20:00] 修復多聲部小節線跨越連接與 TS 型別警告 (完成)
+
+### 變更摘要 (Change Summary)
+1. **修復 %%score 指令解析中的 `]` 邊界條件**：在 `src/abc_parse_header.ts` 中修正了 `case "]"` Token 匹配錯誤，使 bracket 屬性及其閉合語意正確生效。
+2. **重構跨聲部小節線 Y 軸 `bartop` 參數鏈式傳遞**：修改 `src/abc_graphelements.ts` 中 `ABCStaffGroupElement.draw`，將原有的 `if (voice.barfrom)` 條件限制移除，使 `bartop` 縱向連線參數能在各聲部間無條件做鏈式傳送，成功在 `connectBarLines` 未定義時（普通合唱樂譜）亦能正確對齊結尾跨聲部小節線。
+3. **清除除錯日誌**：清理了開發期在 `abc_layout.ts`、`abc_graphelements.ts` 與 `mockPaper.js` 中的臨時 `console.log` 代碼。
+
+### 驗證與測試日誌 (Verification & Test Logs)
+1. 執行 `pnpm run build` 通過，TypeScript 靜態型別無錯誤且 UMD 打包正常。
+2. 執行 `node test/compare_ast.js` 回報：
+   `✅ Stage A & B (AST Compare) Passed!`
+   `✅ Stage D (Renderer Compare) Passed!`
+   `✅  1 passed successfully  / ❌  0 fail`
+   證明所有 mismatches 全數歸零，樂譜渲染效果與舊 JS 100% 絕對一致。
+3. 執行 `node test.js` 回歸測試 100% 通過。
+4. 執行所有 7 個簡譜單元測試 `test-jianpu-*.js` 皆為 ALL PASS，證實 0 regression。

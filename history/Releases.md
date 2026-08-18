@@ -394,3 +394,10 @@
 - **重構 Tokenizer 與 Parser 解析函式**：修改 [abc_tokenizer.ts](file:///c:/github/abcMain/abcTS/src/abc_tokenizer.ts) 的 `getBrackettedSubstring`，以及 [abc_parse.ts](file:///c:/github/abcMain/abcTS/src/abc_parse.ts)、[abc_parse_header.ts](file:///c:/github/abcMain/abcTS/src/abc_parse_header.ts) 的 8 個 letter_to 函式與 getBrokenRhythm，將其無語意 tuple 回傳值重構為上述具名物件。
 - **修復呼叫處與清除 `ret` 全域污染**：重構所有呼叫處以改用物件屬性取值（如 `barResult.len`），並清除了舊 JS 代碼中因全域變數 `ret` 污染引發的潛在缺陷。
 - **測試驗證全數通過**：UMD 打包與 TypeScript 靜態編譯無錯誤，傳統回歸測試、7 個簡譜單元測試以及 AST 語法樹比對測試（100% 對齊）皆順利通過。
+
+---
+## [2026-08-17] 修復多聲部小節線跨越連接與 TS 型別警告 (v1.24.0)
+- **修復 score parser 中的 `]` case 錯誤**：修正了 `src/abc_parse_header.ts` 中將中括號閉合 `]` 誤植為空字串 `case ""` 的錯誤，使多聲部譜表組能正確閉合中括號，建立正確的 Staff bracket 範圍。
+- **重構 StaffGroup 內部的小節線 Y 軸傳遞**：修改 `src/abc_graphelements.ts` 內的 `ABCStaffGroupElement.draw`，去除原本對 `voice.barfrom` 屬性的限制判斷，將 `bartop` 縱向連線參數在各聲部間無條件做鏈式鏈結傳遞，交由各小節線內部以 `(this.barto || i === ii - 1)` 邏輯自主控制是否連接，徹底修復了 Canzonetta 結尾小節線跨聲部連接高度不對齊的問題。
+- **清除偵錯與追蹤日誌**：清理了開發期注入在 `abc_layout.ts`、`abc_graphelements.ts` 與 `mockPaper.js` 中的臨時 `console.log` 偵錯代碼。
+- **比對測試完美綠燈**：執行 `node test/compare_ast.js` 實現了對所有測試曲目（包括多聲部複音合唱譜 Canzonetta）的 SVG 路徑、尺寸與字元 100% 絕對零 mismatch 通過。

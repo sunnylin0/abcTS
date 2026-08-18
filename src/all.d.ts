@@ -108,6 +108,179 @@ type KeySignature = {
 	note?: string;
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// abc_tokenizer.ts 回傳型別
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * getKeyPitch() 回傳值
+ * len=0 表示沒有匹配到任何音名；token 為規範化後的大寫音名字母
+ */
+interface KeyPitchResult {
+	/** 消耗的字元數（包含前導空格），0 表示未匹配 */
+	len: number;
+	/** 解析出的音名（A‒G，均為大寫），未匹配時省略 */
+	token?: 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G';
+}
+
+/**
+ * getSharpFlat() 回傳值
+ * 解析調號中的升降記號（# 或 b）
+ */
+interface SharpFlatResult {
+	/** 消耗的字元數，0 表示未匹配 */
+	len: number;
+	/** '#' 表示升號，'b' 表示降號，未匹配時省略 */
+	token?: '#' | 'b';
+}
+
+/**
+ * ABC 調式縮寫，對應 getMode() 正規化後的輸出
+ * 空字串代表大調 (Major/Ionian)
+ */
+type ModeToken = 'Mix' | 'Dor' | 'Phr' | 'Lyd' | 'Loc' | 'm' | '';
+
+/**
+ * getMode() 回傳值
+ * 解析調號後方的調式關鍵字（dorian、mixolydian 等）
+ */
+interface ModeResult {
+	/** 消耗的字元數（含前導空格），0 表示未匹配 */
+	len: number;
+	/**
+	 * 正規化後的調式縮寫。空字串表示 Major/Ionian；
+	 * 'Dor'=Dorian, 'Phr'=Phrygian, 'Lyd'=Lydian,
+	 * 'Mix'=Mixolydian, 'Loc'=Locrian, 'm'=Minor/Aeolian
+	 */
+	token?: ModeToken;
+}
+
+/**
+ * getClef() 回傳值
+ * 解析譜號標記，支援 treble/bass/tenor/alto 及其 +8/-8 變體
+ */
+interface GetClefResult {
+	/** 消耗的字元數（含前導空格及 'clef=' 前綴），0 表示未匹配 */
+	len: number;
+	/** 解析出的譜號類型，未匹配時省略 */
+	token?: ClefType;
+	/** 警告訊息，當譜號關鍵字無效時填入 */
+	warn?: string;
+	/** true 表示輸入中有明確的 'clef=' 前綴 */
+	explicit?: boolean;
+}
+
+/**
+ * getBarLine() 回傳值
+ * 解析 ABC 小節線符號
+ */
+interface GetBarLineResult {
+	/** 消耗的字元數，0 表示未匹配 */
+	len: number;
+	/** 識別出的小節線類型，未匹配時省略 */
+	token?: BarType;
+	/** 警告訊息，當符號組合不合法時填入 */
+	warn?: string;
+}
+
+/**
+ * getTokenOf() 回傳值
+ * 從字串頭部擷取全由 legalChars 組成的子字串
+ */
+interface TokenOfResult {
+	/** 消耗（匹配）的字元數 */
+	len: number;
+	/** 擷取到的子字串 */
+	token: string;
+}
+
+/**
+ * getKeyAccidental() 回傳值
+ * 解析調號行中的臨時記號（如 ^C、_G 等）
+ */
+interface GetKeyAccidentalResult {
+	/** 消耗的字元數（含前導空格），0 表示未匹配 */
+	len?: number;
+	/** 解析出的臨時記號資料，未匹配時省略 */
+	token?: {
+		/** 臨時記號種類（如 'sharp', 'flat', 'natural', 'dblsharp', 'dblflat', 'quarterflat', 'quartersharp'） */
+		acc: NoteAccidental;
+		/** 音名字母（a‒g 或 A‒G） */
+		note: string;
+	};
+	/** 警告訊息，當記號後方缺少音名時填入 */
+	warn?: string;
+}
+
+/**
+ * getMeat() 回傳值
+ * 移除行首尾空白及 % 註解後，有效內容的起止索引
+ */
+interface MeatResult {
+	/** 有效內容的起始字元索引（含） */
+	start: number;
+	/** 有效內容的結束字元索引（不含） */
+	end: number;
+}
+
+/**
+ * getVoiceToken() 回傳值
+ * 從 V: 欄位中擷取下一個以空格或等號分隔的標記
+ */
+interface VoiceTokenResult {
+	/** 消耗的字元數 */
+	len: number;
+	/** 擷取到的標記字串（已處理引號），未匹配時省略 */
+	token?: string;
+	/** 警告訊息（例如缺少閉合引號） */
+	warn?: string;
+}
+
+/**
+ * getNumber() 回傳值
+ * 從指定索引位置讀取連續十進制數字
+ */
+interface NumberResult {
+	/** 解析出的整數值 */
+	num: number;
+	/** 停止解析後的字元索引（指向第一個非數字字符） */
+	index: number;
+}
+
+/**
+ * getFraction() 回傳值
+ * 解析 ABC 音符時值分數（如 3/4、// 等格式）
+ */
+interface FractionResult {
+	/** 計算後的分數值（numerator / denominator） */
+	value: number;
+	/** 停止解析後的字元索引 */
+	index: number;
+}
+
+/**
+ * getInt() / getFloat() 共用的回傳結構
+ * 從字串頭部解析整數或浮點數
+ */
+interface ParsedNumberResult {
+	/** 解析出的數值，若字串開頭非數字則省略 */
+	value?: number;
+	/** 解析時消耗的字元數（含前導空格），0 表示未成功解析 */
+	digits: number;
+}
+
+/**
+ * getMeasurement() 回傳值
+ * 從 HeaderToken 陣列中解析帶單位的測量值（pt / cm / in）
+ * 統一轉換為 points（1 inch = 72pt）
+ */
+interface MeasurementResult {
+	/** 消耗的 token 數量，0 表示未成功解析 */
+	used: number;
+	/** 轉換後的 points 值，未成功解析時省略 */
+	value?: number;
+}
+
 /**
  * 括號內子字串解析結果
  */
@@ -206,6 +379,15 @@ interface BodyHeaderResult {
 	headerLetter?: string;
 	/** 標頭的內容字串 */
 	content?: string;
+}
+type HeaderTokenType = "alpha" | "number" | "quote" | "punct" | "";
+
+interface HeaderToken {
+	type?: HeaderTokenType;
+	token?: string;
+	start?: number;
+	end?: number;
+	continueId?: boolean;
 }
 
 type DurationInfo = [number, number, number?]; // [charactersConsumed, duration, nextNoteDuration?]
@@ -406,7 +588,7 @@ interface MeterElement extends Omit<ABCElement, 'el_type'> {
 	value?: { num?: string; den?: string }[];
 }
 
-interface TempoElement extends Omit<ABCElement, 'el_type'> {
+interface TempoElement extends Omit<ABCElement, 'el_type' | 'duration'> {
 	el_type: "tempo";
 	duration?: number[]
 	noteLength?: number;
@@ -420,7 +602,12 @@ interface StemElement extends Omit<ABCElement, 'el_type'> {
 	direction?: 'up' | 'down';
 }
 
-type NOTES_Element = NoteElement | RestElement | BarElement | ClefElement | KeySigElement | MeterElement | TempoElement | StemElement;
+interface PartElement extends Omit<ABCElement, 'el_type'> {
+	el_type: "part";
+	title?: string;
+}
+
+type NOTES_Element = NoteElement | RestElement | BarElement | ClefElement | KeySigElement | MeterElement | TempoElement | StemElement | PartElement;
 
 interface ABCElement extends ElementBase {
 	accidentals?: { acc?: string, note?: string, verticalPos?: number }[],
@@ -597,6 +784,7 @@ interface StaffInfo {
 	startStaff?: boolean;
 	middle?: number;
 	verticalPos?: number;
+	verticalToken?: string;
 	octave?: string;
 }
 

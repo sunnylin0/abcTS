@@ -53,8 +53,12 @@ export class AbcTokenizer {
 		return i - index;
 	}
 
-	// 取得基本音高字母，忽略前導空格，並規範化為大寫
-	getKeyPitch(str: string): { len?: number, token?: string } {
+	/**
+	 * 取得基本音高字母，忽略前導空格，並規範化為大寫
+	 * @param str 待解析字串
+	 * @returns 解析結果，詳見 {@link KeyPitchResult}
+	 */
+	getKeyPitch(str: string): KeyPitchResult {
 		let i = this.skipWhiteSpace(str);
 		if (this.finished(str, i)) {
 			return { len: 0 };
@@ -78,8 +82,12 @@ export class AbcTokenizer {
 		return { len: 0 };
 	}
 
-	// 取得基本本升降號，忽略前導空格，只包含在鍵中出現的那些
-	getSharpFlat(str: string): { len: number, token?: string } {
+	/**
+	 * 取得基本升降號，對應調號中出現的 '#' 或 'b'
+	 * @param str 待解析字串
+	 * @returns 解析結果，詳見 {@link SharpFlatResult}
+	 */
+	getSharpFlat(str: string): SharpFlatResult {
 		switch (str.charAt(0)) {
 			case '#': return { len: 1, token: '#' };
 			case 'b': return { len: 1, token: 'b' };
@@ -87,8 +95,12 @@ export class AbcTokenizer {
 		return { len: 0 };
 	}
 
-	// 取得模式標記
-	getMode(str: string): { len: number, token?: string } {
+	/**
+	 * 取得調式標記（如 dorian、mixolydian 等）並正規化為縮寫
+	 * @param str 待解析字串
+	 * @returns 解析結果，詳見 {@link ModeResult}
+	 */
+	getMode(str: string): ModeResult {
 		const skipAlpha = (str: string, start: number): number => {
 			// This returns the index of the next non-alphabetic char, or the entire length of the string if not found.
 			while (start < str.length && (
@@ -124,8 +136,12 @@ export class AbcTokenizer {
 		return { len: 0 };
 	}
 
-	// 取得譜號標記
-	getClef(str: string): { len: number, token?: ClefType, warn?: string, explicit?: boolean } {
+	/**
+	 * 取得譜號標記，支援 treble/bass/tenor/alto 及其 +8/-8 變體
+	 * @param str 待解析字串
+	 * @returns 解析結果，詳見 {@link GetClefResult}
+	 */
+	getClef(str: string): GetClefResult {
 		let strOrig = str;
 		let i = this.skipWhiteSpace(str);
 		if (this.finished(str, i)) {
@@ -184,8 +200,13 @@ export class AbcTokenizer {
 		return { len: i + name.length, token: name as ClefType, explicit: needsClef };
 	}
 
-	// 取得小節線標記
-	getBarLine(line: string, i: number): { len?: number, token?: string, warn?: string } {
+	/**
+	 * 取得小節線標記，支援各種 ABC 小節線符號組合
+	 * @param line 待解析的完整行字串
+	 * @param i 從小節線符號起始的字元索引
+	 * @returns 解析結果，詳見 {@link GetBarLineResult}
+	 */
+	getBarLine(line: string, i: number): GetBarLineResult {
 		switch (line.charAt(i)) {
 			case ']':
 				++i;
@@ -269,8 +290,13 @@ export class AbcTokenizer {
 		}
 	}
 
-	// 取得由 legalChars 匹配字串中字元組成的所有字符
-	getTokenOf(str: string, legalChars: string): { len: number, token: string } {
+	/**
+	 * 取得由 legalChars 匹配字串中字元組成的所有字符
+	 * @param str 待解析字串
+	 * @param legalChars 允許的字元集合字串
+	 * @returns 解析結果，詳見 {@link TokenOfResult}
+	 */
+	getTokenOf(str: string, legalChars: string): TokenOfResult {
 		let i;
 		for (i = 0; i < str.length; i++) {
 			if (legalChars.indexOf(str.charAt(i)) < 0) {
@@ -302,9 +328,13 @@ export class AbcTokenizer {
 		return 0;
 	}
 
-	// 取得鍵簽名中的變音記號標記，包含變音記號和音高字母
-	getKeyAccidental(str: string): { len?: number, token?: { acc: string, note: string }, warn?: string } {
-		const accTranslation: { [key: string]: string } = {
+	/**
+	 * 取得鍵簽名中的變音記號標記，包含變音記號和音高字母
+	 * @param str 待解析字串
+	 * @returns 解析結果，詳見 {@link GetKeyAccidentalResult}
+	 */
+	getKeyAccidental(str: string): GetKeyAccidentalResult {
+		const accTranslation: Record<string, NoteAccidental> = {
 			'^': 'sharp',
 			'^^': 'dblsharp',
 			'=': 'natural',
@@ -382,8 +412,14 @@ export class AbcTokenizer {
 		return ch === ' ' || ch === '\t' || ch === '\x12';
 	}
 
-	// 移除字串中的註解（以%開頭的部分）並修剪兩端空白字符
-	getMeat(line: string, start: number, end: number): { start: number, end: number } {
+	/**
+	 * 移除行首尾空白及 % 註解，回傳有效內容的起止索引
+	 * @param line 待解析的完整行字串
+	 * @param start 起始搜尋的字元索引
+	 * @param end 搜尋範圍的結束索引
+	 * @returns 有效內容的起止索引，詳見 {@link MeatResult}
+	 */
+	getMeat(line: string, start: number, end: number): MeatResult {
 		// This removes any comments starting with '%' and trims the ends of the string so that there are no leading or trailing spaces.
 		// it returns just the start and end characters that contain the meat.
 		var comment = line.indexOf('%', start);
@@ -407,14 +443,14 @@ export class AbcTokenizer {
 	}
 
 	// 將輸入的字串標記化，傳回所有標記的陣列
-	tokenize(line: string, start: number, end: number): { type?: string, token?: string, start?: number, end?: number, continueId?: boolean }[] {
+	tokenize(line: string, start: number, end: number): HeaderToken[] {
 		// this returns all the tokens inside the passed string. A token is a punctuation mark, a string of digits, a string of letters.
 		//  Quoted strings are one token.
 		// The type of token is returned: quote, alpha, number, punct
 		var ret = this.getMeat(line, start, end);
 		start = ret.start;
 		end = ret.end;
-		let tokens: { type?: string, token?: string, start?: number, end?: number, continueId?: boolean }[] = [];
+		let tokens: HeaderToken[] = [];
 		let i: number;
 		while (start < end) {
 			if (line.charAt(start) === '"') {
@@ -447,8 +483,14 @@ export class AbcTokenizer {
 		return tokens;
 	}
 
-	// 在V:欄位中取得下一個標記，標記由空格或等號分隔
-	getVoiceToken(line: string, start: number, end: number): { len: number, token?: string, warn?: string } {
+	/**
+	 * 在 V: 欄位中取得下一個標記，標記由空格或等號分隔
+	 * @param line 待解析的完整行字串
+	 * @param start 起始搜尋的字元索引
+	 * @param end 搜尋範圍的結束索引
+	 * @returns 解析結果，詳見 {@link VoiceTokenResult}
+	 */
+	getVoiceToken(line: string, start: number, end: number): VoiceTokenResult {
 		// This finds the next token. A token is delimited by a space or an equal sign. If it starts with a quote, then the portion between the quotes is returned.
 		let i = start;
 		while (i < end && this.isWhiteSpace(line.charAt(i)) || line.charAt(i) === '=') {
@@ -524,7 +566,13 @@ export class AbcTokenizer {
 	}
 
 	// 取得數字
-	getNumber(line: string, index: number): { num: number, index: number } {
+	/**
+	 * 從指定索引位置讀取連續十進制整數
+	 * @param line 待解析的完整行字串
+	 * @param index 起始讀取的字元索引
+	 * @returns 解析結果，詳見 {@link NumberResult}
+	 */
+	getNumber(line: string, index: number): NumberResult {
 		let num = 0;
 		while (index < line.length) {
 			switch (line.charAt(index)) {
@@ -546,7 +594,13 @@ export class AbcTokenizer {
 	}
 
 	// 取得分數
-	getFraction(line: string, index: number): { value: number, index: number } {
+	/**
+	 * 解析 ABC 音符時值分數（如 3/4、// 等格式）
+	 * @param line 待解析的完整行字串
+	 * @param index 起始讀取的字元索引
+	 * @returns 解析結果，詳見 {@link FractionResult}
+	 */
+	getFraction(line: string, index: number): FractionResult {
 		let num = 1;
 		let den = 1;
 		if (line.charAt(index) !== '/') {
@@ -595,7 +649,12 @@ export class AbcTokenizer {
 	}
 
 	// 取得整數值
-	getInt(str: string): { value?: number, digits: number } {
+	/**
+	 * 從字串頭部解析整數（支援前導空格）
+	 * @param str 待解析字串
+	 * @returns 解析結果，詳見 {@link ParsedNumberResult}
+	 */
+	getInt(str: string): ParsedNumberResult {
 		// This parses the beginning of the string for a number and returns { value: num, digits: num }
 		// If digits is 0, then the string didn't point to a number.
 		let x = parseInt(str);
@@ -608,7 +667,12 @@ export class AbcTokenizer {
 	}
 
 	// 取得浮點數
-	getFloat(str: string): { value?: number, digits: number } {
+	/**
+	 * 從字串頭部解析浮點數（支援前導空格）
+	 * @param str 待解析字串
+	 * @returns 解析結果，詳見 {@link ParsedNumberResult}
+	 */
+	getFloat(str: string): ParsedNumberResult {
 		// This parses the beginning of the string for a number and returns { value: num, digits: num }
 		// If digits is 0, then the string didn't point to a number.
 		let x = parseFloat(str);
@@ -621,7 +685,13 @@ export class AbcTokenizer {
 	}
 
 	// 取得測量值（如長度、尺寸等）
-	getMeasurement(tokens: { type: string, token: string, start: number, end: number }[]): { used: number, value?: number } {
+	/**
+	 * 從 HeaderToken 陣列中解析帶單位的測量值，統一轉換為 points
+	 * 支援單位：pt（點）、cm（公分）、in（英寸）
+	 * @param tokens 由 tokenize() 產生的 HeaderToken 陣列（會直接 shift 消耗）
+	 * @returns 解析結果，詳見 {@link MeasurementResult}
+	 */
+	getMeasurement(tokens: HeaderToken[]): MeasurementResult {
 		if (tokens.length === 0)
 			return { used: 0 };
 		if (tokens[0].type !== 'number')

@@ -56,7 +56,8 @@ export class ABCLayout {
 	abcline: NOTES_Element[];
 	pos: number;
 	partstartelem: ABCEndingElem;
-	startlimitelem;
+	startlimitelem: ABCAbsoluteElement | null;
+	dotshiftx: number;
 	roomtaken: number;
 	roomtakenright: number;
 	accidentalshiftx: number;
@@ -257,7 +258,7 @@ export class ABCLayout {
 	printJianpuNote(elem: ABCElement, nostem?: boolean): ABCAbsoluteElement {
 		let duration = getDuration(elem);
 		let abselem: ABCAbsoluteElement = new ABCAbsoluteElement(elem, duration, 1);
-		
+
 		abselem.w = 12; // 預估基本寬度
 		this.roomtaken = 0;
 		this.roomtakenright = 0;
@@ -282,15 +283,15 @@ export class ABCLayout {
 			elem.maxpitch = elem.pitches[elem.pitches.length - 1].verticalPos;
 
 			highestPitch = elem.pitches[elem.pitches.length - 1];
-			
+
 			const keyRoot = (this.voice.jianpuKey && this.voice.jianpuKey.root) || 'C';
 			const refOctave = this.voice.jianpuOctave !== undefined ? this.voice.jianpuOctave : 0;
 			const pitchAcc = highestPitch.accidental;
 			const keyAccs = this.voice.jianpuKey ? this.voice.jianpuKey.accidentals : undefined;
 			const res = pitchToJianpu(highestPitch.pitch, keyRoot, refOctave, pitchAcc, keyAccs);
-			
+
 			c = String(res.degree);
-			
+
 			let notehead = this.printJianpuNoteHead(abselem, c, highestPitch, duration, 0, -this.roomtaken, res.isChromatic, res.acc);
 			if (notehead) abselem.addHead(notehead);
 
@@ -606,11 +607,12 @@ export class ABCLayout {
 				abselem.addExtra(grace);
 
 				if (gracebeam) { // give the beam the necessary info
-					let pseudoabselem: ABCBeamElem = {
+					let pseudoabselem: ABCAbsoluteElement = {
 						heads: [grace],
-						abcelem: { averagepitch: gracepitch, minpitch: gracepitch, maxpitch: gracepitch },
-						duration: (this.isBagpipes) ? 1 / 32 : 1 / 16
-					};
+						abcelem: { averagepitch: gracepitch, minpitch: gracepitch, maxpitch: gracepitch } as ABCElement,
+						duration: (this.isBagpipes) ? 1 / 32 : 1 / 16,
+						beam: null as ABCBeamElem
+					} as ABCAbsoluteElement;
 					gracebeam.add(pseudoabselem);
 				} else { // draw the stem
 					p1 = gracepitch + 1 / 3 * gracescale;
@@ -633,7 +635,7 @@ export class ABCLayout {
 		}
 
 		if (elem.barNumber) {
-			abselem.addChild(new ABCRelativeElement(elem.barNumber, -10, 0, 0, { type: "debug" }));
+			abselem.addChild(new ABCRelativeElement(elem.barNumber.toString(), -10, 0, 0, { type: "debug" }));
 		}
 
 		// ledger lines
@@ -768,7 +770,7 @@ export class ABCLayout {
 					slur = this.slurs[slurid].anchor2 = notehead;
 					delete this.slurs[slurid];
 				} else {
-					slur = new ABCTieElem(null, notehead, dir === "down", (this.stemdir === "up" || dir === "down") && this.stemdir !== "down", this.stemdir);
+					slur = new ABCTieElem(null, notehead, dir === "down", (this.stemdir === "up" || dir === "down") && this.stemdir !== "down");
 					this.voice.addOther(slur);
 				}
 				if (this.startlimitelem) {

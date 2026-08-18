@@ -184,6 +184,7 @@ testABCStrings.forEach((abc, idx) => {
 		const newParser = new NewAbcParse();
 		newParser.parse(newBook.tunes[0].abc);
 		const newPrinter = new NewABCPrinter(printerPaper);
+		console.log('NEW TUNE METATEXT:', newParser.getTune().metaText);
 		newPrinter.printABC(newParser.getTune());
 		console.log(`[DEBUG NEW] 新版成功繪製！ Log 筆數: ${newPaper.drawLog.length}`);
 	} catch (err) {

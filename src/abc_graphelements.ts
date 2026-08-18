@@ -209,8 +209,7 @@ export class ABCStaffGroupElement {
 		// 它還會計算小節線的垂直頂端與底端，以確保跨聲部小節線能正確對齊連接。
 		for (const voice of this.voices) {
 			voice.draw(printer, bartop);
-			if (voice.barfrom)
-				bartop = voice.barbottom;
+			bartop = voice.barbottom;
 		}
 
 		// 當有多個樂譜行（如鋼琴雙手譜表）時，
@@ -531,7 +530,6 @@ export class ABCRelativeElement {
 			case "text":
 				this.graphelem = printer.printText(this.x, this.pitch, this.c);
 				break;
-
 			case "bar":
 				this.graphelem = printer.printStem(this.x, this.linewidth, printer.calcY(this.pitch), (bartop) ? bartop : printer.calcY(this.pitch2));
 				break;

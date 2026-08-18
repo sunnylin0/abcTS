@@ -1060,3 +1060,52 @@
 ### 風險評估 (Risks & Mitigations)
 - **測試沙盒缺少屬性報錯**：獨立單元測試 `test-jianpu-07.js` 當中 mock printer 缺少 beginGroup / endGroup 導致崩潰。
   - *對策*：在該測試檔案的 `createMockPrinter` 中追加 beginGroup 和 endGroup 的 stub 函數。
+
+---
+## [2026-08-17 15:50:00] 修復 abc_layout.ts 編譯紅線與 all.d.ts 型別衝突
+
+### 步驟與技術方案 (Step-by-step Technical Plans)
+1. **修復 `src/all.d.ts` 中的型別結構與繼承關係**：
+   - 定義 `PartElement` 介面，繼承自 `Omit<ABCElement, 'el_type'>`，並鎖定其 `el_type: "part"` 與 `title?: string`。
+   - 將 `PartElement` 加進 `NOTES_Element` 聯集型別，以相容 `abc_layout.ts` 在 `printABCElement` 內部的 `case "part"` 判定。
+   - 修改 `TempoElement` 定義，將繼承的 `Omit<ABCElement, 'el_type'>` 改為 `Omit<ABCElement, 'el_type' | 'duration'>`。這將解決 `TempoElement` 中 `duration?: number[]` 與 `ABCElement` 中 `duration?: number` 型別相衝突的結構問題，排除 assignment 錯誤。
+2. **修復 `src/abc_layout.ts` 內隱式 any 與成員缺失錯誤**：
+   - 在 `ABCLayout` 類別定義中，宣告 `dotshiftx: number;` 與 `startlimitelem: ABCAbsoluteElement;` 屬性。
+3. **修復 `printNote` 中的裝飾音 Beam 結構型別與 `barNumber` 轉型**：
+   - 在處理 `gracebeam` 時，將 mock 的 `pseudoabselem` 的 `as ABCBeamElem` 改為 `as unknown as ABCAbsoluteElement`。
+   - 由於 `ABCAbsoluteElement.abcelem` 對應的 `averagepitch`、`minpitch`、`maxpitch` 屬性與 `ABCElement` 完全對齊，我們把 `pseudoabselem.abcelem` 以 `as ABCElement` 進行斷言，解決 type literal 未完整實現的報錯。
+   - 遇到 `elem.barNumber` 時，將其轉為字串 `elem.barNumber.toString()` 以相容 `ABCRelativeElement` 的 constructor 參數型別。
+4. **修正 `ABCTieElem` 的 constructor 呼叫引數個數**：
+   - 於 `abc_layout.ts` 的 `endSlur` 分支處理中（約 L771），將 `new ABCTieElem(...)` 呼叫的參數修正為 4 個，對齊簽章與 `startSlur` 的處理邏輯，去除多餘的第五個參數。
+
+### 影響檔案 (Affected Files)
+- [all.d.ts](file:///c:/github/abcMain/abcTS/src/all.d.ts) (修改)
+- [abc_layout.ts](file:///c:/github/abcMain/abcTS/src/abc_layout.ts) (修改)
+
+### 風險評估 (Risks & Mitigations)
+- **連音線與裝飾音 Beam 型別改變之 regression 風險**：參數或型別修改若有語意不對稱，可能導致樂譜渲染效果微幅偏移。
+  - *對策*：修改完畢後立即執行 UMD 打包，並通過 `compare_ast.js` 遞迴比對新舊版 AST 與 SVG 繪製日誌（DrawLog），確認輸出 100% 一致。
+
+---
+## [2026-08-17 16:20:00] 修復多聲部小節線跨越連接與 TS 型別警告
+
+### 步驟與技術方案 (Step-by-step Technical Plans)
+1. **修正 Score Parser Token Matching (`src/abc_parse_header.ts`)**：
+   - 審查 `staves` 或 `score` 指令解析中的 switch 區段。
+   - 發現中括號閉合字元被寫成 `case ""`，導致無法匹配 `]` 以閉合 `bracket` 狀態並產生多餘的 voices。
+   - 將其修復為 `case "]"`。
+2. **優化 StaffGroup 畫布 Y 軸參數鏈式傳遞 (`src/abc_graphelements.ts`)**：
+   - 審查 `ABCStaffGroupElement.draw`。原本僅在 `if (voice.barfrom)` 為真時才將 `bartop` 更新為 `voice.barbottom`，這導致在 `connectBarLines` 為 `undefined` 時（例如合唱譜普通小節線不畫跨越，僅結尾小節線跨越連接），由於 Soprano 的 `barfrom = false` 導致 Alto 接收到的 `bartop = 0`，進而使得結尾小節線無法成功向上跨越。
+   - 去除該 `if` 限制，將更新改為無條件鏈式傳遞：`bartop = voice.barbottom`。在 `ABCVoiceElement.draw` 中，個別小節線自會依據自身是否為行末或 `barto === true` 來決定是否使用 `bartop` 進行跨越。
+3. **清除除錯痕跡**：
+   - 刪除 `abc_layout.ts`、`abc_graphelements.ts` 與 `mockPaper.js` 中的臨時調試列印語句。
+
+### 影響檔案 (Affected Files)
+- `src/abc_parse_header.ts` (修改)
+- `src/abc_graphelements.ts` (修改)
+- `src/abc_layout.ts` (修改)
+- `test/helpers/mockPaper.js` (修改)
+
+### 風險評估 (Risks & Mitigations)
+- **改變其他樂譜的連接小節線樣式**：無條件鏈式更新 `bartop` 是否會導致不需要跨越的小節線錯誤跨越？
+  - *對策*：已確認，個別小節線是否向外連接依然由 `this.barto || i === ii - 1` 守護，所以普通非結尾小節線（在 `connectBarLines` 未定義時）的 `this.barto` 依然是 `false`，它在 `i !== ii - 1` 時傳入的依然是 `0`（不連接），因此 100% 隔離了對一般小節線的影響，回歸測試 Mismatch 成功為零即證實了這一點。

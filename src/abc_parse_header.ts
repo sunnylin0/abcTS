@@ -19,14 +19,6 @@
 import { AbcTune } from "./abc_tune";
 import { AbcTokenizer } from "./abc_tokenizer";
 
-interface HeaderToken {
-	type: string;
-	token: string;
-	start: number;
-	end: number;
-}
-
-
 var key1sharp: KeySignature = { acc: 'sharp', note: 'f' };
 var key2sharp: KeySignature = { acc: 'sharp', note: 'c' };
 var key3sharp: KeySignature = { acc: 'sharp', note: 'g' };
@@ -307,7 +299,7 @@ export class AbcParseHeader {
 			return { foundClef: true };
 		}
 
-		let ret: KeySigElement = { el_type: "key"};
+		let ret: KeySigElement = { el_type: "key" };
 
 		const retPitch = this.tokenizer.getKeyPitch(str);
 		if (retPitch.len > 0) {
@@ -327,14 +319,14 @@ export class AbcParseHeader {
 			// ── 計算 KeySigElement.root（首調唱名法基準，供簡譜聲部使用） ──────────
 			{
 				const pitchNote = retPitch.token as string;                       // 'C','D','E','F','G','A','B'
-				const accToken  = retAcc.len > 0 ? (retAcc.token as string) : ''; // '#','b',''
+				const accToken = retAcc.len > 0 ? (retAcc.token as string) : ''; // '#','b',''
 				const modeToken = retMode.len > 0 ? (retMode.token as string) : '';
-				const baseRoot  = pitchNote + accToken;                           // e.g. 'G', 'Bb', 'F#'
-				const isMinor   = modeToken === 'm' || modeToken.toLowerCase().startsWith('min');
+				const baseRoot = pitchNote + accToken;                           // e.g. 'G', 'Bb', 'F#'
+				const isMinor = modeToken === 'm' || modeToken.toLowerCase().startsWith('min');
 				if (isMinor) {
 					const minorToMajor: Record<string, string> = {
-						'A': 'C',   'E': 'G',   'B': 'D',  'F#': 'A', 'C#': 'E', 'G#': 'B', 'D#': 'F#',
-						'D': 'F',   'G': 'Bb',  'C': 'Eb', 'F': 'Ab', 'Bb': 'Db', 'Eb': 'Gb', 'Ab': 'Cb'
+						'A': 'C', 'E': 'G', 'B': 'D', 'F#': 'A', 'C#': 'E', 'G#': 'B', 'D#': 'F#',
+						'D': 'F', 'G': 'Bb', 'C': 'Eb', 'F': 'Ab', 'Bb': 'Db', 'Eb': 'Gb', 'Ab': 'Cb'
 					};
 					ret.root = minorToMajor[baseRoot] ?? baseRoot;
 				} else {
@@ -425,7 +417,7 @@ export class AbcParseHeader {
 	}
 
 	private addDirective(str: string): string | null {
-		const oneParameterMeasurement = (cmd: string, tokens: any): string | null => {
+		const oneParameterMeasurement = (cmd: string, tokens: HeaderToken[]): string | null => {
 			const points = this.tokenizer.getMeasurement(tokens);
 			if (points.used === 0 || tokens.length !== 0) {
 				return "Directive \"" + cmd + "\" requires a measurement as a parameter.";
@@ -434,8 +426,8 @@ export class AbcParseHeader {
 			return null;
 		};
 
-		const getFontParameter = (tokens: any): { size?: number, font?: string } => {
-			const font: { size?: number, font?: string } = {};
+		const getFontParameter = (tokens: HeaderToken[]): Font => {
+			const font: Font = {};
 			const token = tokens.last();
 			if (token.type === 'number') {
 				font.size = parseInt(token.token);
@@ -454,7 +446,7 @@ export class AbcParseHeader {
 			return font;
 		};
 
-		const getChangingFont = (cmd: string, tokens: any): string | null => {
+		const getChangingFont = (cmd: string, tokens: HeaderToken[]): string | null => {
 			if (tokens.length === 0) {
 				return "Directive \"" + cmd + "\" requires a font as a parameter.";
 			}
@@ -462,7 +454,7 @@ export class AbcParseHeader {
 			return null;
 		};
 
-		const getGlobalFont = (cmd: string, tokens: any): string | null => {
+		const getGlobalFont = (cmd: string, tokens: HeaderToken[]): string | null => {
 			if (tokens.length === 0) {
 				return "Directive \"" + cmd + "\" requires a font as a parameter.";
 			}
@@ -470,7 +462,7 @@ export class AbcParseHeader {
 			return null;
 		};
 
-		const tokens = this.tokenizer.tokenize(str, 0, str.length) as HeaderToken[];
+		const tokens: HeaderToken[] = this.tokenizer.tokenize(str, 0, str.length);
 		if (tokens.length === 0 || tokens[0].type !== 'alpha') return null;
 		let restOfString = str.substring(str.indexOf(tokens[0].token!) + tokens[0].token!.length);
 		restOfString = this.tokenizer.stripComment(restOfString);
@@ -519,14 +511,14 @@ export class AbcParseHeader {
 				if (tokens.length === 0) {
 					this.tune.addSeparator();
 				} else {
-					if (tokens.length !== 3 || tokens[0].type !== 'number' || tokens[1].type !== 'number' || tokens[2].type !== 'number') {
+					if (tokens.length !== 3 || (tokens[0].type as string) !== 'number' || tokens[1].type !== 'number' || tokens[2].type !== 'number') {
 						return "Directive \"" + cmd + "\" requires 3 numbers: space above, space below, length of line";
 					}
 					this.tune.addSeparator(parseInt(tokens[0].token), parseInt(tokens[1].token), parseInt(tokens[2].token));
 				}
 				break;
 			case "barnumbers":
-				if (tokens.length !== 1 || tokens[0].type !== 'number') {
+				if (tokens.length !== 1 || (tokens[0].type as string) !== 'number') {
 					return "Directive \"" + cmd + "\" requires a number as a parameter.";
 				}
 				this.multilineVars.barNumbers = parseInt(tokens[0].token);
@@ -615,7 +607,7 @@ export class AbcParseHeader {
 								justOpenBracket = true;
 							}
 							break;
-						case '':
+						case ']':
 							if (!openBracket || justOpenBracket) {
 								this.warnFn("Unexpected close bracket in %%score", str, t.start);
 							} else {
@@ -825,8 +817,8 @@ export class AbcParseHeader {
 						break;
 					case 'middle':
 					case 'm':
-						addNextTokenToStaffInfo('verticalPos');
-						staffInfo.verticalPos = this.parseMiddle(staffInfo.verticalPos);
+						addNextTokenToStaffInfo('verticalToken');
+						staffInfo.verticalPos = this.parseMiddle(staffInfo.verticalToken);
 						break;
 					case 'gchords':
 					case 'gch':
@@ -1066,7 +1058,7 @@ export class AbcParseHeader {
 		// The temporary variables we keep are the duration and the bpm. In the first two forms, the duration is 1.
 		// In addition, a quoted string may both precede and follow. If a quoted string is present, then the duration part is optional.
 		try {
-			const tokens = this.tokenizer.tokenize(line, start, end);
+			const tokens: HeaderToken[] = this.tokenizer.tokenize(line, start, end);
 
 			if (tokens.length === 0) throw "Missing parameter in Q: field";
 
@@ -1123,7 +1115,7 @@ export class AbcParseHeader {
 						throw "Expected fraction in Q: field";
 					let den = parseInt(token.token);
 					tempo.duration = [num / den];
-					while (tokens.length > 0 && tokens[0].token !== '=' && tokens[0].type !== 'quote') {
+					while (tokens.length > 0 && tokens[0]?.token !== '=' && (tokens[0].type as string) !== 'quote') {
 						token = tokens.shift();
 						if (token.type !== 'number')
 							throw "Expected fraction in Q: field";

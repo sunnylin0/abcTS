@@ -218,7 +218,7 @@ export class AbcParse {
 			case '~': return { len: 1, accent: 'roll' };
 			case '!':
 			case '+':
-				const bracketResult = this.tokenizer.getBrackettedSubstring(line, i, 5);
+				const bracketResult: BrackettedSubstringResult = this.tokenizer.getBrackettedSubstring(line, i, 5);
 				let name = bracketResult.token;
 				// Be sure that the accent is recognizable.
 				if (name.length > 0 && (name[0] === '^' || name[0] === '_'))
@@ -1052,7 +1052,7 @@ export class AbcParse {
 					}
 				}
 
-				const barResult = this.letter_to_bar(line, i);
+				const barResult: BarParseResult = this.letter_to_bar(line, i);
 				if (barResult.len > 0) {
 					// This is definitely a bar
 					if (el.gracenotes !== undefined) {

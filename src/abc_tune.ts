@@ -83,17 +83,18 @@ export class AbcTune {
 		function cleanUpSlursInLine(voiceList: NOTES_Element[]) {
 			let currSlur: number[] = [];
 
-			function addEndSlur(obj: NOTES_Element | Pitch, num: number, chordPos: number) {
+			function addEndSlur(obj: NOTES_Element | Pitch, num: number | number[], chordPos: number) {
 				obj.endSlur = [];
 				if (currSlur[chordPos] === undefined)
 					currSlur[chordPos] = chordPos * 100;
-				for (let i = 0; i < num; i++) {
+				const count = typeof num === 'number' ? num : num.length;
+				for (let i = 0; i < count; i++) {
 					obj.endSlur.push(currSlur[chordPos]);
 					if (currSlur[chordPos] > 0) --currSlur[chordPos];
 				}
 			}
 
-			function addStartSlur(obj: NOTES_Element | Pitch, num: number, chordPos: number) {
+			function addStartSlur(obj: NOTES_Element | Pitch, num: number | number[], chordPos: number) {
 				obj.startSlur = [];
 				if (currSlur[chordPos] === undefined) {
 					currSlur[chordPos] = chordPos * 100;

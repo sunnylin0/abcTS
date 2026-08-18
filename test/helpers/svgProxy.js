@@ -37,6 +37,7 @@ function createSvgProxy(realSvgInst, newPaper, newContext) {
                 return function (x, y, textStr, attr) {
                     const res = val.apply(target, arguments);
                     newPaper.text(x, y, textStr, attr);
+                    console.log("PROXY INTERCEPTED TEXT:", textStr);
                     return wrapElementWithAttrSync(res, newPaper);
                 };
             }

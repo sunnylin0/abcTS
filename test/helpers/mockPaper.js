@@ -112,6 +112,8 @@ function createMockPaper() {
 
 function wrapElementWithAttrSync(el, newPaper) {
     if (!el || typeof el !== 'object') return el;
+    if (el.__wrapped) return el;
+    el.__wrapped = true;
 
     const origAttr = el.attr;
     if (typeof origAttr === 'function') {
@@ -122,6 +124,10 @@ function wrapElementWithAttrSync(el, newPaper) {
                 if (lastLog) {
                     if (lastLog.type === 'path' && attrObj.path !== undefined) {
                         lastLog.path = attrObj.path;
+                        if (lastLog.path && lastLog.path.toString().includes("314.75")) {
+                            console.log(`[TARGET PATH DETECTED] path:`, lastLog.path);
+                            console.log(new Error().stack);
+                        }
                     }
                     if (!lastLog.attr) lastLog.attr = {};
                     const attrCopy = { ...attrObj };
@@ -149,7 +155,11 @@ function wrapElementWithAttrSync(el, newPaper) {
         if (typeof origRemove === 'function') {
             res = origRemove.apply(this, arguments);
         }
-        if (newPaper.drawLog.length > 0) newPaper.drawLog.pop();
+        console.log("WRAP_REMOVE POP CALLED! Pre-pop length:", newPaper.drawLog.length);
+        if (newPaper.drawLog.length > 0) {
+            console.log("POP VALUE:", newPaper.drawLog[newPaper.drawLog.length - 1]);
+            newPaper.drawLog.pop();
+        }
         return wrapElementWithAttrSync(res || this, newPaper);
     };
 

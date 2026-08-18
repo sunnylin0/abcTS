@@ -1021,3 +1021,48 @@
 - `node test.js` 回歸測試 100% 正常。
 - 7 個簡譜單元測試 `test-jianpu-*.js` 全部綠燈通過。
 - `node test/compare_ast.js` 的 AST 遞迴比對 100% 一致。
+
+---
+## [2026-08-17 15:50:00] 修復 abc_layout.ts 編譯紅線與 all.d.ts 型別衝突
+
+### 目標 (Objectives)
+- 分析並修正 `src/abc_layout.ts` 內的 TypeScript 編譯錯誤（紅色波浪線），消弭型別安全盲區。
+- 對相關的 `*.d.ts` 檔（特別是 `src/all.d.ts`）進行型別補強，解決型別相容性衝突，並減少 `any` 的宣告。
+
+### 需求 (Requirements)
+1. **補全 PartElement 型別**：
+   - 於 `src/all.d.ts` 定義 `PartElement` 介面。
+   - 將 `PartElement` 加進 `NOTES_Element` 聯集型別，解決 `abc_layout.ts` 在 `printABCElement` 內部的 `case "part"` 判定。
+2. **解決 TempoElement 繼承衝突**：
+   - 於 `src/all.d.ts` 中，將 `TempoElement` 繼承 `Omit<ABCElement, 'el_type'>` 修改為 `Omit<ABCElement, 'el_type' | 'duration'>`，排除 `duration` 的型別衝突。
+3. **在 ABCLayout 宣告成員屬性**：
+   - 在 `src/abc_layout.ts` 的 `ABCLayout` 類別內宣告 `dotshiftx: number;` 與 `startlimitelem: ABCAbsoluteElement;` 屬性。
+4. **修正 pseudoabselem 的型別與 barNumber 轉型**：
+   - 在處理 `gracebeam` 時，將 mock 的 `pseudoabselem` 的 `as ABCBeamElem` 修正為 `as unknown as ABCAbsoluteElement`，並對 `abcelem` 使用 `as ABCElement` 斷言。
+   - 遇到 `elem.barNumber` 時，將其轉為字串 `elem.barNumber.toString()`。
+5. **修正 ABCTieElem 傳參**：
+   - 在 `abc_layout.ts` 處理 `endSlur` 分支中，將 `new ABCTieElem(...)` 呼叫的參數個數從 5 個修正為 4 個，對齊 `startSlur` 與 constructor 的簽章。
+
+### 驗收條件 (Acceptance Criteria)
+- `pnpm exec tsc --noEmit` 無任何與 `abc_layout.ts` 相關的編譯錯誤。
+- `pnpm run build` 打包編譯無誤。
+- `node test.js` 回歸測試 100% 正常。
+- 7 個簡譜單元測試 `test-jianpu-*.js` 全部綠燈通過。
+- `node test/compare_ast.js` 的 AST 遞迴比對 100% 一致。
+
+---
+## [2026-08-17 16:20:00] 修復多聲部小節線跨越連接與 TS 型別警告
+
+### 目標 (Objectives)
+- 修正多聲部複音排版（特別是 Monteverdi Canzonetta）在 Layout 渲染時，由於 `%%score` 指令 parser 語法錯誤導致的 `connectBarLines` 狀態丟失。
+- 重新對齊新舊版小節線繪製 Y 軸高度與跨聲部連接，實現 AST/Renderer 比對 100% 一致。
+
+### 需求 (Requirements)
+1. **修正中括號閉合 parsing 錯誤**：將 `src/abc_parse_header.ts` 中 score 指令的 `case ""` 修正為 `case "]"`，使其能正常接收與清除 bracket 的狀態。
+2. **優化小節線連接傳遞鏈**：重構 `src/abc_graphelements.ts` 內的 `ABCStaffGroupElement.draw`，將縱向 `bartop` 參數的鏈式更新改為無條件傳遞，確保底層聲部在需要向上連接時，能隨時獲得正確的上聲部 `barbottom` 座標。
+3. **移除調試日誌**：徹底清除為診斷此問題在各個檔案注入的 `console.log` 追蹤點。
+
+### 驗收條件 (Acceptance Criteria)
+- 打包建置 `pnpm run build` 通過且無編譯警告。
+- 執行 `node test/compare_ast.js` 回報所有測試綠燈，且 Mismatches 全數歸零。
+- 所有簡譜 TDD 測試與傳統 `test.js` 回歸測試 100% 通過。

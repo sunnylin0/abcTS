@@ -1,5 +1,3 @@
-import { KeySigElement } from "./all";
-
 const DIATONIC_MAP: Record<string, number> = { 'C': 0, 'D': 1, 'E': 2, 'F': 3, 'G': 4, 'A': 5, 'B': 6 };
 
 /**
@@ -20,18 +18,18 @@ export function pitchToJianpu(
 ) {
 	const rootLetter = keyRoot.charAt(0).toUpperCase();
 	const rootDiatonic = DIATONIC_MAP[rootLetter] ?? 0;
-	
+
 	// 計算在 key 中的度數 (0-6)
 	const diatonicPitch = ((pitch % 7) + 7) % 7;
 	const degree = ((diatonicPitch - rootDiatonic + 7) % 7) + 1;
-	
+
 	// 計算八度偏差
 	const octaveDelta = Math.floor(pitch / 7) - refOctave;
-	
+
 	// 判斷是否為臨時記號
 	let isChromatic = false;
 	let acc: 'sharp' | 'flat' | 'natural' | '' = '';
-	
+
 	if (pitchAccidental) {
 		const noteName = ['c', 'd', 'e', 'f', 'g', 'a', 'b'][diatonicPitch];
 		const inKeyAcc = keyAccidentals?.find(a => a.note === noteName)?.acc || 'natural';
@@ -46,7 +44,7 @@ export function pitchToJianpu(
 			}
 		}
 	}
-	
+
 	return {
 		degree,
 		octaveDelta,
@@ -64,7 +62,7 @@ export function pitchToJianpu(
 export function decomposeDuration(duration: number) {
 	let dots = 0;
 	let base = duration;
-	
+
 	// 檢測單附點 (base * 1.5)
 	const testBase1 = duration / 1.5;
 	const log2_1 = Math.log2(testBase1);
@@ -73,7 +71,7 @@ export function decomposeDuration(duration: number) {
 		base = testBase1;
 		return { base, dots };
 	}
-	
+
 	// 檢測雙附點 (base * 1.75)
 	const testBase2 = duration / 1.75;
 	const log2_2 = Math.log2(testBase2);
@@ -82,6 +80,6 @@ export function decomposeDuration(duration: number) {
 		base = testBase2;
 		return { base, dots };
 	}
-	
+
 	return { base, dots };
 }
