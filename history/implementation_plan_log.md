@@ -1,4 +1,4 @@
-# Implementation Plan Log
+﻿# Implementation Plan Log
 
 ---
 ## [2026-07-09 17:56:00] 將建置工具遷移至 Vite
@@ -1109,3 +1109,26 @@
 ### 風險評估 (Risks & Mitigations)
 - **改變其他樂譜的連接小節線樣式**：無條件鏈式更新 `bartop` 是否會導致不需要跨越的小節線錯誤跨越？
   - *對策*：已確認，個別小節線是否向外連接依然由 `this.barto || i === ii - 1` 守護，所以普通非結尾小節線（在 `connectBarLines` 未定義時）的 `this.barto` 依然是 `false`，它在 `i !== ii - 1` 時傳入的依然是 `0`（不連接），因此 100% 隔離了對一般小節線的影響，回歸測試 Mismatch 成功為零即證實了這一點。
+
+---
+## [2026-08-20 17:25:00] 重構 abc_parse_header.ts 的 parseKey, setTempo, parseHeader 回傳型別
+
+### 步驟與技術方案 (Step-by-step Technical Plans)
+1. **宣告具名 Interface 型別 (`src/all.d.ts`)**：
+   - 新增 `ParseKeyResult` 代表 `parseKey` 的 `{ foundClef?: boolean, foundKey?: boolean }`。
+   - 新增 `SetTempoResult` 代表 `setTempo` 的 `{ type: 'immediate' | 'delaySet' | 'none', tempo?: TempoElement }`。
+   - 新增 `ParseHeaderResult` 代表 `parseHeader` 的 `{ recurse?: boolean, str?: string, newline?: boolean, regular?: boolean, words?: boolean }`。
+2. **更新實作函式簽章 (`src/abc_parse_header.ts`)**：
+   - 將該三個函式的匿名物件回傳宣告，替換為宣告上述對應的具名全域介面。
+3. **加載繁體中文 JSDoc / TSDoc 註解說明**：
+   - 補齊三個方法在呼叫時的參數說明與型別連結資訊。
+4. **型別檢查與打包測試**：
+   - 執行 TypeScript typecheck 確保專案其他檔案呼叫點相容。
+
+### 影響檔案 (Affected Files)
+- `src/all.d.ts` (修改)
+- `src/abc_parse_header.ts` (修改)
+
+### 風險評估 (Risks & Mitigations)
+- **破壞現有呼叫端屬性依賴**：重構匿名物件為具名介面可能造成現有引用程式碼型別斷裂。
+  - *對策*：已利用 `grep_search` 確認這三個方法僅在 `abc_parse.ts` 與 `abc_parse_header.ts` 內部被呼叫。且由於回傳屬性名稱完全不變（例如原本是 `regular`、`str` 等，重構後也是），故能 100% 相容現行 JS 解構與取值行為，保證不會引入任何 regression。

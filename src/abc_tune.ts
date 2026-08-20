@@ -251,7 +251,7 @@ export class AbcTune {
 		function pushNote(hp: ABCElement) {
 			if (hp.pitches !== undefined) {
 				let mid = This.lines[This.lineNum].staff[This.staffNum].clef?.verticalPos ?? 0;
-				hp.pitches.forEach((p: ABCElement) => p.verticalPos = (p.pitch ?? 0) - mid);
+				hp.pitches.forEach((p: Pitch) => p.verticalPos = (p.pitch ?? 0) - mid);
 			}
 			if (hp.gracenotes !== undefined) {
 				let mid2 = This.lines[This.lineNum].staff[This.staffNum].clef?.verticalPos ?? 0;
@@ -534,7 +534,7 @@ export class AbcTune {
 	* @param key 元資料鍵。
 	* @param value 元資料值。
 	*/
-	addMetaText(key: string, value: string): void {
+	addMetaText(key: keyof MetaText, value: string): void {
 		if (this.metaText[key] === undefined)
 			this.metaText[key] = value;
 		else

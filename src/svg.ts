@@ -202,7 +202,7 @@ export class Svg {
 		if (this.svg?.parentNode) {
 			for (const key in attr) {
 				if (attr.hasOwnProperty(key)) {
-					this.parentElement.style[key] = attr[key];
+					(this.parentElement.style as any)[key] = attr[key];
 				}
 			}
 		}

@@ -1,4 +1,4 @@
-# Releases
+﻿# Releases
 
 ---
 ## [2026-07-09] 遷移至 Vite 建置系統 (v1.1.0)
@@ -401,3 +401,9 @@
 - **重構 StaffGroup 內部的小節線 Y 軸傳遞**：修改 `src/abc_graphelements.ts` 內的 `ABCStaffGroupElement.draw`，去除原本對 `voice.barfrom` 屬性的限制判斷，將 `bartop` 縱向連線參數在各聲部間無條件做鏈式鏈結傳遞，交由各小節線內部以 `(this.barto || i === ii - 1)` 邏輯自主控制是否連接，徹底修復了 Canzonetta 結尾小節線跨聲部連接高度不對齊的問題。
 - **清除偵錯與追蹤日誌**：清理了開發期注入在 `abc_layout.ts`、`abc_graphelements.ts` 與 `mockPaper.js` 中的臨時 `console.log` 偵錯代碼。
 - **比對測試完美綠燈**：執行 `node test/compare_ast.js` 實現了對所有測試曲目（包括多聲部複音合唱譜 Canzonetta）的 SVG 路徑、尺寸與字元 100% 絕對零 mismatch 通過。
+
+---
+## [2026-08-20] 重構 abc_parse_header.ts 的 parseKey, setTempo, parseHeader 回傳型別 (v1.25.0)
+- **新增 3 個具名強型別介面**：在 `src/all.d.ts` 中定義並導出 `ParseKeyResult` (解析調號或譜號結果), `SetTempoResult` (解析速度欄位結果) 以及 `ParseHeaderResult` (解析標頭行結果)，為其屬性補齊詳盡繁體中文註解。
+- **重構解析函式簽章與註解**：修改 `src/abc_parse_header.ts` 當中的 `parseKey`、`setTempo`、`parseHeader` 三個函式簽章與回傳宣告，並補齊繁體中文的 JSDoc/TSDoc 說明以提升代碼的可維護性。
+- **編譯與打包通過**：經由測試驗證，TypeScript 靜態型別編譯無錯誤，且傳統回歸測試與所有簡譜 TDD 單元測試皆綠燈通過，無 regression。

@@ -258,7 +258,7 @@ export class AbcParseHeader {
 	}
 
 	private parseMiddle(str: string): number {
-		let mid = this.pitches[str.charAt(0)];
+		let mid = this.pitches[str.charAt(0) as PitchKey];
 		for (let i = 1; i < str.length; i++) {
 			if (str.charAt(i) === ',') mid -= 7;
 			else if (str.charAt(i) === ',') mid += 7;
@@ -266,7 +266,12 @@ export class AbcParseHeader {
 		return mid - 6;
 	}
 
-	private parseKey(str: string): { foundClef?: boolean, foundKey?: boolean } {
+	/**
+	 * 解析調號（Key）或譜號（Clef）設定字串
+	 * @param str 調號欄位內容（如 "C", "none clef=bass" 等）
+	 * @returns 解析結果，詳見 {@link ParseKeyResult}
+	 */
+	private parseKey(str: string): ParseKeyResult {
 		str = this.tokenizer.stripComment(str);
 		let origStr = str;
 		if (str.length === 0) {
@@ -417,12 +422,13 @@ export class AbcParseHeader {
 	}
 
 	private addDirective(str: string): string | null {
-		const oneParameterMeasurement = (cmd: string, tokens: HeaderToken[]): string | null => {
+		const oneParameterMeasurement = (cmd: keyof Formatting, tokens: HeaderToken[]): string | null => {
 			const points = this.tokenizer.getMeasurement(tokens);
 			if (points.used === 0 || tokens.length !== 0) {
 				return "Directive \"" + cmd + "\" requires a measurement as a parameter.";
 			}
-			this.tune.formatting[cmd] = points.value;
+			// 將 formatting 宣告為 Record<string, any> 即可順利指派
+			(this.tune.formatting as Record<string, any>)[cmd] = points.value;
 			return null;
 		};
 
@@ -446,19 +452,21 @@ export class AbcParseHeader {
 			return font;
 		};
 
-		const getChangingFont = (cmd: string, tokens: HeaderToken[]): string | null => {
+		const getChangingFont = (cmd: keyof MultilineVars, tokens: HeaderToken[]): string | null => {
 			if (tokens.length === 0) {
 				return "Directive \"" + cmd + "\" requires a font as a parameter.";
 			}
-			this.multilineVars[cmd] = getFontParameter(tokens);
+			const multilineVars: Record<string, any> = this.multilineVars;
+			multilineVars[cmd] = getFontParameter(tokens);
 			return null;
 		};
 
-		const getGlobalFont = (cmd: string, tokens: HeaderToken[]): string | null => {
+		const getGlobalFont = (cmd: keyof Formatting, tokens: HeaderToken[]): string | null => {
 			if (tokens.length === 0) {
 				return "Directive \"" + cmd + "\" requires a font as a parameter.";
 			}
-			this.tune.formatting[cmd] = getFontParameter(tokens);
+			const formatting: Record<string, any> = this.tune.formatting;
+			formatting[cmd] = getFontParameter(tokens);
 			return null;
 		};
 
@@ -704,14 +712,14 @@ export class AbcParseHeader {
 		start += this.tokenizer.eatWhiteSpace(line, start);
 
 		const staffInfo: StaffInfo = { startStaff: isNew };
-		const addNextTokenToStaffInfo = (name: string): void => {
+		const addNextTokenToStaffInfo = (name: keyof StaffInfo): void => {
 			const attr = this.tokenizer.getVoiceToken(line, start, end);
 			if (attr.warn !== undefined) {
 				this.warnFn("Expected value for " + name + " in voice: " + attr.warn, line, start);
 			} else if (attr.token.length === 0 && line.charAt(start) !== '"') {
 				this.warnFn("Expected value for " + name + " in voice", line, start);
 			} else {
-				staffInfo[name] = attr.token;
+				(staffInfo as Record<string, any>)[name] = attr.token;
 			}
 			start += attr.len;
 		};
@@ -957,7 +965,7 @@ export class AbcParseHeader {
 
 				if (tokens.length === 0)
 					throw "Expected meter definition in M: line";
-				const meter = { type: 'specified', value: [] };
+				const meter: MeterElement = { el_type: "meter", type: 'specified', value: [] };
 				let totalLength = 0;
 				while (true) {
 					const ret = parseFraction();
@@ -975,7 +983,7 @@ export class AbcParseHeader {
 				}
 				return meter;
 			} catch (e) {
-				this.warnFn(e, line, 0);
+				this.warnFn((e as Error).message, line, 0);
 			}
 		}
 		return null;
@@ -1042,7 +1050,15 @@ export class AbcParseHeader {
 		}
 	};
 
-	setTempo(line: string, start: number, end: number): { type: string; tempo?: TempoElement } {
+	/**
+	 * 解析 ABC 樂譜中的速度欄位 Q:
+	 * 支援絕對速度 (如 Q:1/8=120)、相對速度 (如 Q:120) 以及前置/後置說明字串
+	 * @param line 速度設定的該行原始內容
+	 * @param start 起始的字元索引
+	 * @param end 結束的字元索引
+	 * @returns 解析結果，詳見 {@link SetTempoResult}
+	 */
+	setTempo(line: string, start: number, end: number): SetTempoResult {
 		//Q - tempo; can be used to specify the notes per minute, e.g.   if
 		//the  default  note length is an eighth note then Q:120 or Q:C=120
 		//is 120 eighth notes per minute. Similarly  Q:C3=40  would  be  40
@@ -1282,7 +1298,7 @@ export class AbcParseHeader {
 		return { len: 0 };
 	}
 
-	metaTextHeaders = {
+	private metaTextHeaders: Record<string, keyof MetaText> = {
 		A: 'author',
 		B: 'book',
 		C: 'composer',
@@ -1298,7 +1314,13 @@ export class AbcParseHeader {
 		Z: 'transcription'
 	};
 
-	parseHeader(line: string): { recurse?: boolean, str?: string, newline?: boolean, regular?: boolean, words?: boolean } {
+	/**
+	 * 負責解析標頭欄位行（Header lines）
+	 * 支援 %% 命令指示、一般 ABC Meta 資訊、調號設定、小節設定、速度設定、聲部設定等
+	 * @param line 標頭那一行的原始內容
+	 * @returns 行解析結果，詳見 {@link ParseHeaderResult}
+	 */
+	parseHeader(line: string): ParseHeaderResult {
 		if (line.startsWith('%%')) {
 			const err = this.addDirective(line.substring(2));
 			if (err) this.warnFn(err, line, 2);

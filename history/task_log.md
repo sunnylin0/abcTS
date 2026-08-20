@@ -1066,3 +1066,23 @@
 - 打包建置 `pnpm run build` 通過且無編譯警告。
 - 執行 `node test/compare_ast.js` 回報所有測試綠燈，且 Mismatches 全數歸零。
 - 所有簡譜 TDD 測試與傳統 `test.js` 回歸測試 100% 通過。
+
+---
+## [2026-08-20 17:25:00] 重構 abc_parse_header.ts 的 parseKey, setTempo, parseHeader 回傳型別
+
+### 目標 (Objectives)
+- 將 `abc_parse_header.ts` 當中三個核心解析方法（`parseKey`、`setTempo` 與 `parseHeader`）原本無語意的匿名回傳物件型別，重構為明確定義的具名強型別介面，消除專案的型別安全盲區。
+- 補齊對應的 TypeScript 宣告檔 `src/all.d.ts`，並在程式碼中寫入清晰的文件註解。
+
+### 需求 (Requirements)
+1. 於 `src/all.d.ts` 定義 `ParseKeyResult`、`SetTempoResult` 與 `ParseHeaderResult` 三個全域 Interface 及其詳細註解。
+2. 重構 `abc_parse_header.ts` 當中的 `parseKey`、`setTempo`、`parseHeader` 函式簽章。
+3. 為這三個函式補齊 TSDoc/JSDoc 格式註解。
+4. 確保 TypeScript 靜態編譯通過且打包正常，無 regression。
+
+### 驗收條件 (Acceptance Criteria)
+- 靜態型別編譯 `npx tsc --noEmit` 通過。
+- `pnpm run build` 打包編譯無誤。
+- `node test.js` 回歸測試 100% 正常。
+- 7 個簡譜單元測試 `test-jianpu-*.js` 全部綠燈通過。
+

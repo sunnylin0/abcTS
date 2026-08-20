@@ -1,4 +1,4 @@
-# Walkthrough Log
+﻿# Walkthrough Log
 
 ---
 ## [2026-07-09 18:06:00] 將建置工具遷移至 Vite (完成)
@@ -614,4 +614,21 @@
    `✅  1 passed successfully  / ❌  0 fail`
    證明所有 mismatches 全數歸零，樂譜渲染效果與舊 JS 100% 絕對一致。
 3. 執行 `node test.js` 回歸測試 100% 通過。
+4. 執行所有 7 個簡譜單元測試 `test-jianpu-*.js` 皆為 ALL PASS，證實 0 regression。
+
+---
+## [2026-08-20 17:25:00] 重構 abc_parse_header.ts 的 parseKey, setTempo, parseHeader 回傳型別 (完成)
+
+### 變更摘要 (Change Summary)
+1. **宣告具名介面與繁體中文 TSDoc (`src/all.d.ts`)**：
+   - 定義並導出 `ParseKeyResult` (解析調號或譜號結果), `SetTempoResult` (解析速度欄位結果) 以及 `ParseHeaderResult` (解析標頭行結果)。
+   - 為所有欄位與參數補齊了詳盡的繁體中文解釋。
+2. **重構解析函式簽章與註解 (`src/abc_parse_header.ts`)**：
+   - 修改 `parseKey`、`setTempo`、`parseHeader` 函式，回傳型別宣告全數改為對應的具名介面。
+   - 補齊這三個方法的 JSDoc/TSDoc，標示 `@param` 與 `@returns` 並以 `{@link ...}` 連結型別定義。
+
+### 驗證與測試日誌 (Verification & Test Logs)
+1. 執行 `pnpm exec tsc --noEmit` 成功，無任何與 `abc_parse_header.ts` 改動相關的 TypeScript 型別編譯錯誤。
+2. 執行 `pnpm run build` 通過，生成 UMD 包。
+3. 執行傳統的 `test.js` 回歸測試 100% 通過。
 4. 執行所有 7 個簡譜單元測試 `test-jianpu-*.js` 皆為 ALL PASS，證實 0 regression。

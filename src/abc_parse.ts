@@ -75,7 +75,9 @@ export class MultilineVars {
 	inTie: boolean;
 	inTieChord: { [key: number]: boolean };
 
-	barNumOnNextNote: number
+	barNumOnNextNote: number;
+	gchordfont: Font;
+	partsfont: Font;
 	vocalfont: Font;
 	reset() {
 		for (let property in this) {
@@ -364,7 +366,7 @@ export class AbcParse {
 
 	private addWords(line: NOTES_Element[], words: string): void {
 		if (!line) {
-			this.warn("Can't add words before the first line of music", line, 0);
+			this.warn("Can't add words before the first line of music", "", 0);
 			return;
 		}
 		words = words.trim();
@@ -1381,7 +1383,7 @@ export class AbcParse {
 			this.multilineVars.iChar += line.length + 1;
 		}
 		this.tune.cleanUp();
-	} catch(err) {
+	} catch(err: unknown) {
 		if (err !== "normal_abort")
 			throw err;
 	}

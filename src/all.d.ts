@@ -392,6 +392,43 @@ interface HeaderToken {
 	continueId?: boolean;
 }
 
+
+/**
+ * parseKey() 的解析結果
+ */
+interface ParseKeyResult {
+	/** 是否解析到譜號 (Clef) */
+	foundClef?: boolean;
+	/** 是否解析到調號 (Key Signature) */
+	foundKey?: boolean;
+}
+
+/**
+ * setTempo() 的解析結果
+ */
+interface SetTempoResult {
+	/** 速度設定的套用類型。'immediate': 立即套用; 'delaySet': 延遲套用; 'none': 錯誤或無效設定 */
+	type: 'immediate' | 'delaySet' | 'none';
+	/** 解析出的速度元素資料，無效或錯誤時省略 */
+	tempo?: TempoElement;
+}
+
+/**
+ * parseHeader() 的行解析結果
+ */
+interface ParseHeaderResult {
+	/** 是否需要遞迴解析（通常是有 \x12 分隔的多行資料） */
+	recurse?: boolean;
+	/** 傳遞至下一步解析的剩餘或完整字串內容 */
+	str?: string;
+	/** 是否代表有新的一行音樂（通常是 V: 欄位在 header 結束後出現） */
+	newline?: boolean;
+	/** 代表此行應作為一般音樂行處理 */
+	regular?: boolean;
+	/** 代表此行代表歌詞欄位 w: */
+	words?: boolean;
+}
+
 type DurationInfo = [number, number, number?]; // [charactersConsumed, duration, nextNoteDuration?]
 type AccentInfo = [number, string]; // [charactersConsumed, accent]
 type AccidentalInfo = [number, "" | "sharp" | "natural" | "flat"];
@@ -539,6 +576,9 @@ interface Formatting {
 	voicefont?: Font;
 	wordsfont?: Font;
 
+	barlabelfont?: Font;
+	barnumberfont?: Font;
+
 	jazzchords?: boolean;
 }
 
@@ -665,21 +705,24 @@ interface ABCElement extends ElementBase {
 interface MetaText {
 	tempo?: Tempo;
 	title?: string;
-	title?: string;
-	rhythm?: string;
+
 	author?: string;
-	origin?: string;
+	book?: string;
 	composer?: string;
+	discography?: string;
+	url?: string;
 	group?: string;
+	instruction?: string;
+	notes?: string;
+	origin?: string;
+	rhythm?: string;
+	source?: string;
+	unalignedWords?: string;
+	transcription?: string;
 
 	partOrder?: string;
-	notes?: string;
-	book?: string;
-	source?: string;
-	transcription?: string;
-	discography?: string;
 	history?: string;
-	unalignedWords?: string;
+	textBlock?: string;
 }
 
 interface Chord {

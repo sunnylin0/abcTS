@@ -243,9 +243,10 @@ export class ABCPrinter {
 			this.addPath(pathArray);
 			return null;
 		} else {
+			const pathString = pathArray.map(cmd => cmd.join(' ')).join(' ');
 			return this.paper
 				.path()
-				.attr({ path: pathArray, stroke: "none", fill: fill }) as SVGPathElement;
+				.attr({ path: pathString, stroke: "none", fill: fill }) as SVGPathElement;
 		}
 	}
 
