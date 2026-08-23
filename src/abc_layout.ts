@@ -700,8 +700,11 @@ export class ABCLayout {
 		let i;
 		this.accidentalshiftx = 0;
 		this.dotshiftx = 0;	//更新點號空間限制
-		if (c === undefined)
+		console.log(c);
+		if (c === undefined) {
+			console.log(c);
 			abselem.addChild(new ABCRelativeElement("pitch is undefined", 0, 0, 0, { type: "debug" }));
+		}
 		else if (c === "") {
 			notehead = new ABCRelativeElement(null, 0, 0, pitch);
 		} else {

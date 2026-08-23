@@ -1,9 +1,10 @@
-﻿import { defineConfig, transformWithEsbuild } from 'vite';
+import { defineConfig, transformWithEsbuild } from 'vite';
 import { resolve } from 'path';
 import fs from 'fs-extra';
 
 export default defineConfig({
 	server: {
+		port: 60000, // 固定連接埠
 		open: '/src/workspace.html',
 	}, resolve: {
 		alias: {
@@ -19,7 +20,7 @@ export default defineConfig({
 		},
 		outDir: 'dist',
 		emptyOutDir: true,
-		sourcemap: true,
+		sourcemap: 'inline', // 嘗試改用 'inline'，把 sourcemap 直接塞進檔案裡，避免路徑對不上
 		minify: false,
 	},
 	plugins: [

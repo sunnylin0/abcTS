@@ -6,8 +6,8 @@
   "name": "localhost (Chrome)",
   "type": "chrome",
   "request": "launch",
-  "url": "http://localhost:3000",
-  "webRoot": "C:\\GitHub\\muse-react\\abcTS"
+  "url": "http://localhost:60976",
+  "webRoot": "C:\\Users\\sunny\\Desktop\\abcMain\\abcTS"
 }</LaunchJsonTarget>
   </PropertyGroup>
 </Project>
