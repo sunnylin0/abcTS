@@ -59,11 +59,11 @@ Object.defineProperty(SVGElement.prototype, "attr", {
 				const pathValue = Array.isArray(value)
 					? value.join(' ').replace(/,/g, ' ')
 					: String(value).replace(/,/g, ' ');
-				this.setAttributeNS(null, 'd', pathValue);
+				this.setAttribute('d', pathValue);
 			} else if (key === 'klass') {
-				this.setAttributeNS(null, 'class', String(value));
+				this.setAttribute('class', String(value));
 			} else {
-				this.setAttributeNS(null, key, String(value));
+				this.setAttribute(key, String(value));
 			}
 		}
 		return this;
@@ -435,11 +435,11 @@ export class Svg {
 					const pathValue = Array.isArray(value)
 						? value.join(' ').replace(/,/g, " ")
 						: String(value).replace(/,/g, " ");
-					el.setAttributeNS(null, 'd', pathValue);
+					el.setAttribute('d', pathValue);
 				} else if (key === 'klass') {
-					el.setAttributeNS(null, "class", String(value));
+					el.setAttribute("class", String(value));
 				} else {
-					el.setAttributeNS(null, key, String(value));
+					el.setAttribute(key, String(value));
 				}
 			}
 		}
@@ -463,11 +463,11 @@ export class Svg {
 		for (const [key, value] of Object.entries(attr)) {
 			if (value === undefined) continue;
 			if (key === 'path') {
-				el.setAttributeNS(null, 'd', String(value));
+				el.setAttribute('d', String(value));
 			} else if (key === 'klass') {
-				el.setAttributeNS(null, "class", String(value));
+				el.setAttribute("class", String(value));
 			} else {
-				el.setAttributeNS(null, key, String(value));
+				el.setAttribute(key, String(value));
 			}
 		}
 		this.prepend(el);
@@ -501,7 +501,7 @@ export class Svg {
 
 	setAttributeOnElement(el: SVGElement, attr: Record<string, string | number>): void {
 		for (const [key, value] of Object.entries(attr)) {
-			el.setAttributeNS(null, key, String(value));
+			el.setAttribute(key, String(value));
 		}
 	}
 
@@ -522,7 +522,7 @@ function constructVLine(x1: number, y1: number, y2: number): string {
 
 function createSvg(): SVGSVGElement {
 	const svg = document.createElementNS(svgNS, "svg");
-	svg.setAttributeNS(xlinkNS, "xmlns:xlink", "http://www.w3.org/1999/xlink");
+	svg.setAttribute("xmlns:xlink", xlinkNS);
 	svg.setAttribute('role', 'img');
 	svg.setAttribute('fill', 'currentColor');
 	svg.setAttribute('stroke', 'currentColor');

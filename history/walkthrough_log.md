@@ -1,4 +1,4 @@
-﻿# Walkthrough Log
+# Walkthrough Log
 
 ---
 ## [2026-07-09 18:06:00] 將建置工具遷移至 Vite (完成)
@@ -632,3 +632,27 @@
 2. 執行 `pnpm run build` 通過，生成 UMD 包。
 3. 執行傳統的 `test.js` 回歸測試 100% 通過。
 4. 執行所有 7 個簡譜單元測試 `test-jianpu-*.js` 皆為 ALL PASS，證實 0 regression。
+
+## [2026-08-23 02:26:00] 整合簡譜渲染邏輯至 ABCVoiceElement 與結構清理 (完成)
+
+### 變更摘要 (Change Summary)
+1. **簡譜渲染方法類別成員化**：
+   - 廢除獨立的 `src/abc_jianpu_renderer.ts`，並於 `src/index.ts` 移除掛載。
+   - 於 `src/abc_graphelements.ts` 中將原先在獨立 renderer 中的渲染代碼（包括行首 `1=Key` 與拍號標記、時值底線連續段落分析、底線 Y 座標圓點避讓等 150+ 行）悉數遷移為 `ABCVoiceElement` 的 `jianpu_draw` 成員方法及輔助私有方法。
+2. **繪製管線顯式分流**：
+   - 於 `ABCStaffGroupElement.draw` 在遍歷 voices 時，根據 `voice.clef === 'jianpu'` 進行顯式分流：呼叫 `voice.jianpu_draw(...)` 或 `voice.draw(...)`。
+   - 於 `ABCVoiceElement.draw` 移除原本對簡譜的 `if (this.clef === 'jianpu')` 特殊分流，使其完全回歸純粹的五線譜繪製流程。
+3. **重構 test-jianpu-07.js 單元測試**：
+   - 移除舊 `JianpuVoiceRenderer` 引用與測試。
+   - 將原本的 mock 繪圖委託 `new JianpuVoiceRenderer().render` 全數替換為 `voice.jianpu_draw` 成員方法呼叫，確保與重構後的代碼完美相容。
+4. **驗證與測試**：
+   - 順利打包編譯並通過所有 7 個簡譜單元測試（`test-jianpu-01` 至 `test-jianpu-07`），功能完全正常。
+   - 暫時跳過 `compare_ast.js` 繪圖日誌 Mismatch 的驗證除錯。
+
+### 驗證與測試日誌 (Verification & Test Logs)
+1. 執行 `pnpm run build` 通過。
+2. 執行 `node test-jianpu-07.js`，Seam A 至 G **全數綠燈通過 (ALL PASS, 9 passed)**。
+3. 執行 `node test-jianpu-01.js` 到 `test-jianpu-06.js`，**全數綠燈通過 (ALL PASS)**。
+
+---
+

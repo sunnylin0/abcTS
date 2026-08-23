@@ -57,7 +57,7 @@ export class ABCLayout {
 	pos: number;
 	partstartelem: ABCEndingElem;
 	startlimitelem: ABCAbsoluteElement | null;
-	dotshiftx: number;
+	dotshiftx = 0;	//更新點號空間限制
 	roomtaken: number;
 	roomtakenright: number;
 	accidentalshiftx: number;
@@ -412,7 +412,7 @@ export class ABCLayout {
 	printJianpuNoteHead(
 		abselem: ABCAbsoluteElement,
 		c: string,
-		pitchelem: any,
+		pitchelem: ABCElement,
 		duration: number,
 		headx: number,
 		extrax: number,
@@ -421,17 +421,19 @@ export class ABCLayout {
 	): ABCRelativeElement {
 		let notehead = new ABCRelativeElement(c, headx, 12, 0, { type: "jianpuNote" });
 
-		if (pitchelem && isChromatic && acc) {
-			let symb: string = "";
-			switch (acc) {
+		if (pitchelem.accidental) {
+			let symb: string;
+			switch (pitchelem.accidental) {
+				case "quartersharp": symb = "accidentals.halfsharp"; break;
+				case "dblsharp": symb = "accidentals.dblsharp"; break;
 				case "sharp": symb = "accidentals.sharp"; break;
+				case "quarterflat": symb = "accidentals.halfflat"; break;
 				case "flat": symb = "accidentals.flat"; break;
-				case "natural": symb = "accidentals.nat"; break;
+				case "dblflat": symb = "accidentals.dblflat"; break;
+				case "natural": symb = "accidentals.nat";
 			}
-			if (symb) {
-				this.accidentalshiftx = 12;
-				abselem.addExtra(new ABCRelativeElement(symb, extrax - this.accidentalshiftx, 8, 0, { type: "symbol" }));
-			}
+			this.accidentalshiftx = 12;
+			abselem.addExtra(new ABCRelativeElement(symb, extrax - this.accidentalshiftx, 8, 0, { type: "symbol" }));
 		}
 
 		if (pitchelem) {
@@ -473,7 +475,7 @@ export class ABCLayout {
 	}
 
 	printNote(elem: ABCElement, nostem?: boolean): ABCAbsoluteElement {
-		let notehead: any = null;
+		let notehead: ABCRelativeElement = null;
 		let grace: any = null;
 		this.roomtaken = 0; // room needed to the left of the note
 		this.roomtakenright = 0;
@@ -691,13 +693,13 @@ export class ABCLayout {
 		return abselem;
 	}
 
-	printNoteHead(abselem: ABCAbsoluteElement, c: string, pitchelem: any, dir: string, headx: number, extrax: number, flag: string, dot: number, dotshiftx: number, scale: number): ABCRelativeElement {
+	printNoteHead(abselem: ABCAbsoluteElement, c: string, pitchelem: Pitch, dir: string, headx: number, extrax: number, flag: string, dot: number, dotshiftx: number, scale: number): ABCRelativeElement {
 		// TODO scale the dot as well
 		let pitch = pitchelem.verticalPos;
-		let notehead: any;
+		let notehead: ABCRelativeElement;
 		let i;
 		this.accidentalshiftx = 0;
-		this.dotshiftx = 0;
+		this.dotshiftx = 0;	//更新點號空間限制
 		if (c === undefined)
 			abselem.addChild(new ABCRelativeElement("pitch is undefined", 0, 0, 0, { type: "debug" }));
 		else if (c === "") {
@@ -770,7 +772,7 @@ export class ABCLayout {
 					slur = this.slurs[slurid].anchor2 = notehead;
 					delete this.slurs[slurid];
 				} else {
-					slur = new ABCTieElem(null, notehead, dir === "down", (this.stemdir === "up" || dir === "down") && this.stemdir !== "down");
+					slur = new ABCTieElem(null, notehead, dir === "down", (this.stemdir === "up" || dir === "down") && this.stemdir !== "down", this.stemdir);
 					this.voice.addOther(slur);
 				}
 				if (this.startlimitelem) {

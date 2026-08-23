@@ -1,4 +1,4 @@
-﻿# Releases
+# Releases
 
 ---
 ## [2026-07-09] 遷移至 Vite 建置系統 (v1.1.0)
@@ -390,8 +390,8 @@
 
 ---
 ## [2026-08-12] 重構解析元組回傳為具名強型別物件 (v1.23.0)
-- **新增 9 個強型別具名介面**：在 [all.d.ts](file:///c:/github/abcMain/abcTS/src/all.d.ts) 中定義 `BrackettedSubstringResult`, `ChordParseResult`, `AccentParseResult`, `SpacerParseResult`, `BarParseResult`, `BrokenRhythmResult`, `GraceParseResult`, `InlineHeaderResult`, `BodyHeaderResult`，為其屬性補齊詳盡中文註解。
-- **重構 Tokenizer 與 Parser 解析函式**：修改 [abc_tokenizer.ts](file:///c:/github/abcMain/abcTS/src/abc_tokenizer.ts) 的 `getBrackettedSubstring`，以及 [abc_parse.ts](file:///c:/github/abcMain/abcTS/src/abc_parse.ts)、[abc_parse_header.ts](file:///c:/github/abcMain/abcTS/src/abc_parse_header.ts) 的 8 個 letter_to 函式與 getBrokenRhythm，將其無語意 tuple 回傳值重構為上述具名物件。
+- **新增 9 個強型別具名介面**：在 [all.d.ts](file:///./src/all.d.ts) 中定義 `BrackettedSubstringResult`, `ChordParseResult`, `AccentParseResult`, `SpacerParseResult`, `BarParseResult`, `BrokenRhythmResult`, `GraceParseResult`, `InlineHeaderResult`, `BodyHeaderResult`，為其屬性補齊詳盡中文註解。
+- **重構 Tokenizer 與 Parser 解析函式**：修改 [abc_tokenizer.ts](file:///./src/abc_tokenizer.ts) 的 `getBrackettedSubstring`，以及 [abc_parse.ts](file:///./src/abc_parse.ts)、[abc_parse_header.ts](file:///./src/abc_parse_header.ts) 的 8 個 letter_to 函式與 getBrokenRhythm，將其無語意 tuple 回傳值重構為上述具名物件。
 - **修復呼叫處與清除 `ret` 全域污染**：重構所有呼叫處以改用物件屬性取值（如 `barResult.len`），並清除了舊 JS 代碼中因全域變數 `ret` 污染引發的潛在缺陷。
 - **測試驗證全數通過**：UMD 打包與 TypeScript 靜態編譯無錯誤，傳統回歸測試、7 個簡譜單元測試以及 AST 語法樹比對測試（100% 對齊）皆順利通過。
 
@@ -407,3 +407,18 @@
 - **新增 3 個具名強型別介面**：在 `src/all.d.ts` 中定義並導出 `ParseKeyResult` (解析調號或譜號結果), `SetTempoResult` (解析速度欄位結果) 以及 `ParseHeaderResult` (解析標頭行結果)，為其屬性補齊詳盡繁體中文註解。
 - **重構解析函式簽章與註解**：修改 `src/abc_parse_header.ts` 當中的 `parseKey`、`setTempo`、`parseHeader` 三個函式簽章與回傳宣告，並補齊繁體中文的 JSDoc/TSDoc 說明以提升代碼的可維護性。
 - **編譯與打包通過**：經由測試驗證，TypeScript 靜態型別編譯無錯誤，且傳統回歸測試與所有簡譜 TDD 單元測試皆綠燈通過，無 regression。
+
+---
+## [2026-08-23] 整合簡譜渲染邏輯至 ABCVoiceElement 與結構清理 (v1.24.0)
+- **簡譜渲染方法類別成員化**：
+  - 廢除獨立的 `src/abc_jianpu_renderer.ts`，並於 `src/index.ts` 移除掛載與匯出。
+  - 將原本獨立在 renderer 中的渲染方法整合為 `ABCVoiceElement` 的 `jianpu_draw` 成員方法及輔助私有方法。
+- **繪製管線顯式分流**：
+  - 在 `ABCStaffGroupElement.draw` 中根據 `voice.clef === 'jianpu'` 進行顯式分流繪製.
+  - 在 `ABCVoiceElement.draw` 中移除對簡譜的特殊分流，使其回歸純粹的五線譜繪製流程。
+- **單元測試適配**：
+  - 重構 `test-jianpu-07.js` 單元測試，移除舊 `JianpuVoiceRenderer` 引用，並改為呼叫 `voice.jianpu_draw`。
+- **測試驗證**：
+  - TS 打包編譯無錯誤。所有的 7 個簡譜單元測試全數通過。
+  - 暫時跳過 `compare_ast.js` 繪圖日誌 Mismatch 的驗證除錯。
+    

@@ -132,9 +132,9 @@ if (args.trace) {
 		// 'ABCRelativeElement'
 	];
 	classesToTrace.forEach(cls => {
-		if (oldContext[cls] && oldContext[cls].prototype) 
+		if (oldContext[cls] && oldContext[cls].prototype)
 			oldTracer.autoTraceClass(oldContext[cls].prototype, cls);
-		if (newContext.window[cls] && newContext.window[cls].prototype) 
+		if (newContext.window[cls] && newContext.window[cls].prototype)
 			newTracer.autoTraceClass(newContext.window[cls].prototype, cls);
 	});
 }
@@ -142,7 +142,7 @@ if (args.trace) {
 
 // 2. 測試執行主流程
 let passed = 0;
-let fail =0;
+let fail = 0;
 testABCStrings.forEach((abc, idx) => {
 	console.log(`\n------------------ Running Test Case ${idx + 1} ------------------`);
 
@@ -154,9 +154,10 @@ testABCStrings.forEach((abc, idx) => {
 	console.log(`✅ Stage A & B (AST Compare) Passed!`);
 
 	// 1. 舊版渲染
+	let oldParser;
 	const oldPaper = createMockPaper();
 	try {
-		const oldParser = new OldAbcParse();
+		oldParser = new OldAbcParse();
 		oldParser.parse(oldBook.tunes[0].abc);
 		const oldPrinter = new OldABCPrinter(oldPaper);
 		oldPrinter.printABC(oldParser.getTune());
@@ -184,8 +185,10 @@ testABCStrings.forEach((abc, idx) => {
 		const newParser = new NewAbcParse();
 		newParser.parse(newBook.tunes[0].abc);
 		const newPrinter = new NewABCPrinter(printerPaper);
-		console.log('NEW TUNE METATEXT:', newParser.getTune().metaText);
-		newPrinter.printABC(newParser.getTune());
+		const tune = newParser.getTune();
+		console.log('[DEBUG AST] NEW Tune metaText keys:', tune && tune.metaText ? Object.keys(tune.metaText) : 'N/A');
+		console.log('[DEBUG AST] NEW Tune title:', tune && tune.metaText ? tune.metaText.title : 'undefined');
+		newPrinter.printABC(tune);
 		console.log(`[DEBUG NEW] 新版成功繪製！ Log 筆數: ${newPaper.drawLog.length}`);
 	} catch (err) {
 		console.error(`\n❌ [新版 TS Parse/Print 崩潰細節]`, err);
