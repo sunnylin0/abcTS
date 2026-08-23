@@ -942,12 +942,13 @@ export class AbcParse {
 		this.multilineVars.is_in_header = false;	// We should have gotten a key header by now, but just in case, this is definitely out of the header.
 		let i = 0;
 		let startOfLine = this.multilineVars.iChar;
-		// see if there is nothing but a comment on this line. If so, just ignore it. A full line comment is optional white space followed by %
-		while (this.tokenizer.isWhiteSpace(line[i]) && i < line.length)
-			i++;
+		const tokens = this.tokenizer.tokenizeLine(line);
 
-		if (i === line.length || line[i] === '%')
+		// see if there is nothing but a comment on this line. If so, just ignore it.
+		let firstMeat = tokens.find(t => t.type !== 'whitespace');
+		if (!firstMeat || firstMeat.type === 'comment') {
 			return;
+		}
 
 		let delayStartNewLine: boolean = this.multilineVars.start_new_line;
 		this.multilineVars.start_new_line = true;
@@ -966,7 +967,8 @@ export class AbcParse {
 
 		while (i < line.length) {
 			const startI = i;
-			if (line[i] === '%') {
+			const token = tokens.find(t => t.start === i);
+			if (token && token.type === 'comment') {
 				break;
 			}
 
@@ -989,12 +991,11 @@ export class AbcParse {
 				// So, loop while we find grace-notes, chords-symbols, or decorations. [It is an error to have more than one grace-note group in a row; the others can be multiple]
 				// Then, if there is a grace-note, we know where to go.
 				// Else see if we have a chord, core-note, slur, triplet, or bar.
-				let whitespaceLen: number;
-
 				while (1) {
-					whitespaceLen = this.tokenizer.eatWhiteSpace(line, i);
-					if (whitespaceLen > 0) {
-						i += whitespaceLen;
+					const tSub = tokens.find(t => t.start === i);
+					if (tSub && tSub.type === 'whitespace') {
+						i += tSub.text.length;
+						continue;
 					}
 					if (i > 0 && line[i - 1] === '\x12') {
 						// there is one case where a line continuation isn't the same as being on the same line, and that is if the next character after it is a header.
@@ -1011,18 +1012,17 @@ export class AbcParse {
 						i += spacerResult.len;
 					}
 
-					const chordResult = this.letter_to_chord(line, i);
-					if (chordResult.len > 0) {
+					if (tSub && tSub.type === 'chord') {
 						if (!el.chord) {
 							el.chord = [];
 						}
-						el.chord.push({ name: this.tokenizer.translateString(chordResult.name), position: chordResult.position });
-						i += chordResult.len;
-						let ii = this.tokenizer.skipWhiteSpace(line.substring(i));
-						if (ii > 0) {
+						el.chord.push({ name: tSub.value.name, position: tSub.value.position });
+						i += tSub.text.length;
+						const nextT = tokens.find(t => t.start === i);
+						if (nextT && nextT.type === 'whitespace') {
 							el.force_end_beam_last = true;
+							i += nextT.text.length;
 						}
-						i += ii;
 					} else {
 						let accentResult: AccentParseResult;
 						if (this.nonDecorations.indexOf(line[i]) === -1)
@@ -1054,17 +1054,16 @@ export class AbcParse {
 					}
 				}
 
-				const barResult: BarParseResult = this.letter_to_bar(line, i);
-				if (barResult.len > 0) {
+				if (token && token.type === 'bar') {
 					// This is definitely a bar
 					if (el.gracenotes !== undefined) {
 						// Attach the grace note to an invisible note
 						el.rest = { type: 'spacer' };
 						el.duration = 0.125; // TODO-PER: I don't think the duration of this matters much, but figure out if it does.
-						this.tune.appendElement('note', startOfLine + i, startOfLine + i + barResult.len, el);
+						this.tune.appendElement('note', startOfLine + i, startOfLine + i + token.text.length, el);
 						el = {};
 					}
-					let bar: BarElement = { type: barResult.barType } as BarElement;
+					let bar: BarElement = { type: token.value.barType } as BarElement;
 					if (bar.type.length === 0) {
 						this.warn("Unknown bar type", line, i);
 					} else {
@@ -1072,8 +1071,8 @@ export class AbcParse {
 							bar.endEnding = true;
 							this.multilineVars.inEnding = false;
 						}
-						if (barResult.ending) {
-							bar.startEnding = barResult.ending;
+						if (token.value.ending) {
+							bar.startEnding = token.value.ending;
 							if (this.multilineVars.inEnding)
 								bar.endEnding = true;
 							this.multilineVars.inEnding = true;
@@ -1090,10 +1089,10 @@ export class AbcParse {
 								this.multilineVars.barNumOnNextNote = this.multilineVars.currBarNumber;
 							}
 						}
-						this.tune.appendElement('bar', startOfLine + i, startOfLine + i + barResult.len, bar);
+						this.tune.appendElement('bar', startOfLine + i, startOfLine + i + token.text.length, bar);
 						el = {};
 					}
-					i += barResult.len;
+					i += token.text.length;
 				} else {
 					// This is definitely a note group
 					//

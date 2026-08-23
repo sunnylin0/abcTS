@@ -677,3 +677,49 @@
 
 ---
 
+## [2026-08-23 12:02:00] 深化 Svg 繪圖介面，解耦低階 SVG 渲染細節 (完成)
+
+### 變更摘要 (Change Summary)
+1. **實作語意化繪圖 API**：
+   - 於 `src/abc_write.ts` 當中實作 `drawText`、`drawLine`、`drawCircle`，收攏並封裝了所有文字屬性設定（`font-size`、`font-family`、`text-anchor`）以及直線和圓形的路徑特徵。
+   - 將 `abc_write.ts` 中多處 meta/rhythm/tempo/title 繪製的直接 `paper.text` 呼叫重構為呼叫 `drawText`，達到底層渲染物件的高度語意化。
+2. **重構渲染器與繪圖物件**：
+   - 修改 `src/abc_jianpu_renderer.ts`，將行首標記、拍號文字的繪製以 `printer.drawText` 代替，時值底線繪製以 `printer.drawLine` 代替，徹底移除了簡譜渲染器當中的 Raphael 低階路徑字串拼接。
+   - 修改 `src/abc_graphelements.ts`，將 `voiceHeader` 的繪製改為 `drawText`，時值橫線以 `drawLine` 代替，圓點/八度/附點以 `drawCircle` 代替。
+3. **優化與修復單元測試**：
+   - 在 `test-jianpu-07.js` 的 `createMockPrinter()` 當中補齊了 `drawText`、`drawLine` 與 `drawCircle` 的 stub 模擬，使其內部依然能正確將相關繪圖記錄寫入 `mockPaper.drawLog` 中，維持了 mock paper 測試的完整相容。
+
+### 驗證與測試日誌 (Verification & Test Logs)
+1. 執行 `pnpm run build` 打包編譯無誤。
+2. 執行所有簡譜測試 `node test-jianpu-*.js`，**全數綠燈通過 (ALL PASS)**。
+3. 特別執行 `node test-jianpu-05.js`（時值線與附點整合測試），在 Red 狀態下確實捕獲了 4 個 failure（因為真實 `ABCPrinter` 為 stub），實作 Green 後 9 個 assert 均為綠燈通過。
+4. 執行傳統回歸測試 `node test.js`，**100% PASS**。
+5. 執行 `node test/compare_ast.js` 驗證對比，無任何新的 SVG 渲染細節 mismatch。
+
+---
+
+## [2026-08-23 12:28:00] 解耦並深化 Tokenizer 與 Parser 的介面 (完成)
+
+### 變更摘要 (Change Summary)
+1. **定義與導出語意 Token**：
+   - 定義 `TokenType` 為 `'note' | 'rest' | 'bar' | 'chord' | 'whitespace' | 'inline_header' | 'comment' | 'unknown'`。
+   - 定義並導出 `SemanticToken` 介面。
+2. **實作 `tokenizeLine(line: string): SemanticToken[]`**：
+   - 於 `src/abc_tokenizer.ts` 當中，將 `line` 原始字串預解析為語意 Token 陣列。
+   - 在 Tokenizer 內部提前完成 `chord` 的位置/文字解義、`bar` 的反覆記號結尾（ending）提取與轉義字串映射，實現了語意化詞法分析。
+3. **重構 `parseRegularMusicLine` 方法**：
+   - 於 `src/abc_parse.ts` 當中，移除原先在 Parser 遍歷字元指針時為跳過空格、檢測註解、解析和弦、小節線和 ending 標記所進行的繁雜 index 移動。
+   - 改為直接利用 TokenStream 的元素進行 `'whitespace'`、`'comment'`、`'chord'`、`'bar'` 的類型判定與屬性消耗，實現了乾淨的 Token-driven 狀態機設計。
+4. **建立單元測試**：
+   - 建立 `test-jianpu-08.js` 驗證 Tokenizer 記號化是否正常。
+
+### 驗證與測試日誌 (Verification & Test Logs)
+1. 執行 `pnpm run build` 打包編譯無誤。
+2. 執行 `node test-jianpu-08.js`（Seam A 測試），**Result: ALL PASS**。
+3. 執行所有簡譜測試 `node test-jianpu-*.js`，**全數綠燈通過 (ALL PASS)**。
+4. 執行傳統回歸測試 `node test.js`，**100% PASS**。
+5. 執行 `node test/compare_ast.js` 驗證對比，無任何新的 SVG 渲染細節 mismatch。
+
+---
+
+

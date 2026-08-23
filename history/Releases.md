@@ -429,3 +429,27 @@
   - 修正 `test-jianpu-03.js` 及 `test-jianpu-06.js` 簡譜測試因唱名數字改為向量 `symbol` 繪製引起的 `drawLog` 斷言 mismatch，提升測試健壯性。
 - **驗證成果**：
   - UMD 打包與靜態編譯成功。所有簡譜測試 `test-jianpu-*.js` 100% **ALL PASS**，傳統回歸測試無退化。
+    
+---
+## [2026-08-23] 深化 Svg 繪圖介面，解耦低階 SVG 渲染細節 (v1.27.0)
+- **實作語意化繪圖 API 封裝**：
+  - 於 `src/abc_write.ts` 的 `ABCPrinter` 新增 `drawText`、`drawLine`、`drawCircle`，收攏並封裝了原本外溢在排版物件中的字型屬性設定、直線和圓形的路徑特徵。
+  - 將 `abc_write.ts` 中多處 meta/rhythm/tempo/title 繪製的直接 `paper.text` 呼叫重構為 `drawText`，提高底層繪圖管線的語意內聚性。
+- **重構簡譜與繪圖物件**：
+  - 重構 `src/abc_jianpu_renderer.ts` 的行首 Key 與拍號（呼叫 `drawText`）與底線（呼叫 `drawLine`），徹底清除低階 Raphael 直線路徑字串拼接。
+  - 重構 `src/abc_graphelements.ts` 的聲部 header 繪製（呼叫 `drawText`）、簡譜橫線（呼叫 `drawLine`）與八度/附點（呼叫 `drawCircle`）。
+- **單元測試適配與 TDD 驗證**：
+  - 在 `test-jianpu-07.js` 的 mock printer 當中補齊這三個方法的 stub 模擬，並使用 `test-jianpu-05.js`（時值底線與附點整合測試）建立 Red 失敗測試狀態，Green 後順利綠燈通過。
+  - 驗證傳統 `test.js` 與比對工具 `compare_ast.js` 均順利通過且無任何渲染 mismatch，確保 100% 輸出無損相容。
+
+---
+## [2026-08-23] 解耦並深化 Tokenizer 與 Parser 的介面 (v1.27.0)
+- **定義與導出語意 Token 結構**：
+  - 於 `src/abc_tokenizer.ts` 定義 `TokenType` 與 `SemanticToken` 介面，規範化 Lexer 的輸出型別。
+- **實作全量解析方法 `tokenizeLine`**：
+  - 於 `AbcTokenizer` 當中實作 `tokenizeLine(line)`，將一整行字串預解析為語意 Token 串流，並內聚地預先提取 whitespace、comment、bar 的 ending 標記與和弦的 position 轉義屬性。
+- **重構 Parser 核心狀態機**：
+  - 重構 `src/abc_parse.ts` 當中的 `parseRegularMusicLine`，以 `tokenizeLine` 的 tokens 判定與屬性讀取，完全取代原本的 ad-hoc 字元前瞻、回溯與字串轉義代碼。
+- **TDD 驗證**：
+  - 新增單元測試 `test-jianpu-08.js` 以驗證 Tokenizer 切分的正確性。
+  - 所有簡譜單元與整合測試及 `test.js`、`compare_ast.js` 全數綠燈通過，無任何 regression。

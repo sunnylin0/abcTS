@@ -1215,3 +1215,36 @@
 - **多聲部 Y 座標重疊再現**：重構時可能遺漏某些 Y 座標的初始化邏輯。
   - *對策*：在 `JianpuVoiceRenderer.render` 開頭，依然加入對 `printer.y` 的防禦性初始化，且在 `ABCStaffGroupElement.draw` 高度計算後，確認 `this.staffs[i].bottom = y` 被正確更新。
 
+---
+## [2026-08-23 12:02:00] 深化 Svg 繪圖介面，解耦低階 SVG 渲染細節
+
+### 變更說明 (Proposed Changes)
+將散落在排版與渲染物件（如 `abc_graphelements.ts`、`abc_jianpu_renderer.ts`）當中的低階 SVG 路徑字串拼接（`M x y L x y`）與 Raphael 特有繪圖屬性（如 `font-family`、`text-anchor` 等）封裝並下放至 `ABCPrinter`，建立高度語意化的繪圖表面介面（Render Surface）。
+
+### 影響的檔案 (Affected Files)
+- `src/abc_write.ts` (修改) - 實作 `drawText`、`drawLine`、`drawCircle` 並重構內部 10 餘處 meta/rhythm/tempo 標頭的直接 paper 呼叫。
+- `src/abc_jianpu_renderer.ts` (修改) - 重構行首、拍號與底線繪製為呼叫高階 API。
+- `src/abc_graphelements.ts` (修改) - 重構聲部 header、橫線與八度點/附點繪製為呼叫高階 API。
+- `test-jianpu-07.js` (修改) - 在 mock printer 中補齊這三個方法的 mock stub。
+
+### 風險評估 (Risks & Mitigations)
+- **SVG 渲染輸出 Mismatch**：字型大小或對齊方式在統一映射時可能與原先 ad-hoc 配置不符，導致 `compare_ast.js` 報錯。
+  - *對策*：新實作的 `drawText` 當中的開關分支必須極度精準地與原本的 `attr` 設定完全一致。
+
+---
+## [2026-08-23 12:28:00] 解耦並深化 Tokenizer 與 Parser 的介面
+
+### 變更說明 (Proposed Changes)
+深化 `AbcTokenizer` 的職責，引入強型別的 Semantic Token Stream (語意記號流)。
+重構 Parser 的核心解析迴圈，使其基於強型別記號流的狀態機來構建 AST，將 Parser 與字元層面的指針移步、前瞻解耦。
+
+### 影響的檔案 (Affected Files)
+- `src/abc_tokenizer.ts` (修改) - 定義 `TokenType` 與 `SemanticToken` 介面，實作 `tokenizeLine(line)` 提供 whitespace、chord、rest、comment、bar 的詞法與屬性預解析。
+- `src/abc_parse.ts` (修改) - 重構 `parseRegularMusicLine`，以 `tokenizeLine` 的 tokens 判定與屬性讀取，完全取代原本的 ad-hoc 字元前瞻、回溯與字串轉義代碼。
+- `test-jianpu-08.js` (新增) - 建立 Tokenizer 獨立單元測試。
+
+### 風險評估 (Risks & Mitigations)
+- **樂譜語意解析錯誤與 Regression**：ABC 樂譜的語法極其繁瑣，改用 Token Stream 後若有漏掉的邊界情況會引發大面積 mismatch。
+  - *對策*：在 `tokenizeLine` 當中對和弦與小節線進行完備的預解義，並在 `parseRegularMusicLine` 中作為「前置條件」進行攔截，若不匹配則保留原有的 Note / Grace 解析邏輯，實行漸進式重構，確保 100% 回歸相容。
+
+

@@ -349,7 +349,7 @@ export class ABCVoiceElement {
 
 		if (this.header) {
 			let textpitch = 12 - (this.voicenumber + 1) * (12 / (this.voicetotal + 1));
-			printer.paper.text(this.startx / 2, printer.calcY(textpitch), this.header).attr({ "font-size": 12, "font-family": "serif" });
+			printer.drawText(this.startx / 2, printer.calcY(textpitch), this.header, 'voiceHeader');
 		}
 		// 實際開始畫音符
 		// 繪製聲部內的所有主要核心元素（例如音符符頭、休止符、小節線等絕對定位元素）。
@@ -532,16 +532,10 @@ export class ABCRelativeElement {
 				this.graphelem = printer.printSymbol(this.x, 8, this.c, this.scalex, this.scaley);
 				break;
 			case "jianpuDash":
-				this.graphelem = printer.paper.path(`M ${this.x} ${printer.y - 6} L ${this.x + this.w} ${printer.y - 6}`).attr({
-					stroke: "#000000",
-					"stroke-width": 2,
-				});
+				this.graphelem = printer.drawLine(this.x, printer.y - 6, this.x + this.w, printer.y - 6, 2, '#000000');
 				break;
 			case "jianpuDot":
-				this.graphelem = printer.paper.circle(this.x, printer.y + this.pitch, this.linewidth || 1.5).attr({
-					fill: "#000000",
-					stroke: "none"
-				});
+				this.graphelem = printer.drawCircle(this.x, printer.y + this.pitch, this.linewidth || 1.5, '#000000');
 				break;
 		}
 		if (this.scalex !== 1 && this.graphelem) {

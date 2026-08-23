@@ -1156,5 +1156,51 @@
 - `node test.js` 傳統回歸測試 100% 正常。
 - `node test/compare_ast.js` 語法樹比對一致。
 
+---
+## [2026-08-23 12:02:00] 深化 Svg 繪圖介面，解耦低階 SVG 渲染細節
+
+### 目標 (Objectives)
+- 深化 Svg 繪圖介面，封裝常見的低階 SVG 直線路徑拼接與文字屬性宣告。
+- 移去排版與渲染物件中對 `paper` 直線、文字、圓形的直接 attr 設定，收攏至高階語意 API。
+- 以 TDD 模式完成 API 實作並驗證 100% 回歸無誤。
+
+### 需求 (Requirements)
+1. **ABCPrinter 新增高階 API**：
+   - 於 `src/abc_write.ts` 新增 `drawText`、`drawLine`、`drawCircle` 方法，自動映射並設定 font-size、font-family 與 text-anchor 等屬性。
+2. **重構繪圖物件與簡譜渲染器**：
+   - 重構 `src/abc_jianpu_renderer.ts` 中的行首 Key/拍號（`drawText`）與時值底線（`drawLine`）。
+   - 重構 `src/abc_graphelements.ts` 中的聲部 header（`drawText`）、簡譜橫線（`drawLine`）與八度/附點（`drawCircle`）。
+3. **Printer 內部重構**：
+   - 重構 `abc_write.ts` 內繪製 title、rhythm、tempo、composer 與底部 extra text 等處，以新語意 API 代替直接呼叫 `paper.text`。
+4. **單元測試適配與測試驗證**：
+   - 擴充 `test-jianpu-07.js` 中的 mock printer 以實作這三個新語意 stub。
+
+### 驗收條件 (Acceptance Criteria)
+- `pnpm run build` 打包編譯無錯誤。
+- 所有簡譜單元測試 `test-jianpu-*.js` 及整合測試 `test.js` 全數綠燈通過。
+- `node test/compare_ast.js` 除了既存 Canzonetta 連接線高度 mismatch 外，無任何新的 SVG 渲染細節 mismatch。
+
+---
+## [2026-08-23 12:28:00] 解耦並深化 Tokenizer 與 Parser 的介面
+
+### 目標 (Objectives)
+- 深化 `AbcTokenizer` 的職責，引入強型別的 Semantic Token Stream (語意記號流)。
+- 重構 Parser 的核心解析迴圈，使其基於強型別記號流的狀態機來構建 AST，將 Parser 與字元層面的指針移步、前瞻解耦。
+
+### 需求 (Requirements)
+1. **定義 Semantic Token 結構**：
+   - 於 `src/abc_tokenizer.ts` 定義 `TokenType` 與 `SemanticToken` 介面。
+2. **實作全量解析方法 `tokenizeLine`**：
+   - 於 `AbcTokenizer` 實作 `tokenizeLine(line)` 方法，預解析 whitespace、chord、rest、comment、bar 的屬性。
+3. **重構 Parser 核心解析**：
+   - 修改 `src/abc_parse.ts` 當中的 `parseRegularMusicLine`，以 `tokenizeLine` 的 tokens 判定與屬性讀取，完全取代原本的 ad-hoc 字元前瞻、回溯與字串轉義代碼。
+4. **建立單元測試**：
+   - 建立 `test-jianpu-08.js` 驗證 Tokenizer 記號化是否正常。
+
+### 驗收條件 (Acceptance Criteria)
+- 新增的 `test-jianpu-08.js` 測試 ALL PASS。
+- 全套簡譜測試與 `test.js`、`compare_ast.js` 全數綠燈，且無任何新 mismatch。
+
+
 
 

@@ -71,22 +71,12 @@ export class JianpuVoiceRenderer {
 		const keyText = `1=${keyRoot}`;
 		const labelY = printer.y;
 
-		printer.paper.text(20, labelY, keyText).attr({
-			'font-size': 16,
-			'font-family': 'sans-serif',
-			'font-weight': 'bold',
-			'text-anchor': 'start',
-		});
+		printer.drawText(20, labelY, keyText, 'jianpuHeader');
 
 		// 尋找拍號 (Meter)
 		const meterText = this._resolveMeterText(voice);
 		if (meterText) {
-			printer.paper.text(55, labelY, meterText).attr({
-				'font-size': 16,
-				'font-family': 'sans-serif',
-				'font-weight': 'bold',
-				'text-anchor': 'start',
-			});
+			printer.drawText(55, labelY, meterText, 'jianpuHeader');
 		}
 	}
 
@@ -208,10 +198,7 @@ export class JianpuVoiceRenderer {
 		}
 
 		const lineY = y + 10 + (maxDotsBelow > 0 ? maxDotsBelow * 4 + 2 : 0) + (L - 1) * 4;
-		const lineEl = printer.paper.path(`M ${x1} ${lineY} L ${x2} ${lineY}`).attr({
-			stroke: '#000000',
-			'stroke-width': 1.5,
-		});
+		const lineEl = printer.drawLine(x1, lineY, x2, lineY, 1.5, '#000000');
 		printer.bindInteraction(lineEl, elems[startIdx]);
 	}
 }

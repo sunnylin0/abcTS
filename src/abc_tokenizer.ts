@@ -22,6 +22,24 @@
 
 
 
+export type TokenType =
+  | 'note'           // 音符 (e.g. C, c, ^F/2)
+  | 'rest'           // 休止符/Spacer (e.g. z, x)
+  | 'bar'            // 小節線 (e.g. |, ||, [|)
+  | 'chord'          // 和弦 (e.g. "Am", "G")
+  | 'whitespace'     // 空格
+  | 'inline_header'  // 行內標頭 (e.g. [V:1])
+  | 'comment'        // 註解 (e.g. %...)
+  | 'unknown';
+
+export interface SemanticToken {
+	type: TokenType;
+	text: string;
+	start: number;
+	end: number;
+	value?: any;
+}
+
 export class AbcTokenizer {
 	/**
 	 * 跳過字串開頭的空白字符
@@ -629,6 +647,214 @@ export class AbcTokenizer {
 			}
 		}
 		return { value: num / den, index };
+	}
+
+	tokenizeLine(line: string): SemanticToken[] {
+		const tokens: SemanticToken[] = [];
+		let i = 0;
+		while (i < line.length) {
+			const start = i;
+			const ch = line.charAt(i);
+
+			// 1. 註解
+			if (ch === '%') {
+				tokens.push({
+					type: 'comment',
+					text: line.substring(i),
+					start: i,
+					end: line.length
+				});
+				break;
+			}
+
+			// 2. 空格
+			if (this.isWhiteSpace(ch)) {
+				let ii = i + 1;
+				while (ii < line.length && this.isWhiteSpace(line.charAt(ii))) {
+					ii++;
+				}
+				tokens.push({
+					type: 'whitespace',
+					text: line.substring(i, ii),
+					start: i,
+					end: ii
+				});
+				i = ii;
+				continue;
+			}
+
+			// 3. 和弦 (如 "Am")
+			if (ch === '"') {
+				const res = this.getBrackettedSubstring(line, i, 5);
+				let name = res.token;
+				let position = 'default';
+				if (res.len > 0 && name.length > 0) {
+					if (name[0] === '^') {
+						name = name.substring(1);
+						position = 'above';
+					} else if (name[0] === '_') {
+						name = name.substring(1);
+						position = 'below';
+					} else if (name[0] === '<') {
+						name = name.substring(1);
+						position = 'left';
+					} else if (name[0] === '>') {
+						name = name.substring(1);
+						position = 'right';
+					}
+				}
+				tokens.push({
+					type: 'chord',
+					text: line.substring(i, i + res.len),
+					start: i,
+					end: i + res.len,
+					value: {
+						name: this.translateString(name),
+						position: position
+					}
+				});
+				i += res.len;
+				continue;
+			}
+
+			// 4. 行內標頭 (如 [V:1] 或者是 [K:G])
+			if (ch === '[') {
+				// 檢查是不是小節線的開頭 (如 [| )
+				if (line.charAt(i + 1) === '|') {
+					const barRes = this.getBarLine(line, i);
+					if (barRes.len > 0) {
+						tokens.push({
+							type: 'bar',
+							text: line.substring(i, i + barRes.len),
+							start: i,
+							end: i + barRes.len,
+							value: barRes.token
+						});
+						i += barRes.len;
+						continue;
+					}
+				}
+				
+				// 行內標頭
+				const res = this.getBrackettedSubstring(line, i, 5, ']');
+				tokens.push({
+					type: 'inline_header',
+					text: line.substring(i, i + res.len),
+					start: i,
+					end: i + res.len,
+					value: res.token
+				});
+				i += res.len;
+				continue;
+			}
+
+			// 5. 小節線
+			const barRes = this.getBarLine(line, i);
+			if (barRes.len > 0) {
+				let totalLen = barRes.len;
+				let ending = undefined;
+
+				// 檢查反覆記號結尾 (ending)
+				let ws = 0;
+				while (i + totalLen + ws < line.length && line.charAt(i + totalLen + ws) === ' ') {
+					ws++;
+				}
+				
+				let currentOffset = totalLen + ws;
+				if (i + currentOffset < line.length && line.charAt(i + currentOffset) === '[') {
+					if (i + currentOffset + 1 < line.length && line.charAt(i + currentOffset + 1) === '"') {
+						const endingRes = this.getBrackettedSubstring(line, i + currentOffset + 1, 5);
+						ending = endingRes.token;
+						totalLen = currentOffset + 1 + endingRes.len;
+					} else {
+						const retRep = this.getTokenOf(line.substring(i + currentOffset + 1), "1234567890-,");
+						if (retRep.len > 0 && retRep.token[0] !== '-') {
+							ending = retRep.token;
+							totalLen = currentOffset + 1 + retRep.len;
+						}
+					}
+				} else {
+					const retRep = this.getTokenOf(line.substring(i + totalLen), "1234567890-,");
+					if (retRep.len > 0 && retRep.token[0] !== '-') {
+						ending = retRep.token;
+						totalLen += retRep.len;
+					}
+				}
+
+				tokens.push({
+					type: 'bar',
+					text: line.substring(i, i + totalLen),
+					start: i,
+					end: i + totalLen,
+					value: {
+						barType: barRes.token,
+						ending: ending
+					}
+				});
+				i += totalLen;
+				continue;
+			}
+
+			// 6. 休止符與Spacer (z, x)
+			if (ch === 'z' || ch === 'x' || ch === 'Z') {
+				let ii = i + 1;
+				const fracRes = this.getFraction(line, ii);
+				tokens.push({
+					type: 'rest',
+					text: line.substring(i, fracRes.index),
+					start: i,
+					end: fracRes.index,
+					value: fracRes.value
+				});
+				i = fracRes.index;
+				continue;
+			}
+
+			// 7. 音符 (音高與修飾)
+			let acc = '';
+			let tempIdx = i;
+			if (ch === '^' || ch === '_' || ch === '=') {
+				acc = ch;
+				if (line.charAt(i + 1) === ch) {
+					acc += ch;
+					tempIdx += 2;
+				} else {
+					tempIdx += 1;
+				}
+			}
+
+			const pitchChar = line.charAt(tempIdx);
+			if ((pitchChar >= 'a' && pitchChar <= 'g') || (pitchChar >= 'A' && pitchChar <= 'G')) {
+				tempIdx++;
+				while (tempIdx < line.length && (line.charAt(tempIdx) === ',' || line.charAt(tempIdx) === "'")) {
+					tempIdx++;
+				}
+				const fracRes = this.getFraction(line, tempIdx);
+				tokens.push({
+					type: 'note',
+					text: line.substring(i, fracRes.index),
+					start: i,
+					end: fracRes.index,
+					value: {
+						accidental: acc,
+						pitch: pitchChar,
+						duration: fracRes.value
+					}
+				});
+				i = fracRes.index;
+				continue;
+			}
+
+			// 8. 兜底 (unknown/單字元)
+			tokens.push({
+				type: 'unknown',
+				text: ch,
+				start: i,
+				end: i + 1
+			});
+			i++;
+		}
+		return tokens;
 	}
 
 	// 反轉字串

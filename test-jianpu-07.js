@@ -47,6 +47,24 @@ function createMockPrinter() {
             mockPaper.drawLog.push({ type: 'symbol', x, y, name });
             return { mouseup: () => {} };
         },
+        drawText: (x, y, text, type) => {
+            let attr = {};
+            if (type === 'jianpuHeader') {
+                attr = { 'font-size': 16, 'font-family': 'sans-serif', 'font-weight': 'bold', 'text-anchor': 'start' };
+            } else if (type === 'voiceHeader') {
+                attr = { 'font-size': 12, 'font-family': 'serif' };
+            }
+            mockPaper.drawLog.push({ type: 'text', x, y, text, attr });
+            return { mouseup: () => {}, attr: () => {} };
+        },
+        drawLine: (x1, y1, x2, y2, strokeWidth, color) => {
+            mockPaper.drawLog.push({ type: 'path', path: `M ${x1} ${y1} L ${x2} ${y2}`, attr: { stroke: color || '#000000', 'stroke-width': strokeWidth || 1.5 } });
+            return { mouseup: () => {}, attr: () => {} };
+        },
+        drawCircle: (cx, cy, r, fill) => {
+            mockPaper.drawLog.push({ type: 'circle', cx, cy, r, attr: { fill: fill || '#000000', stroke: 'none' } });
+            return { mouseup: () => {}, attr: () => {} };
+        },
         notifySelect: () => {},
         calcY: (pitch) => 100 - pitch * 4,
         bindInteraction: (svgEl, absEl) => {

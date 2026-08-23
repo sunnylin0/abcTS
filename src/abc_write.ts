@@ -250,6 +250,98 @@ export class ABCPrinter {
 		}
 	}
 
+	drawText(
+		x: number,
+		y: number,
+		text: string,
+		type: 'jianpuHeader' | 'voiceHeader' | 'noteText' | 'title' | 'rhythm' | 'metaRight' | 'tempo' | 'subtitle' | 'extraText' | 'debug'
+	): SVGTextElement {
+		let attributes: Record<string, any> = {};
+		switch (type) {
+			case 'debug':
+				break;
+			case 'jianpuHeader':
+				attributes = {
+					'font-size': 16,
+					'font-family': 'sans-serif',
+					'font-weight': 'bold',
+					'text-anchor': 'start',
+				};
+				break;
+			case 'voiceHeader':
+				attributes = {
+					"font-size": 12,
+					"font-family": "serif",
+					"text-anchor": "start",
+				};
+				break;
+			case 'noteText':
+				attributes = {
+					"font-family": "serif",
+					"font-size": 12,
+					"text-anchor": "start"
+				};
+				break;
+			case 'title':
+				attributes = {
+					"font-size": 20,
+					"font-family": "serif",
+					"text-anchor": "middle"
+				};
+				break;
+			case 'subtitle':
+				attributes = {
+					"font-size": 16,
+					"text-anchor": "middle"
+				};
+				break;
+			case 'rhythm':
+				attributes = {
+					"text-anchor": "start",
+					"font-style": "italic",
+					"font-family": "serif",
+					"font-size": 12
+				};
+				break;
+			case 'metaRight':
+				attributes = {
+					"text-anchor": "end",
+					"font-style": "italic",
+					"font-family": "serif",
+					"font-size": 12
+				};
+				break;
+			case 'tempo':
+				attributes = {
+					"text-anchor": "start"
+				};
+				break;
+			case 'extraText':
+				attributes = {
+					"text-anchor": "start",
+					"font-family": "serif",
+					"font-size": 13
+				};
+				break;
+		}
+		return this.paper.text(x, y, text).attr(attributes) as SVGTextElement;
+	}
+
+	drawLine(x1: number, y1: number, x2: number, y2: number, strokeWidth: number = 1.5, color: string = '#000000'): SVGPathElement {
+		return this.paper.path().attr({
+			path: `M ${x1} ${y1} L ${x2} ${y2}`,
+			stroke: color,
+			'stroke-width': strokeWidth
+		}) as SVGPathElement;
+	}
+
+	drawCircle(cx: number, cy: number, r: number, fill: string = '#000000'): SVGElement {
+		return this.paper.circle(cx, cy, r).attr({
+			fill: fill,
+			stroke: "none"
+		}) as SVGElement;
+	}
+
 	// 列印文字
 	printText(x: number, offset: number, text: string, anchor?: string): SVGTextElement {
 		anchor = anchor || "start";
@@ -358,7 +450,7 @@ export class ABCPrinter {
 	}
 
 	debugMsgLow(x: number, msg: string): SVGTextElement {
-		return this.paper.text(x, this.staffbottom, msg).attr({ "font-family": "serif", "font-size": 12, "text-anchor": "start" }) as SVGTextElement;
+		return this.drawText(x, this.staffbottom, msg, 'noteText');
 	}
 
 	calcY(ofs: number): number {
@@ -393,32 +485,32 @@ export class ABCPrinter {
 			this.paper.text(200, this.y, "Format: scale=" + abctune.formatting.scale);
 			this.y += 20;
 		}
-		this.paper.text(this.width / 2, this.y, abctune.metaText.title).attr({ "font-size": 20, "font-family": "serif" });
+		this.drawText(this.width / 2, this.y, abctune.metaText.title, 'title');
 		this.y += 20;
 		if (abctune.lines[0] && abctune.lines[0].subtitle) {
 			this.printSubtitleLine(abctune.lines[0]);
 			this.y += 20;
 		}
 		if (abctune.metaText.rhythm) {
-			this.paper.text(AbcSpacing.MARGINLEFT, this.y, abctune.metaText.rhythm).attr({ "text-anchor": "start", "font-style": "italic", "font-family": "serif", "font-size": 12 });
+			this.drawText(AbcSpacing.MARGINLEFT, this.y, abctune.metaText.rhythm, 'rhythm');
 			!(abctune.metaText.author || abctune.metaText.origin || abctune.metaText.composer) && (this.y += 15);
 		}
 		if (abctune.metaText.author) {
-			this.paper.text(this.width, this.y, abctune.metaText.author).attr({ "text-anchor": "end", "font-style": "italic", "font-family": "serif", "font-size": 12 });
+			this.drawText(this.width, this.y, abctune.metaText.author, 'metaRight');
 			this.y += 15;
 		}
 		if (abctune.metaText.origin) {
-			this.paper.text(this.width, this.y, "(" + abctune.metaText.origin + ")").attr({ "text-anchor": "end", "font-style": "italic", "font-family": "serif", "font-size": 12 });
+			this.drawText(this.width, this.y, "(" + abctune.metaText.origin + ")", 'metaRight');
 			this.y += 15;
 		}
 		if (abctune.metaText.composer) {
-			this.paper.text(this.width, this.y, abctune.metaText.composer).attr({ "text-anchor": "end", "font-style": "italic", "font-family": "serif", "font-size": 12 });
+			this.drawText(this.width, this.y, abctune.metaText.composer, 'metaRight');
 			this.y += 15;
 		}
 		if (abctune.metaText.tempo) {
 			let x = 50;
 			if (abctune.metaText.tempo.preString) {
-				const text: SVGTextElement = this.paper.text(x, this.y + 20, abctune.metaText.tempo.preString).attr({ "text-anchor": "start" });
+				const text: SVGTextElement = this.drawText(x, this.y + 20, abctune.metaText.tempo.preString, 'tempo');
 				x += text.getBBox().width + 10;
 			}
 
@@ -458,12 +550,12 @@ export class ABCPrinter {
 				abselem.draw(this, null);
 				x += abselem.w + 5;
 
-				const text: SVGTextElement = this.paper.text(x, this.y + 20, `= ${abctune.metaText.tempo.bpm}`).attr({ "text-anchor": "start" });
+				const text: SVGTextElement = this.drawText(x, this.y + 20, `= ${abctune.metaText.tempo.bpm}`, 'tempo');
 				x += text.getBBox().width + 10;
 			}
 
 			if (abctune.metaText.tempo.postString) {
-				this.paper.text(x, this.y + 20, abctune.metaText.tempo.postString).attr({ "text-anchor": "start" });
+				this.drawText(x, this.y + 20, abctune.metaText.tempo.postString, 'tempo');
 			}
 
 			this.y += 15;
@@ -500,7 +592,7 @@ export class ABCPrinter {
 				this.printSubtitleLine(abcline);
 				this.y += 20; //hardcoded
 			} else if (abcline.text) {
-				this.paper.text(100, this.y, "TEXT: " + abcline.text);
+				this.drawText(100, this.y, "TEXT: " + abcline.text, 'debug');
 				this.y += 20; //hardcoded
 			}
 		}
@@ -516,7 +608,7 @@ export class ABCPrinter {
 		if (abctune.metaText.unalignedWords) extraText.push("Words:\n" + abctune.metaText.unalignedWords);
 		let text2: SVGTextElement;
 		let height = 10;
-		text2 = this.paper.text(AbcSpacing.MARGINLEFT, this.y + 25, extraText.join("\n")).attr({ "text-anchor": "start", "font-family": "serif", "font-size": 13 });
+		text2 = this.drawText(AbcSpacing.MARGINLEFT, this.y + 25, extraText.join("\n"), 'extraText');
 		height = text2.getBBox().height;
 		text2.translate(0, height / 2);
 		this.paper.setSize(maxwidth + 50, this.y + 30 + height);
@@ -550,7 +642,6 @@ export class ABCPrinter {
 	// 列印副標題行
 	printSubtitleLine(abcline: AbcTuneLine): void {
 
-		this.paper.text(this.width / 2, this.y, abcline.subtitle).attr({ "text-anchor": "middle", "font-size": 16 });
+		this.drawText(this.width / 2, this.y, abcline.subtitle, 'subtitle');
 	}
 }
-
