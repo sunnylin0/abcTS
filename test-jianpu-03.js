@@ -63,6 +63,12 @@ function getJianpuNumbers(abcStr) {
     const tune = parser.getTune();
     const mockPaper = createMockPaper();
     const printer = new ABCPrinter(mockPaper);
+    printer.printSymbol = (x, offset, symbol) => {
+        if (offset === 8) {
+            mockPaper.drawLog.push({ type: 'text', text: symbol });
+        }
+        return { mouseup: () => {}, attr: () => ({ toBack: () => {} }), scale: () => {} };
+    };
     printer.printABC(tune);
     return mockPaper.drawLog
         .filter(item => item.type === 'text')

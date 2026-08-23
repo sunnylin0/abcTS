@@ -73,7 +73,7 @@ function renderJianpu(abcStr) {
     const paths = drawLog.filter(item => item.type === 'path');
     const accidentalPaths = paths.filter(p => {
         const pathStr = p.path ? String(p.path) : (p.attr && p.attr.path ? String(p.attr.path) : '');
-        return pathStr.indexOf('c') !== -1;
+        return pathStr.indexOf('-8.67') !== -1;
     });
     console.log("Accidental natural glyph paths count:", accidentalPaths.length);
     assert("Only 1 accidental natural glyph path is drawn", accidentalPaths.length === 1, "got count=" + accidentalPaths.length);

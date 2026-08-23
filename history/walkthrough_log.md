@@ -656,3 +656,24 @@
 
 ---
 
+## [2026-08-23 11:30:00] 將簡譜渲染與佈局計算從繪圖物件解耦 (完成)
+
+### 變更摘要 (Change Summary)
+1. **獨立全新模組 `JianpuVoiceRenderer`**：
+   - 建立 [abc_jianpu_renderer.ts](file:///./src/abc_jianpu_renderer.ts)，實作高度計算 `calculateHeight` 與 SVG 渲染 `render` 兩大 Seam，封裝簡譜專有的所有繪製輔助方法。
+   - 在 [index.ts](file:///./src/index.ts) 中重新將其掛載至 `window.JianpuVoiceRenderer` 並進行 ESM 匯出。
+2. **重構高度計算與渲染管線**：
+   - 修改 [abc_graphelements.ts](file:///./src/abc_graphelements.ts)，使 `ABCStaffGroupElement.draw` 高度極值累計由 `renderer.calculateHeight` 委託處理，從譜表排版層徹底抽離簡譜細節。
+   - 將 `ABCVoiceElement.jianpu_draw` 簡化為呼叫 `JianpuVoiceRenderer.render` 的單行委託，並將原本 `ABCVoiceElement` 內部 160 行簡譜專有私有方法全數刪除，完成繪圖物件的單一職責設計。
+3. **優化 Mock 測試**：
+   - 修正 [test-jianpu-07.js](file:///./test-jianpu-07.js) 單元測試使其針對新 Seam 測試，並增加 `Seam H` 的高度計算測試。
+   - 補齊 `createMockPrinter` 的 `printSymbol` 方法以對應真實 `ABCPrinter`，同時修復 [test-jianpu-03.js](file:///./test-jianpu-03.js) 與 [test-jianpu-06.js](file:///./test-jianpu-06.js) 在解耦後對向量路徑型態斷言的 mismatch，將其修改為對 `symbol` 及特定天然指紋屬性的檢測。
+
+### 驗證與測試日誌 (Verification & Test Logs)
+1. 執行 `pnpm run build` 打包編譯無誤。
+2. 執行所有 7 個簡譜單元測試 `test-jianpu-*.js` 皆為 **ALL PASS**。
+3. 執行傳統的 `test.js` 回歸測試 100% 通過。
+4. `test-jianpu-07.js` (含 Seam H 測試) 呈現綠燈 (11 passed, 0 failed)。
+
+---
+

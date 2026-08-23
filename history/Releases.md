@@ -416,9 +416,16 @@
 - **繪製管線顯式分流**：
   - 在 `ABCStaffGroupElement.draw` 中根據 `voice.clef === 'jianpu'` 進行顯式分流繪製.
   - 在 `ABCVoiceElement.draw` 中移除對簡譜的特殊分流，使其回歸純粹的五線譜繪製流程。
-- **單元測試適配**：
-  - 重構 `test-jianpu-07.js` 單元測試，移除舊 `JianpuVoiceRenderer` 引用，並改為呼叫 `voice.jianpu_draw`。
-- **測試驗證**：
-  - TS 打包編譯無錯誤。所有的 7 個簡譜單元測試全數通過。
-  - 暫時跳過 `compare_ast.js` 繪圖日誌 Mismatch 的驗證除錯。
-    
+## [2026-08-23] 將簡譜渲染與佈局計算從繪圖物件解耦 (v1.26.0)
+- **解耦並重建獨立的 `JianpuVoiceRenderer` 模組**：
+  - 建立 `src/abc_jianpu_renderer.ts`，封裝高度計算 `calculateHeight` 與 SVG 渲染 `render` 兩大 Seam，移除五線譜繪圖元件內的簡譜細節。
+  - 於 `src/index.ts` 重新導出並在全域 `window` 掛載 `JianpuVoiceRenderer` 以適配沙盒單元測試。
+- **簡化譜表元件結構**：
+  - 重構 `ABCStaffGroupElement.draw` 將簡譜的高度極值累計與譜表下緣 bottom 更新改為調用 `renderer.calculateHeight`。
+  - 重構 `ABCVoiceElement.jianpu_draw` 為呼叫 `JianpuVoiceRenderer.render` 的單行委託，並刪除 `ABCVoiceElement` 內全數 160 行簡譜私有繪製方法，實現繪圖物件職責單一化。
+- **修復測試對接與 Mock Mismatch**：
+  - 調整 `test-jianpu-07.js` 針對新 Seam 測試，並增加 `Seam H` 的高度計算測試。
+  - 補齊 mock printer 的 `printSymbol` 成員方法以與真實 `ABCPrinter` 的繪製行為一致。
+  - 修正 `test-jianpu-03.js` 及 `test-jianpu-06.js` 簡譜測試因唱名數字改為向量 `symbol` 繪製引起的 `drawLog` 斷言 mismatch，提升測試健壯性。
+- **驗證成果**：
+  - UMD 打包與靜態編譯成功。所有簡譜測試 `test-jianpu-*.js` 100% **ALL PASS**，傳統回歸測試無退化。

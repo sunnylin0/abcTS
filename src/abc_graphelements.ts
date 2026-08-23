@@ -19,6 +19,7 @@
 import { getDurlog } from "./abc_layout"
 import { AbcSpacing } from "./abc_write"
 import { pitchToJianpu, decomposeDuration } from "./abc_jianpu_write"
+import { JianpuVoiceRenderer } from "./abc_jianpu_renderer"
 
 export interface StaffLayoutInfo {
 	y: number;
@@ -154,30 +155,14 @@ export class ABCStaffGroupElement {
 					this.staffs[i].top = y;
 					let maxAbove = 0;
 					let maxBelow = 0;
+					const renderer = new JianpuVoiceRenderer();
 					for (const voice of this.voices) {
 						if (voice.staff === this.staffs[i] && voice.clef === 'jianpu') {
-							for (const child of voice.children) {
-								if (child.abcelem && child.abcelem.el_type === 'note') {
-									if ((child.abcelem as any).pitches) {
-										const pitches = (child.abcelem as any).pitches;
-										if (pitches.length > 0) {
-											const highestPitch = pitches[pitches.length - 1];
-											const keyRoot = (voice.jianpuKey && voice.jianpuKey.root) || "C";
-											const refOctave = voice.jianpuOctave !== undefined ? voice.jianpuOctave : 0;
-											const res = pitchToJianpu(highestPitch.pitch, keyRoot, refOctave);
-											if (res.octaveDelta > 0) {
-												maxAbove = Math.max(maxAbove, res.octaveDelta);
-											} else if (res.octaveDelta < 0) {
-												maxBelow = Math.max(maxBelow, Math.abs(res.octaveDelta));
-											}
-										}
-									}
-								}
-							}
+							const { above, below } = renderer.calculateHeight(voice);
+							maxAbove = Math.max(maxAbove, above);
+							maxBelow = Math.max(maxBelow, below);
 						}
 					}
-					const jianpuShiftAbove = 15 + maxAbove * 4;
-					//y += jianpuShiftAbove;
 					this.staffs[i].y = y;
 					y += 30; // baseHeight
 					const jianpuShiftBelow = maxBelow * 4 + 10;
@@ -388,170 +373,7 @@ export class ABCVoiceElement {
 	}
 
 	jianpu_draw(printer: ABCPrinter, bartop: number): void {
-		if (this.staff) {
-			printer.y = this.staff.y;
-			printer.staffbottom = this.staff.bottom;
-		} else {
-			printer.y = this.y;
-		}
-		this.barbottom = printer.calcY(2);
-		this.y = printer.y;
-
-		if (printer.y === undefined) {
-			printer.y = this.y;
-		}
-
-		this.drawJianpuHeader(printer);
-		this.drawJianpuNotes(printer, bartop);
-		this.drawJianpuUnderlines(printer);
-
-		const width = this.w - 1;
-		this.otherchildren.forEach(child => {
-			child.draw(printer, this.startx + 10, width);
-		});
-	}
-
-	private drawJianpuHeader(printer: ABCPrinter): void {
-		const keyRoot = (this.jianpuKey && this.jianpuKey.root) || 'C';
-		const keyText = `1=${keyRoot}`;
-		const labelY = printer.y;
-
-		printer.paper.text(20, labelY, keyText).attr({
-			'font-size': 16,
-			'font-family': 'sans-serif',
-			'font-weight': 'bold',
-			'text-anchor': 'start',
-		});
-
-		const meterText = this.resolveJianpuMeterText();
-		if (meterText) {
-			printer.paper.text(55, labelY, meterText).attr({
-				'font-size': 16,
-				'font-family': 'sans-serif',
-				'font-weight': 'bold',
-				'text-anchor': 'start',
-			});
-		}
-	}
-
-	private resolveJianpuMeterText(): string {
-		const meterChild = this.children.find(child => {
-			if (!child.abcelem) return false;
-			const type = child.abcelem.el_type;
-			const meterType = (child.abcelem as any).type;
-			return (
-				type === 'meter' ||
-				meterType === 'specified' ||
-				meterType === 'common_time' ||
-				meterType === 'cut_time'
-			);
-		});
-		if (!meterChild || !meterChild.abcelem) return '';
-		const meterEl = meterChild.abcelem as any;
-		if (meterEl.value && meterEl.value.length > 0) {
-			const num = meterEl.value[0].num || '';
-			const den = meterEl.value[0].den || '';
-			if (num && den) return `${num}/${den}`;
-		}
-		if (meterEl.type === 'common_time') return '4/4';
-		if (meterEl.type === 'cut_time') return '2/2';
-		return '';
-	}
-
-	private drawJianpuNotes(printer: ABCPrinter, bartop: number): void {
-		for (let i = 0, ii = this.children.length; i < ii; i++) {
-			const child = this.children[i];
-			const type = child.abcelem ? child.abcelem.el_type : null;
-			if (type === 'bar' || type === 'note' || type === 'meter') {
-				child.draw(printer, (this.barto || i === ii - 1) ? bartop : 0);
-			}
-		}
-	}
-
-	private drawJianpuUnderlines(printer: ABCPrinter): void {
-		const processedBeams = new Set<any>();
-
-		for (let i = 0; i < this.children.length; i++) {
-			const child = this.children[i];
-			if (child.abcelem.el_type !== 'note') continue;
-
-			if (child.beam) {
-				if (processedBeams.has(child.beam)) continue;
-				processedBeams.add(child.beam);
-				this.drawJianpuUnderlineGroup(child.beam.elems, printer);
-			} else {
-				this.drawJianpuUnderlineGroup([child], printer);
-			}
-		}
-	}
-
-	private getJianpuUnderlineCount(el: ABCAbsoluteElement): number {
-		if (el.abcelem.el_type !== 'note') return 0;
-		const pitches = (el.abcelem as any).pitches;
-		if (!pitches || pitches.length === 0) {
-			if (!(el.abcelem as any).rest) return 0;
-		}
-		const { base } = decomposeDuration(el.duration);
-		if (base === 0.125) return 1;
-		if (base === 0.0625) return 2;
-		if (base === 0.03125) return 3;
-		return 0;
-	}
-
-	private drawJianpuUnderlineGroup(elems: ABCAbsoluteElement[], printer: ABCPrinter): void {
-		for (let L = 1; L <= 3; L++) {
-			let inRun = false;
-			let runStart = -1;
-
-			for (let i = 0; i < elems.length; i++) {
-				const hasLayer = this.getJianpuUnderlineCount(elems[i]) >= L;
-				if (hasLayer) {
-					if (!inRun) { inRun = true; runStart = i; }
-				} else {
-					if (inRun) {
-						this.drawJianpuUnderlineSegment(elems, runStart, i - 1, L, printer);
-						inRun = false;
-					}
-				}
-			}
-			if (inRun) {
-				this.drawJianpuUnderlineSegment(elems, runStart, elems.length - 1, L, printer);
-			}
-		}
-	}
-
-	private drawJianpuUnderlineSegment(
-		elems: ABCAbsoluteElement[],
-		startIdx: number,
-		endIdx: number,
-		L: number,
-		printer: ABCPrinter
-	): void {
-		const y = printer.y;
-		const x1 = elems[startIdx].x - 8;
-		const x2 = elems[endIdx].x + 8;
-
-		let maxDotsBelow = 0;
-		for (let i = startIdx; i <= endIdx; i++) {
-			const el = elems[i];
-			if ((el.abcelem as any).pitches && (el.abcelem as any).pitches.length > 0) {
-				const pitches = (el.abcelem as any).pitches;
-				const highest = pitches[pitches.length - 1];
-				const keyRoot = (this.jianpuKey && this.jianpuKey.root) || 'C';
-				const refOctave = this.jianpuOctave !== undefined ? this.jianpuOctave : 0;
-				const res = pitchToJianpu(highest.pitch, keyRoot, refOctave);
-				if (res.octaveDelta < 0) {
-					maxDotsBelow = Math.max(maxDotsBelow, Math.abs(res.octaveDelta));
-				}
-			}
-		}
-
-		const lineY = y + 10 + (maxDotsBelow > 0 ? maxDotsBelow * 4 + 2 : 0) + (L - 1) * 4;
-		const lineEl = printer.paper.path(`M ${x1} ${lineY} L ${x2} ${lineY}`).attr({
-			stroke: '#000000',
-			'stroke-width': 1.5,
-		});
-		printer.bindInteraction(lineEl, elems[startIdx]);
+		new JianpuVoiceRenderer().render(this, printer, bartop);
 	}
 }
 export class ABCAbsoluteElement {

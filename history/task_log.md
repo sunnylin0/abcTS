@@ -1130,4 +1130,31 @@
 - `node test-jianpu-07.js` 單元測試全數綠燈。
 - 所有簡譜單元測試 `test-jianpu-01` 至 `06` 均全數綠燈。
 
+---
+## [2026-08-23 11:30:00] 將簡譜渲染與佈局計算從繪圖物件解耦
+
+### 目標 (Objectives)
+- 將簡譜 (Jianpu Voice) 渲染與 Y 軸高度偏置的計算細節從五線譜繪製核心 `ABCVoiceElement` 與 `ABCStaffGroupElement` 中抽離。
+- 引入獨立的 Deep Module `JianpuVoiceRenderer`，建立清晰的 Seam。
+- 優化簡譜單元測試以對應新 Seam 測試。
+
+### 需求 (Requirements)
+1. **建立新模組 `src/abc_jianpu_renderer.ts`**：
+   - 封裝 `JianpuVoiceRenderer`，提供 `calculateHeight` 與 `render` 二大 Seam。
+   - 移入原本位於 `ABCVoiceElement` 內的所有簡譜私有輔助繪圖方法。
+2. **重構 `src/abc_graphelements.ts`**：
+   - 移除 `ABCVoiceElement` 內部的簡譜私有方法。
+   - 將 `jianpu_draw` 改寫為對 `JianpuVoiceRenderer.render` 的單行委託呼叫。
+   - 重構 `ABCStaffGroupElement.draw` 高度計算邏輯，改為呼叫 `JianpuVoiceRenderer.calculateHeight`。
+3. **更新打包與測試 (`src/index.ts`, `test-jianpu-07.js`)**：
+   - 於 `index.ts` 重新導出並在全域 `window` 掛載 `JianpuVoiceRenderer`。
+   - 重構 `test-jianpu-07.js` 單元測試以測試 `JianpuVoiceRenderer.render` Seam。
+
+### 驗收條件 (Acceptance Criteria)
+- `pnpm run build` 打包編譯無誤。
+- `node test-jianpu-*.js` 所有 7 個簡譜測試全數綠燈。
+- `node test.js` 傳統回歸測試 100% 正常。
+- `node test/compare_ast.js` 語法樹比對一致。
+
+
 

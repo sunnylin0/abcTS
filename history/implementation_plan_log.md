@@ -1188,3 +1188,30 @@
 ### 風險評估 (Risks & Mitigations)
 - **暫時擱置比對測試除錯**：`compare_ast.js` 的 mismatch 可能會使回歸驗證不夠完整。
   - *對策*：已在 `compare_ast.js` 中加上了防禦性的 debug 輸出，後續可在需要時手動執行比對分析，本次開發功能目前在簡譜專用測試中運作完全正確。
+
+---
+## [2026-08-23 11:30:00] 將簡譜渲染與佈局計算從繪圖物件解耦
+
+### 步驟與技術方案 (Step-by-step Technical Plans)
+1. **建立並封裝獨立的簡譜渲染模組 (`src/abc_jianpu_renderer.ts`)**：
+   - 宣告 `JianpuVoiceRenderer` 類別，公開唯一的兩個外部 Seam 方法：
+     - `calculateHeight(voice)`：遍歷 note 元素之 pitches 計算高低八度點之 maxAbove 與 maxBelow。
+     - `render(voice, printer, bartop)`：封裝簡譜行首標記、音符渲染、時值橫線、附點及底線的所有 SVG 繪圖操作。
+   - 將原本 `ABCVoiceElement` 內部的私有簡譜繪圖方法移植為其私有輔助方法。
+2. **重構繪圖物件與高度解耦 (`src/abc_graphelements.ts`)**：
+   - 於 `ABCStaffGroupElement.draw` 中，移除原先手動遍歷音符音高的代碼，改為呼叫 `JianpuVoiceRenderer.calculateHeight(voice)` 以查詢簡譜的上下高度邊界。
+   - 於 `ABCVoiceElement` 中，移除所有的簡譜繪製私有方法，並將 `jianpu_draw` 方法重構為呼叫 `new JianpuVoiceRenderer().render(this, printer, bartop)`。
+3. **全局掛載與對應單元測試更新 (`src/index.ts`, `test-jianpu-07.js`)**：
+   - 在 `src/index.ts` 重新掛載 `JianpuVoiceRenderer` 至全域 `window` 以確保沙盒能順利執行其建置。
+   - 重構 `test-jianpu-07.js` 單元測試，將測試調用由成員方法 `voice.jianpu_draw(...)` 改回 `new JianpuVoiceRenderer().render(...)`。
+
+### 影響檔案 (Affected Files)
+- `src/abc_jianpu_renderer.ts` (新增/覆寫)
+- `src/abc_graphelements.ts` (修改)
+- `src/index.ts` (修改)
+- `test-jianpu-07.js` (修改)
+
+### 風險評估 (Risks & Mitigations)
+- **多聲部 Y 座標重疊再現**：重構時可能遺漏某些 Y 座標的初始化邏輯。
+  - *對策*：在 `JianpuVoiceRenderer.render` 開頭，依然加入對 `printer.y` 的防禦性初始化，且在 `ABCStaffGroupElement.draw` 高度計算後，確認 `this.staffs[i].bottom = y` 被正確更新。
+

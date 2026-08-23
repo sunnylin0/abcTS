@@ -8,18 +8,60 @@ import type { ABCPrinter } from './abc_write';
 import { pitchToJianpu, decomposeDuration } from './abc_jianpu_write';
 
 export class JianpuVoiceRenderer {
+	/**
+	 * 高度計算接縫 (Seam)。
+	 * 遍歷聲部音符音高，計算最大高八度與低八度偏置量，供佈局排版時預留空間。
+	 */
+	calculateHeight(voice: ABCVoiceElement): { above: number, below: number } {
+		let maxAbove = 0;
+		let maxBelow = 0;
+		for (const child of voice.children) {
+			if (child.abcelem && child.abcelem.el_type === 'note') {
+				if ((child.abcelem as any).pitches) {
+					const pitches = (child.abcelem as any).pitches;
+					if (pitches.length > 0) {
+						const highestPitch = pitches[pitches.length - 1];
+						const keyRoot = (voice.jianpuKey && voice.jianpuKey.root) || "C";
+						const refOctave = voice.jianpuOctave !== undefined ? voice.jianpuOctave : 0;
+						const res = pitchToJianpu(highestPitch.pitch, keyRoot, refOctave);
+						if (res.octaveDelta > 0) {
+							maxAbove = Math.max(maxAbove, res.octaveDelta);
+						} else if (res.octaveDelta < 0) {
+							maxBelow = Math.max(maxBelow, Math.abs(res.octaveDelta));
+						}
+					}
+				}
+			}
+		}
+		return { above: maxAbove, below: maxBelow };
+	}
 
 	/**
-	 * 主入口 — 委託點 (Seam)。
-	 * ABCVoiceElement.draw() 在偵測到 clef=jianpu 後呼叫此方法。
+	 * 渲染器主要委託接縫 (Seam)。
+	 * 繪製整個簡譜聲部（包括行首資訊、音符、休止符、小節線、拍號與時值底線等）。
 	 */
 	render(voice: ABCVoiceElement, printer: ABCPrinter, bartop: number): void {
+		if (voice.staff) {
+			printer.y = voice.staff.y;
+			printer.staffbottom = voice.staff.bottom;
+		} else {
+			printer.y = voice.y;
+		}
+		voice.barbottom = printer.calcY(2);
+		voice.y = printer.y;
+
 		if (printer.y === undefined) {
 			printer.y = voice.y;
 		}
+
 		this._drawHeader(voice, printer);
 		this._drawNotes(voice, printer, bartop);
 		this._drawUnderlines(voice, printer);
+
+		const width = voice.w - 1;
+		voice.otherchildren.forEach(child => {
+			child.draw(printer, voice.startx + 10, width);
+		});
 	}
 
 	// ── 行首標記：1=Key 與 拍號 ────────────────────────────────────────────────
@@ -78,12 +120,8 @@ export class JianpuVoiceRenderer {
 		for (let i = 0, ii = voice.children.length; i < ii; i++) {
 			const child = voice.children[i];
 			const type = child.abcelem ? child.abcelem.el_type : null;
-			if (type === 'bar') {
-				child.draw(printer, bartop);
-			} else if (type === 'note') {
-				child.draw(printer, bartop);
-			} else if (type === 'meter') {
-				child.draw(printer, bartop);
+			if (type === 'bar' || type === 'note' || type === 'meter') {
+				child.draw(printer, (voice.barto || i === ii - 1) ? bartop : 0);
 			}
 		}
 	}
@@ -148,7 +186,7 @@ export class JianpuVoiceRenderer {
 		endIdx: number,
 		L: number,
 		voice: ABCVoiceElement,
-		printer: ABCPrinter,
+		printer: ABCPrinter
 	): void {
 		const y = printer.y;
 		const x1 = elems[startIdx].x - 8;

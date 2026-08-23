@@ -20,9 +20,14 @@ loadJSInContext(filePath, context);
 
 const ABCVoiceElement = context.ABCVoiceElement || context.window.ABCVoiceElement;
 const pitchToJianpu = context.pitchToJianpu || context.window.pitchToJianpu;
+const JianpuVoiceRenderer = context.JianpuVoiceRenderer || context.window.JianpuVoiceRenderer;
 
 if (!ABCVoiceElement) {
     console.error("FATAL: ABCVoiceElement is not exported to global. Check index.ts.");
+    process.exit(1);
+}
+if (!JianpuVoiceRenderer) {
+    console.error("FATAL: JianpuVoiceRenderer is not exported to global. Check index.ts.");
     process.exit(1);
 }
 
@@ -37,6 +42,10 @@ function createMockPrinter() {
                 mockPaper.drawLog.push({ type: 'symbol', x, y, name });
                 return { mouseup: () => {} };
             }
+        },
+        printSymbol: (x, y, name) => {
+            mockPaper.drawLog.push({ type: 'symbol', x, y, name });
+            return { mouseup: () => {} };
         },
         notifySelect: () => {},
         calcY: (pitch) => 100 - pitch * 4,
@@ -189,7 +198,7 @@ console.log("\n--- Seam A: Header rendering (1=Key, Meter) ---");
 {
     const printer = createMockPrinter();
     const voice = makeVoice({ jianpuKey: { root: 'G', accidentals: [] }, children: [makeMeterChild('3', '4')] });
-    voice.jianpu_draw(printer, 0);
+    new JianpuVoiceRenderer().render(voice, printer, 0);
 
     const texts = printer.drawLog.filter(e => e.type === 'text').map(e => e.text);
     assert("Header contains '1=G'", texts.includes('1=G'), `got=${JSON.stringify(texts)}`);
@@ -203,11 +212,11 @@ console.log("\n--- Seam B: Note degree rendering ---");
     const printer = createMockPrinter();
     const notes = [0, 1, 2, 3, 4, 5, 6].map((p, i) => makeNoteChild(p, 0.25, 100 + i * 40));
     const voice = makeVoice({ children: notes });
-    voice.jianpu_draw(printer, 0);
+    new JianpuVoiceRenderer().render(voice, printer, 0);
 
     const digits = printer.drawLog
-        .filter(e => e.type === 'text' && /^[1-7]$/.test(e.text))
-        .map(e => e.text);
+        .filter(e => e.type === 'symbol' && /^[1-7]$/.test(e.name))
+        .map(e => e.name);
     assert("C Major scale renders 1-7", JSON.stringify(digits) === JSON.stringify(['1','2','3','4','5','6','7']),
         `got=${JSON.stringify(digits)}`);
 }
@@ -217,9 +226,9 @@ console.log("\n--- Seam C: Rest renders as '0' ---");
 {
     const printer = createMockPrinter();
     const voice = makeVoice({ children: [makeRestChild()] });
-    voice.jianpu_draw(printer, 0);
+    new JianpuVoiceRenderer().render(voice, printer, 0);
 
-    const digits = printer.drawLog.filter(e => e.type === 'text' && e.text === '0');
+    const digits = printer.drawLog.filter(e => e.type === 'symbol' && e.name === '0');
     assert("Rest renders as '0'", digits.length === 1, `got=${JSON.stringify(digits)}`);
 }
 
@@ -229,7 +238,7 @@ console.log("\n--- Seam D: High octave dots (pitch=7 -> octaveDelta=1) ---");
     const printer = createMockPrinter();
     // pitch=7 → octave 1, C in octave +1 → degree 1, delta +1
     const voice = makeVoice({ children: [makeNoteChild(7, 0.25, 100)] });
-    voice.jianpu_draw(printer, 0);
+    new JianpuVoiceRenderer().render(voice, printer, 0);
 
     const dots = printer.drawLog.filter(e => e.type === 'circle');
     assert("High octave: 1 circle above note", dots.length === 1, `got circles=${dots.length}`);
@@ -242,7 +251,7 @@ console.log("\n--- Seam E: Eighth note gets 1 underline ---");
     const printer = createMockPrinter();
     // duration=0.125 -> 八分音符 -> 1 underline
     const voice = makeVoice({ children: [makeNoteChild(0, 0.125, 100)] });
-    voice.jianpu_draw(printer, 0);
+    new JianpuVoiceRenderer().render(voice, printer, 0);
 
     const underlines = printer.drawLog.filter(e => e.type === 'path' && typeof e.path === 'string' && e.path.includes('M'));
     // 只有底線路徑，沒有延音橫線（duration 0.125 不觸發延音線）
@@ -255,7 +264,7 @@ console.log("\n--- Seam F: Half note gets 1 dash line ---");
     const printer = createMockPrinter();
     // duration=0.5 -> 二分音符 -> 1 dash
     const voice = makeVoice({ children: [makeNoteChild(0, 0.5, 100)] });
-    voice.jianpu_draw(printer, 0);
+    new JianpuVoiceRenderer().render(voice, printer, 0);
 
     const paths = printer.drawLog.filter(e => e.type === 'path');
     assert("Half note has 1 dash line", paths.length === 1, `got=${paths.length}`);
@@ -270,7 +279,7 @@ console.log("\n--- Seam G: Interaction association (bindInteraction) ---");
 
     const note = makeNoteChild(0, 0.25, 100);
     const voice = makeVoice({ children: [note] });
-    voice.jianpu_draw(printer, 0);
+    new JianpuVoiceRenderer().render(voice, printer, 0);
 
     const mockClickedNode = {
         _abcElement: note,
@@ -287,6 +296,17 @@ console.log("\n--- Seam G: Interaction association (bindInteraction) ---");
     }
 
     assert("Global delegation bubble-up notifies selection correctly", selected === note);
+}
+
+// ── Seam H: 高度計算 (calculateHeight) ─────────────────────────────────────────
+console.log("\n--- Seam H: Height calculation (calculateHeight) ---");
+{
+    const notes = [makeNoteChild(7, 0.25, 100), makeNoteChild(-7, 0.25, 140)];
+    const voice = makeVoice({ children: notes });
+    const renderer = new JianpuVoiceRenderer();
+    const { above, below } = renderer.calculateHeight(voice);
+    assert("JianpuVoiceRenderer.calculateHeight calculates correct maxAbove", above === 1, `got above=${above}`);
+    assert("JianpuVoiceRenderer.calculateHeight calculates correct maxBelow", below === 1, `got below=${below}`);
 }
 
 // ── 結果 ─────────────────────────────────────────────────────────────────────
