@@ -1,4 +1,11 @@
-﻿
+
+declare var Raphael: any;
+declare namespace Aaa {
+	interface A1 {
+		[key: string]: any;
+	}
+}
+
 declare global {
 	function str_repeat(i: any, m: number): string;
 	function sprintf(format: string, ...args: (string | number)[]): string;
@@ -360,7 +367,7 @@ interface GraceParseResult {
 	/** 消耗的字元長度 */
 	len: number;
 	/** 解析出的裝飾音音符陣列 */
-	notes: NOTES_Element[];
+	notes: NoteElement[];
 }
 
 /**
@@ -377,11 +384,6 @@ interface HeaderFieldResult {
 	content?: string;
 }
 
-/** @deprecated 請改用 HeaderFieldResult（兩者結構完全相同） */
-type InlineHeaderResult = HeaderFieldResult;
-
-/** @deprecated 請改用 HeaderFieldResult（兩者結構完全相同） */
-type BodyHeaderResult = HeaderFieldResult;
 type HeaderTokenType = "alpha" | "number" | "quote" | "punct" | "";
 
 interface HeaderToken {
@@ -455,14 +457,15 @@ interface TokenInfo {
 	note: string;
 }
 interface MetaTextInfo {
-	[key: string]: string;
 	tempo?: TempoInfo
 }
 
 interface TempoInfo {
 	multiplier?: number;
 	bpm?: number;
-	duration?: number[];
+	durationTempo?: number[];
+	preString?: string;
+	postString?: string;
 }
 
 interface BBox {
@@ -591,10 +594,12 @@ interface ElementBase {
 
 interface RestElement extends Omit<ABCElement, 'el_type'> {
 	el_type: "rest";
+	duration?: number;
 }
 
 interface NoteElement extends Omit<ABCElement, 'el_type'> {
 	el_type: "note";
+	duration?: number;
 }
 
 interface BarElement extends Omit<ABCElement, 'el_type'> {
@@ -630,9 +635,9 @@ interface MeterElement extends Omit<ABCElement, 'el_type'> {
 	value?: { num?: string; den?: string }[];
 }
 
-interface TempoElement extends Omit<ABCElement, 'el_type' | 'duration'> {
+interface TempoElement extends Omit<ABCElement, 'el_type'> {
 	el_type: "tempo";
-	duration?: number[]
+	durationTempo?: number[]
 	noteLength?: number;
 	bpm?: number;
 	preString?: string;
@@ -658,9 +663,9 @@ interface ABCElement extends ElementBase {
 	pitches?: Pitch[];
 	rest?: {
 		type: string;
-		endSlur?: number | number[];
+		endSlur?: number[];
 		endTie?: boolean;
-		startSlur?: number | number[];
+		startSlur?: number[];
 		startTie?: boolean;
 	};
 	chord?: Chord[];
@@ -668,9 +673,10 @@ interface ABCElement extends ElementBase {
 	startEnding?: string,
 	endEnding?: boolean,
 	duration?: number;
+	druationTempo?: number[];
 	bpm?: number;
 	decoration?: string[];
-	gracenotes?: ABCElement[];
+	gracenotes?: GraceNote[];
 	lyric?: Lyric[];
 
 	startSlur?: number | number[];
@@ -703,7 +709,7 @@ interface ABCElement extends ElementBase {
 
 
 interface MetaText {
-	tempo?: Tempo;
+	tempo?: TempoInfo;
 	title?: string;
 
 	author?: string;
@@ -743,8 +749,8 @@ interface Pitch {
 	duration?: number;
 	startTie?: boolean;
 	endTie?: boolean;
-	startSlur?: number | number[];
-	endSlur?: number | number[];
+	startSlur?: number[];
+	endSlur?: number[];
 	verticalPos?: number;
 	printer_shift?: string
 }
@@ -753,18 +759,16 @@ interface GraceNote {
 	pitch?: number;
 	verticalPos?: number;
 	accidental?: NoteAccidental;
+	startSlur?: number | number[];
+	endSlur?: number | number[];
 }
-
-
-
-
 
 interface Voice_Staff_voices {
 	el_type?: string;
 	startChar?: number;
 	endChar?: number;
 	pitches?: Pitch[];
-	gracenotes?: NOTES_Element[];
+	gracenotes?: GraceNote[];
 	end_beam?: boolean;
 
 	// 其他潜在属性...

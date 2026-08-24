@@ -412,7 +412,7 @@ export class ABCLayout {
 	printJianpuNoteHead(
 		abselem: ABCAbsoluteElement,
 		c: string,
-		pitchelem: ABCElement,
+		pitchelem: Pitch | null,
 		duration: number,
 		headx: number,
 		extrax: number,
@@ -421,7 +421,7 @@ export class ABCLayout {
 	): ABCRelativeElement {
 		let notehead = new ABCRelativeElement(c, headx, 12, 0, { type: "jianpuNote" });
 
-		if (pitchelem.accidental) {
+		if (pitchelem && pitchelem.accidental) {
 			let symb: string;
 			switch (pitchelem.accidental) {
 				case "quartersharp": symb = "accidentals.halfsharp"; break;
@@ -553,11 +553,11 @@ export class ABCLayout {
 
 				if (((this.stemdir === "up" || dir === "down") && p === pp - 1) || ((this.stemdir === "down" || dir === "up") && p === 0)) { // place to put slurs if not already on pitches
 					if (elem.startSlur) {
-						elem.pitches[p].startSlur = elem.startSlur;
+						elem.pitches[p].startSlur = elem.startSlur as number[];
 					}
 
 					if (elem.endSlur) {
-						elem.pitches[p].endSlur = elem.endSlur;
+						elem.pitches[p].endSlur = elem.endSlur as number[];
 					}
 				}
 
@@ -605,7 +605,7 @@ export class ABCLayout {
 				let gracepitch = elem.gracenotes[i].verticalPos;
 
 				flag = (gracebeam) ? null : this.chartable["uflags"][(this.isBagpipes) ? 5 : 3];
-				grace = this.printNoteHead(abselem, "noteheads.quarter", elem.gracenotes[i], "up", -graceoffsets[i], -graceoffsets[i], flag, 0, 0, gracescale);
+				grace = this.printNoteHead(abselem, "noteheads.quarter", elem.gracenotes[i] as unknown as Pitch, "up", -graceoffsets[i], -graceoffsets[i], flag, 0, 0, gracescale);
 				abselem.addExtra(grace);
 
 				if (gracebeam) { // give the beam the necessary info
@@ -700,9 +700,7 @@ export class ABCLayout {
 		let i;
 		this.accidentalshiftx = 0;
 		this.dotshiftx = 0;	//更新點號空間限制
-		console.log(c);
 		if (c === undefined) {
-			console.log(c);
 			abselem.addChild(new ABCRelativeElement("pitch is undefined", 0, 0, 0, { type: "debug" }));
 		}
 		else if (c === "") {
@@ -772,10 +770,11 @@ export class ABCLayout {
 				let slurid = pitchelem.endSlur[i];
 				let slur;
 				if (this.slurs[slurid]) {
-					slur = this.slurs[slurid].anchor2 = notehead;
+					this.slurs[slurid].anchor2 = notehead;
+					slur = this.slurs[slurid];
 					delete this.slurs[slurid];
 				} else {
-					slur = new ABCTieElem(null, notehead, dir === "down", (this.stemdir === "up" || dir === "down") && this.stemdir !== "down", this.stemdir);
+					slur = new ABCTieElem(null, notehead, dir === "down", (this.stemdir === "up" || dir === "down") && this.stemdir !== "down");
 					this.voice.addOther(slur);
 				}
 				if (this.startlimitelem) {

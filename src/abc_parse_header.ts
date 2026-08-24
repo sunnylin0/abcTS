@@ -991,9 +991,9 @@ export class AbcParseHeader {
 
 	calcTempo(relTempo: TempoInfo): TempoInfo {
 		const dur: number = this.multilineVars.default_length ? this.multilineVars.default_length : 1;
-		if (relTempo.duration) {
-			for (let i = 0; i < relTempo.duration.length; i++) {
-				relTempo.duration[i] = dur * relTempo.duration[i];
+		if (relTempo.durationTempo) {
+			for (let i = 0; i < relTempo.durationTempo.length; i++) {
+				relTempo.durationTempo[i] = dur * relTempo.durationTempo[i];
 			}
 		}
 		return relTempo;
@@ -1098,10 +1098,10 @@ export class AbcParseHeader {
 					token = tokens.shift();
 					if (token.type !== 'number')
 						throw "Expected number after = in Q: field";
-					tempo.duration = [1];
+					tempo.durationTempo = [1];
 					tempo.bpm = parseInt(token.token);
 				} else if (token.type === 'number') {
-					tempo.duration = [parseInt(token.token)];
+					tempo.durationTempo = [parseInt(token.token)];
 					if (tokens.length === 0)
 						throw "Missing = after duration in Q: field";
 					token = tokens.shift();
@@ -1119,7 +1119,7 @@ export class AbcParseHeader {
 			} else if (token.type === 'number') {
 				let num = parseInt(token.token);
 				if (tokens.length === 0 || tokens[0].type === 'quote') {
-					tempo.duration = [1];
+					tempo.durationTempo = [1];
 					tempo.bpm = num;
 				} else {
 					delaySet = false;
@@ -1130,7 +1130,7 @@ export class AbcParseHeader {
 					if (token.type !== 'number')
 						throw "Expected fraction in Q: field";
 					let den = parseInt(token.token);
-					tempo.duration = [num / den];
+					tempo.durationTempo = [num / den];
 					while (tokens.length > 0 && tokens[0]?.token !== '=' && (tokens[0].type as string) !== 'quote') {
 						token = tokens.shift();
 						if (token.type !== 'number')
@@ -1143,7 +1143,7 @@ export class AbcParseHeader {
 						if (token.type !== 'number')
 							throw "Expected fraction in Q: field";
 						den = parseInt(token.token);
-						tempo.duration.push(num / den);
+						tempo.durationTempo.push(num / den);
 					}
 					token = tokens.shift();
 					if (token.type !== 'punct' && token.token !== '=')
@@ -1178,7 +1178,7 @@ export class AbcParseHeader {
 	 * @param i 當前解析的起始字元索引
 	 * @returns 包含消耗長度、標頭字母與內容的 InlineHeaderResult 物件
 	 */
-	letter_to_inline_header(line: string, i: number): InlineHeaderResult {
+	letter_to_inline_header(line: string, i: number): HeaderFieldResult {
 		const ws: number = this.tokenizer.eatWhiteSpace(line, i);
 		i += ws;
 		if (line.length >= i + 5 && line.charAt(i) === '[' && line.charAt(i + 2) === ':') {
@@ -1246,7 +1246,7 @@ export class AbcParseHeader {
 	 * @param i 當前解析的起始字元索引
 	 * @returns 包含消耗長度、標頭字母與內容的 BodyHeaderResult 物件
 	 */
-	letter_to_body_header(line: string, i: number): BodyHeaderResult {
+	letter_to_body_header(line: string, i: number): HeaderFieldResult {
 		if (line.length >= i + 3) {
 			switch (line.substring(i, i + 2)) {
 				case "I:":
@@ -1276,8 +1276,8 @@ export class AbcParseHeader {
 					let e = line.indexOf('\x12', i + 2);
 					if (e === -1) e = line.length;
 					const tempo = this.setTempo(line, i + 2, e);
-					if (tempo.type === 'delaySet') this.tune.appendElement('tempo', -1, -1, this.calcTempo(tempo.tempo) as unknown as TempoElement);
-					else if (tempo.type === 'immediate') this.tune.appendElement('tempo', -1, -1, tempo.tempo as unknown as TempoElement);
+					if (tempo.type === 'delaySet') this.tune.appendElement('tempo', -1, -1, this.calcTempo(tempo.tempo));
+					else if (tempo.type === 'immediate') this.tune.appendElement('tempo', -1, -1, tempo.tempo);
 					return {
 						len: e,
 						headerLetter: line.charAt(i),
