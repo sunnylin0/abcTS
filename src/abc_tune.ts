@@ -83,7 +83,7 @@ export class AbcTune {
 		function cleanUpSlursInLine(voiceList: NOTES_Element[]) {
 			let currSlur: number[] = [];
 
-			function addEndSlur(obj: NOTES_Element | Pitch, num: number | number[], chordPos: number) {
+			function addEndSlur(obj: NoteElement | Pitch | GraceNote, num: number | number[], chordPos: number) {
 				obj.endSlur = [];
 				if (currSlur[chordPos] === undefined)
 					currSlur[chordPos] = chordPos * 100;
@@ -94,7 +94,7 @@ export class AbcTune {
 				}
 			}
 
-			function addStartSlur(obj: NOTES_Element | Pitch, num: number | number[], chordPos: number) {
+			function addStartSlur(obj: NOTES_Element | Pitch | GraceNote, num: number | number[], chordPos: number) {
 				obj.startSlur = [];
 				if (currSlur[chordPos] === undefined) {
 					currSlur[chordPos] = chordPos * 100;
@@ -255,7 +255,7 @@ export class AbcTune {
 			}
 			if (hp.gracenotes !== undefined) {
 				let mid2 = This.lines[This.lineNum].staff[This.staffNum].clef?.verticalPos ?? 0;
-				hp.gracenotes.forEach((p: ABCElement) => p.verticalPos = (p.pitch ?? 0) - mid2);
+				hp.gracenotes.forEach((p: GraceNote) => p.verticalPos = (p.pitch ?? 0) - mid2);
 			}
 			This.lines[This.lineNum].staff[This.staffNum].voices[This.voiceNum].push(hp as NOTES_Element);
 		}
@@ -345,7 +345,7 @@ export class AbcTune {
 			}
 		}
 		// We didn't see either that type or a note, so replace the element to the staff.
-		this.lines[this.lineNum].staff[this.staffNum][type] = hashParams2;
+		(this.lines[this.lineNum].staff[this.staffNum] as any)[type] = hashParams2;
 	}
 	/**
 	* 取得行數。

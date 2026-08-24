@@ -1247,4 +1247,32 @@
 - **樂譜語意解析錯誤與 Regression**：ABC 樂譜的語法極其繁瑣，改用 Token Stream 後若有漏掉的邊界情況會引發大面積 mismatch。
   - *對策*：在 `tokenizeLine` 當中對和弦與小節線進行完備的預解義，並在 `parseRegularMusicLine` 中作為「前置條件」進行攔截，若不匹配則保留原有的 Note / Grace 解析邏輯，實行漸進式重構，確保 100% 回歸相容。
 
+---
+## [2026-08-25 05:00:00] 修復 tsc 型別錯誤與補強 TS 聲明
+
+### 步驟與技術方案 (Step-by-step Technical Plans)
+1. **補強 all.d.ts 全域定義**：
+   - 於 `all.d.ts` 宣告全域變數 `Raphael: any`，解決 `abc_plugin.ts` 內 `Cannot find name 'Raphael'`。
+   - 於 `GraceNote` 介面增加可選的 `startSlur` 與 `endSlur`（`number | number[]`）屬性，解決 `abc_tune.ts` 內不合法存取 GraceNote 連音線屬性問題。
+2. **修正 abc_layout.ts 排版型別**：
+   - 將 `printJianpuNoteHead` 參數 `pitchelem` 型別由 `ABCElement` 修正為 `Pitch | null`，並防禦性檢查 `pitchelem` 的 null 引用。
+   - 於 `printNote`（L556, L560）將 `elem.startSlur` 與 `elem.endSlur` 指派給 `elem.pitches[p]` 時加入 `as number[]` 斷言。
+   - 解耦 `abc_layout.ts` L773 的連鎖指派為分開的語句，保證 `slur` 的型別被正確推論為 `ABCTieElem`，解決 `startlimitelem` 屬性不存在報錯。
+3. **精煉 abc_parse.ts 解析型別**：
+   - 將 `getCoreNote` 傳回型別更正為 `ABCElement | null`，`addEndBeam` 接收參數改為 `ABCElement`。
+   - 於 `abc_parse.ts` 的和弦與連音線解析處，進行必要的型別斷言（如 `as Pitch`、`as number[]` 及 `as unknown as number` 等），消除解析階段的型別警告。
+4. **修正 abc_tune.ts 聲部處理型別**：
+   - 擴充 `cleanUpSlursInLine` 內部輔助方法的型別以支援 `GraceNote`。
+   - 於小節線動態指派處將 `Staff` 物件轉為 `any` 進行索引。
+
+### 影響檔案 (Affected Files)
+- `src/all.d.ts` (修改)
+- `src/abc_layout.ts` (修改)
+- `src/abc_parse.ts` (修改)
+- `src/abc_tune.ts` (修改)
+
+### 風險評估 (Risks & Mitigations)
+- 轉型與型別斷言可能在極端情況下隱藏真實的型別錯誤。
+  - *對策*：這些斷言均是為了解決解析階段與 Layout 階段型別過渡的既存邏輯。修復後將執行全套測試 `test-jianpu-*.js` 以及 `compare_ast.js` 確保繪製日誌與功能 100% 正確。
+
 

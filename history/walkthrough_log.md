@@ -720,6 +720,30 @@
 4. 執行傳統回歸測試 `node test.js`，**100% PASS**。
 5. 執行 `node test/compare_ast.js` 驗證對比，無任何新的 SVG 渲染細節 mismatch。
 
----
+------
 
+## [2026-08-25 05:00:00] 修復 tsc 型別錯誤與補強 TS 聲明 (完成)
 
+### 變更摘要 (Change Summary)
+1. **補強 all.d.ts 全域定義**：
+   - 於 `all.d.ts` 宣告全域變數 `Raphael: any`，解決 `abc_plugin.ts` 內 `Cannot find name 'Raphael'`。
+   - 於 `GraceNote` 介面增加可選的 `startSlur` 與 `endSlur`（`number | number[]`）屬性，解決 `abc_tune.ts` 內不合法存取 GraceNote 連音線屬性問題。
+   - 將 `ABCElement.startSlur` 與 `ABCElement.endSlur` 修改為 `number | number[]` 以相容解析階段與排版階段。
+2. **修正 abc_layout.ts 排版型別**：
+   - 將 `printJianpuNoteHead` 參數 `pitchelem` 型別由 `ABCElement` 修正為 `Pitch | null`，並防禦性檢查 `pitchelem` 的 null 引用，杜絕潛在崩潰。
+   - 於 `printNote`（L556, L560）將 `elem.startSlur` 與 `elem.endSlur` 指派給 `elem.pitches[p]` 時加入 `as number[]` 斷言。
+   - 解耦 `abc_layout.ts` L773 的連鎖指派為分開的語句，保證 `slur` 的型別被正確推論為 `ABCTieElem`，解決 `startlimitelem` 屬性不存在報錯。
+3. **精煉 abc_parse.ts 解析型別**：
+   - 將 `getCoreNote` 傳回型別更正為 `ABCElement | null`，`addEndBeam` 接收參數改為 `ABCElement`。
+   - 於 `abc_parse.ts` 的和弦與連音線解析處，進行必要的型別斷言（如 `as Pitch`、`as number[]` 及 `as any` 等），消除解析階段的型別警告。
+4. **修正 abc_tune.ts 聲部處理型別**：
+   - 修正 `cleanUpSlursInLine` 內部輔助方法的型別簽章以支援 `GraceNote`。
+   - 於小節線動態指派處將 `Staff` 物件轉為 `any` 進行索引。
+5. **修復 drawLine SVG 畫筆參數**：
+   - 修改 `src/abc_write.ts` 中的 `drawLine`，將路徑字串參數改為直接傳入 `paper.path(path)`，使得 `mockPaper` 的 `drawLog` 能夠順利記錄底線與虛線的 path，徹底修復 `test-jianpu-05.js` 單元測試失敗問題。
+
+### 驗證與測試日誌 (Verification & Test Logs)
+1. 靜態型別編譯 `npx tsc --noEmit`（排除 `abc_parser_lint.ts` 與 `scalefont.ts`）完全通過，**0 型別錯誤**。
+2. 執行 `pnpm run build` 打包編譯無誤。
+3. 執行 `node test.js` 回歸測試 100% 正常。
+4. 執行所有 8 個簡譜單元測試 `test-jianpu-*.js` 皆為 **ALL PASS (100% 通過，0 失敗)**。

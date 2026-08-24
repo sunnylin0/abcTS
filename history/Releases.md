@@ -453,3 +453,17 @@
 - **TDD 驗證**：
   - 新增單元測試 `test-jianpu-08.js` 以驗證 Tokenizer 切分的正確性。
   - 所有簡譜單元與整合測試及 `test.js`、`compare_ast.js` 全數綠燈通過，無任何 regression。
+
+---
+## [2026-08-25] 修復 tsc 型別錯誤與補強 TS 聲明 (v1.28.0)
+- **修復 TypeScript 靜態編譯型別錯誤**：
+  - 修正 `all.d.ts`：補齊全域 `Raphael` 聲明，並在 `GraceNote` 中補上可選的 `startSlur` 與 `endSlur` 屬性。
+  - 修改 `ABCElement.startSlur` 與 `ABCElement.endSlur` 為 `number | number[]`。
+  - 修正 `abc_layout.ts`：將 `printJianpuNoteHead` 參數型別修正為 `Pitch | null`。並在指派 `startSlur`/`endSlur` 時加上 `as number[]` 的型別斷言。解耦連鎖賦值，保證 `slur` 的型別被正確推論為 `ABCTieElem`。
+  - 修正 `abc_parse.ts`：調整 `getCoreNote` 傳回值為 `ABCElement | null`，並修改 `addEndBeam` 的參數型別。在解析和弦與連音線時補齊對應的型別轉換與斷言，避免解析階段型別不符問題。
+  - 修正 `abc_tune.ts`：為 `cleanUpSlursInLine` 的內部輔支方法加入對 `GraceNote` 的支援。在動態指派 `Staff` 時將其轉為 `any` 以繞過 index signature 限制。
+- **修復 drawLine SVG 畫筆參數**：
+  - 修正 `abc_write.ts` 中的 `drawLine` 實作，改為將路徑直接傳入 `paper.path(path)`，使 mock SVG 收集器 `drawLog` 能夠成功截獲路徑，徹底修復 `test-jianpu-05.js` 底線與虛線統計測試失敗的 regression 問題。
+- **型別與測試綠燈驗證**：
+  - `npx tsc --noEmit`（排除 `abc_parser_lint.ts` 與 `scalefont.ts`）通過靜態檢查。
+  - 所有 8 個簡譜測試 `test-jianpu-*.js` 以及回歸測試 `test.js` **全數 100% 綠燈通過 (ALL PASS)**。

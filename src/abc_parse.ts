@@ -18,27 +18,6 @@ import { AbcTune } from "./abc_tune";
 import { AbcTokenizer } from "./abc_tokenizer";
 import { AbcParseHeader } from "./abc_parse_header";
 
-
-//declare function addWarning(str: string): void;
-//declare function warn(str: string, line: string, col_num: number): void;
-
-//declare namespace pitches {
-//	const A: number;
-//	const B: number;
-//	const C: number;
-//	const D: number;
-//	const E: number;
-//	const F: number;
-//	const G: number;
-//	const a: number;
-//	const b: number;
-//	const c: number;
-//	const d: number;
-//	const e: number;
-//	const f: number;
-//	const g: number;
-//}
-
 interface Rests {
 	x: string;
 	y: string;
@@ -80,6 +59,7 @@ export class MultilineVars {
 	partsfont: Font;
 	vocalfont: Font;
 	reset() {
+		let jjj: JSONSchema.ValidationResult = this as any;
 		for (let property in this) {
 			if (this.hasOwnProperty(property) && typeof this[property] !== "function") {
 				delete this[property];
@@ -493,7 +473,8 @@ export class AbcParse {
 							(el.startSlur as number)++;
 						}
 					} else if (isComplete(state)) {
-						el.endChar = index; return el;
+						el.endChar = index;
+						return el;
 					} else {
 						return null;
 					}
@@ -840,13 +821,13 @@ export class AbcParse {
 				this.warn("Missing the closing '}' while parsing grace note", line, i);
 			}
 
-			const gracenotes: NOTES_Element[] = [];
+			const gracenotes: NoteElement[] = [];
 			let ii = 0;
 			let inTie = false;
 			while (ii < graResult.token.length) {
 				const note = this.getCoreNote(graResult.token, ii, {}, false);
 				if (note !== null) {
-					gracenotes.push(note as NOTES_Element);
+					gracenotes.push(note as NoteElement);
 
 					if (inTie) {
 						note.endTie = true;
@@ -942,13 +923,12 @@ export class AbcParse {
 		this.multilineVars.is_in_header = false;	// We should have gotten a key header by now, but just in case, this is definitely out of the header.
 		let i = 0;
 		let startOfLine = this.multilineVars.iChar;
-		const tokens = this.tokenizer.tokenizeLine(line);
+		// see if there is nothing but a comment on this line. If so, just ignore it. A full line comment is optional white space followed by %
+		while (this.tokenizer.isWhiteSpace(line[i]) && i < line.length)
+			i++;
 
-		// see if there is nothing but a comment on this line. If so, just ignore it.
-		let firstMeat = tokens.find(t => t.type !== 'whitespace');
-		if (!firstMeat || firstMeat.type === 'comment') {
+		if (i === line.length || line[i] === '%')
 			return;
-		}
 
 		let delayStartNewLine: boolean = this.multilineVars.start_new_line;
 		this.multilineVars.start_new_line = true;
@@ -967,8 +947,7 @@ export class AbcParse {
 
 		while (i < line.length) {
 			const startI = i;
-			const token = tokens.find(t => t.start === i);
-			if (token && token.type === 'comment') {
+			if (line[i] === '%') {
 				break;
 			}
 
@@ -991,11 +970,12 @@ export class AbcParse {
 				// So, loop while we find grace-notes, chords-symbols, or decorations. [It is an error to have more than one grace-note group in a row; the others can be multiple]
 				// Then, if there is a grace-note, we know where to go.
 				// Else see if we have a chord, core-note, slur, triplet, or bar.
+				let whitespaceLen: number;
+
 				while (1) {
-					const tSub = tokens.find(t => t.start === i);
-					if (tSub && tSub.type === 'whitespace') {
-						i += tSub.text.length;
-						continue;
+					whitespaceLen = this.tokenizer.eatWhiteSpace(line, i);
+					if (whitespaceLen > 0) {
+						i += whitespaceLen;
 					}
 					if (i > 0 && line[i - 1] === '\x12') {
 						// there is one case where a line continuation isn't the same as being on the same line, and that is if the next character after it is a header.
@@ -1012,17 +992,18 @@ export class AbcParse {
 						i += spacerResult.len;
 					}
 
-					if (tSub && tSub.type === 'chord') {
+					const chordResult = this.letter_to_chord(line, i);
+					if (chordResult.len > 0) {
 						if (!el.chord) {
 							el.chord = [];
 						}
-						el.chord.push({ name: tSub.value.name, position: tSub.value.position });
-						i += tSub.text.length;
-						const nextT = tokens.find(t => t.start === i);
-						if (nextT && nextT.type === 'whitespace') {
+						el.chord.push({ name: this.tokenizer.translateString(chordResult.name), position: chordResult.position });
+						i += chordResult.len;
+						let ii = this.tokenizer.skipWhiteSpace(line.substring(i));
+						if (ii > 0) {
 							el.force_end_beam_last = true;
-							i += nextT.text.length;
 						}
+						i += ii;
 					} else {
 						let accentResult: AccentParseResult;
 						if (this.nonDecorations.indexOf(line[i]) === -1)
@@ -1054,16 +1035,17 @@ export class AbcParse {
 					}
 				}
 
-				if (token && token.type === 'bar') {
+				const barResult: BarParseResult = this.letter_to_bar(line, i);
+				if (barResult.len > 0) {
 					// This is definitely a bar
 					if (el.gracenotes !== undefined) {
 						// Attach the grace note to an invisible note
 						el.rest = { type: 'spacer' };
 						el.duration = 0.125; // TODO-PER: I don't think the duration of this matters much, but figure out if it does.
-						this.tune.appendElement('note', startOfLine + i, startOfLine + i + token.text.length, el);
+						this.tune.appendElement('note', startOfLine + i, startOfLine + i + barResult.len, el);
 						el = {};
 					}
-					let bar: BarElement = { type: token.value.barType } as BarElement;
+					let bar: BarElement = { type: barResult.barType } as BarElement;
 					if (bar.type.length === 0) {
 						this.warn("Unknown bar type", line, i);
 					} else {
@@ -1071,8 +1053,8 @@ export class AbcParse {
 							bar.endEnding = true;
 							this.multilineVars.inEnding = false;
 						}
-						if (token.value.ending) {
-							bar.startEnding = token.value.ending;
+						if (barResult.ending) {
+							bar.startEnding = barResult.ending;
 							if (this.multilineVars.inEnding)
 								bar.endEnding = true;
 							this.multilineVars.inEnding = true;
@@ -1089,10 +1071,10 @@ export class AbcParse {
 								this.multilineVars.barNumOnNextNote = this.multilineVars.currBarNumber;
 							}
 						}
-						this.tune.appendElement('bar', startOfLine + i, startOfLine + i + token.text.length, bar);
+						this.tune.appendElement('bar', startOfLine + i, startOfLine + i + barResult.len, bar);
 						el = {};
 					}
-					i += token.text.length;
+					i += barResult.len;
 				} else {
 					// This is definitely a note group
 					//
@@ -1127,9 +1109,9 @@ export class AbcParse {
 								}
 								if (el.pitches === undefined) {
 									el.duration = chordNote.duration;
-									el.pitches = [chordNote];
+									el.pitches = [chordNote as Pitch];
 								} else 	// Just ignore the note lengths of all but the first note. The standard isn't clear here, but this seems less confusing.
-									el.pitches.push(chordNote);
+									el.pitches.push(chordNote as Pitch);
 								delete chordNote.duration;
 
 								if (this.multilineVars.inTieChord[el.pitches.length]) {
@@ -1169,9 +1151,9 @@ export class AbcParse {
 									if (el.startSlur !== undefined) {
 										for (let pitch of el.pitches) {
 											if (pitch.startSlur === undefined) {
-												pitch.startSlur = el.startSlur;
+												pitch.startSlur = el.startSlur as number[];
 											} else {
-												(pitch.startSlur as number) += el.startSlur as number;
+												(pitch.startSlur as any) += el.startSlur as any;
 											}
 										}
 										delete el.startSlur;
@@ -1187,9 +1169,9 @@ export class AbcParse {
 											case ')':
 												for (let pitch of el.pitches) {
 													if (pitch.endSlur === undefined) {
-														pitch.endSlur = 1;
+														pitch.endSlur = 1 as any;
 													} else {
-														(pitch.endSlur as number)++;
+														(pitch.endSlur as any)++;
 													}
 												}
 												break;
@@ -1260,18 +1242,18 @@ export class AbcParse {
 								// TODO-PER: straighten this out so there is not so much copying: getCoreNote shouldn't change e'
 								if (core.accidental !== undefined) el.pitches[0].accidental = core.accidental;
 								el.pitches[0].pitch = core.pitch;
-								if (core.endSlur !== undefined) el.pitches[0].endSlur = core.endSlur;
+								if (core.endSlur !== undefined) el.pitches[0].endSlur = core.endSlur as number[];
 								if (core.endTie !== undefined) el.pitches[0].endTie = core.endTie;
-								if (core.startSlur !== undefined) el.pitches[0].startSlur = core.startSlur;
-								if (el.startSlur !== undefined) el.pitches[0].startSlur = el.startSlur;
+								if (core.startSlur !== undefined) el.pitches[0].startSlur = core.startSlur as number[];
+								if (el.startSlur !== undefined) el.pitches[0].startSlur = el.startSlur as number[];
 								if (core.startTie !== undefined) el.pitches[0].startTie = core.startTie;
 								if (el.startTie !== undefined) el.pitches[0].startTie = el.startTie;
 							} else {
 								el.rest = core.rest;
-								if (core.endSlur !== undefined) el.rest.endSlur = core.endSlur;
+								if (core.endSlur !== undefined) el.rest.endSlur = core.endSlur as number[];
 								if (core.endTie !== undefined) el.rest.endTie = core.endTie;
-								if (core.startSlur !== undefined) el.rest.startSlur = core.startSlur;
-								if (el.startSlur !== undefined) el.rest.startSlur = el.startSlur;
+								if (core.startSlur !== undefined) el.rest.startSlur = core.startSlur as number[];
+								if (el.startSlur !== undefined) el.rest.startSlur = el.startSlur as number[];
 								if (core.startTie !== undefined) el.rest.startTie = core.startTie;
 								if (el.startTie !== undefined) el.rest.startTie = el.startTie;
 							}
@@ -1356,7 +1338,7 @@ export class AbcParse {
 		if (lines.last().length === 0) {
 			lines.pop();
 		}
-		let switches;
+		let switches: any;
 		for (let line of lines) {
 			if (switches) {
 				if (switches.header_only && this.multilineVars.is_in_header === false)

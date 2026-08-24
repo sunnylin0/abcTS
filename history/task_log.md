@@ -1199,7 +1199,33 @@
 
 ### 驗收條件 (Acceptance Criteria)
 - 新增的 `test-jianpu-08.js` 測試 ALL PASS。
-- 全套簡譜測試與 `test.js`、`compare_ast.js` 全數綠燈，且無任何新 mismatch。
+- 全套簡譜測試與 `test.js`、`compare_ast.js` 全數綠燈，且無 any 新 mismatch。
+
+---
+## [2026-08-25 05:00:00] 修復 tsc 型別錯誤與補強 TS 聲明
+
+### 目標 (Objectives)
+- 修復 `npx tsc --noEmit` 回報的全部型別錯誤（排除 `abc_parser_lint.ts` 與 `scalefont.ts`），提升專案在 TypeScript 下的型別安全性與編譯成功率。
+
+### 需求 (Requirements)
+1. 修正 `all.d.ts` 補齊全域 `Raphael` 聲明，並在 `GraceNote` 中補上可選的 `startSlur` 與 `endSlur` 屬性。
+2. 修正 `abc_layout.ts`：
+   - 將 `printJianpuNoteHead` 中的 `pitchelem` 改為 `Pitch | null`。
+   - 補齊 startSlur / endSlur 指派給 pitches 的型別斷言。
+   - 重構連鎖指派為分開語句以修正 `ABCTieElem` 的型別推論。
+3. 修正 `abc_parse.ts`：
+   - 調整 `getCoreNote` 傳回型別及 `addEndBeam` 參數型別。
+   - 補齊和弦、連音線等解析處的型別斷言與轉型。
+4. 修正 `abc_tune.ts`：
+   - 修改 `cleanUpSlursInLine` 內部輔助方法的型別簽章以支援 `GraceNote`。
+   - 將 dynamic index assignment 對 `Staff` 的存取轉換為 `any`。
+
+### 驗收條件 (Acceptance Criteria)
+- 靜態型別編譯 `npx tsc --noEmit`（排除 `abc_parser_lint.ts` 與 `scalefont.ts`）完全通過。
+- `pnpm run build` 打包編譯無誤。
+- `node test.js` 回歸測試 100% 正常。
+- 8 個簡譜單元測試 `test-jianpu-*.js` 全部綠燈通過。
+
 
 
 

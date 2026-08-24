@@ -32,12 +32,7 @@ interface AbcTuneMetaText {
 	title?: string;
 	author?: string;
 	origin?: string;
-	tempo?: {
-		preString?: string;
-		duration?: string[];
-		bpm?: number;
-		postString?: string;
-	};
+	tempo?: TempoInfo;
 	partOrder?: string;
 	notes?: string;
 	book?: string;
@@ -514,14 +509,14 @@ export class ABCPrinter {
 				x += text.getBBox().width + 10;
 			}
 
-			if (abctune.metaText.tempo.duration) {
+			if (abctune.metaText.tempo.durationTempo) {
 				const temposcale: number = 0.75;
 				const tempopitch: number = 14.5;
-				const duration: number = abctune.metaText.tempo.duration[0]; // TODO when multiple durations
-				const abselem: ABCAbsoluteElement = new ABCAbsoluteElement(abctune.metaText.tempo, duration, 1);
-				const durlog = Math.floor(Math.log(duration) / Math.log(2));
+				const durationTempo: number = abctune.metaText.tempo.durationTempo[0]; // TODO when multiple durations
+				const abselem: ABCAbsoluteElement = new ABCAbsoluteElement(abctune.metaText.tempo, durationTempo, 1);
+				const durlog = Math.floor(Math.log(durationTempo) / Math.log(2));
 				let dot = 0;
-				for (let tot = Math.pow(2, durlog), inc = tot / 2; tot < duration; dot++, tot += inc, inc /= 2)
+				for (let tot = Math.pow(2, durlog), inc = tot / 2; tot < durationTempo; dot++, tot += inc, inc /= 2)
 					;
 				const c: string = this.layouter.chartable["note"][- durlog];
 				const flag: string = this.layouter.chartable["uflags"][-durlog];
@@ -538,7 +533,7 @@ export class ABCPrinter {
 				);
 				abselem.addHead(temponote);
 
-				if (duration < 1) {
+				if (durationTempo < 1) {
 					const p1: number = tempopitch + 1 / 3 * temposcale;
 					const p2: number = tempopitch + 7 * temposcale;
 					const dx: number = temponote.dx + temponote.w;
