@@ -254,8 +254,8 @@ export class ABCMidiWriter {
 
 			if (abctune.metaText?.tempo) {
 				let duration = 1 / 4;
-				if (abctune.metaText.tempo.duration) {
-					duration = abctune.metaText.tempo.duration[0];
+				if (abctune.metaText.tempo.durationTempo) {
+					duration = abctune.metaText.tempo.durationTempo[0];
 				}
 				let bpm = 60;
 				if (abctune.metaText.tempo.bpm) {
@@ -310,7 +310,7 @@ export class ABCMidiWriter {
 		}
 	}
 
-	writeABCElement(elem: ABCElement): void {
+	writeABCElement(elem: NOTES_Element): void {
 		switch (elem.el_type) {
 			case "note":
 				this.writeNote(elem);
@@ -328,7 +328,7 @@ export class ABCMidiWriter {
 		}
 	}
 
-	writeNote(elem: ABCElement): void {
+	writeNote(elem: NoteElement): void {
 		if (elem.startTriplet) {
 			this.multiplier = 2 / 3;
 		}
@@ -388,7 +388,7 @@ export class ABCMidiWriter {
 		}
 	}
 
-	handleBar(elem: ABCElement): void {
+	handleBar(elem: BarElement): void {
 		this.baraccidentals = [];
 		const repeat: boolean = (elem.type === "bar_right_repeat" || elem.type === "bar_dbl_repeat");
 		const skip: boolean = (elem.startEnding) ? true : false;
@@ -424,7 +424,7 @@ export class ABCMidiWriter {
 		}
 	}
 
-	setKeySignature(elem: any): void {
+	setKeySignature(elem: KeySigElement): void {
 		this.accidentals = [0, 0, 0, 0, 0, 0, 0];
 		if (this.abctune.formatting?.bagpipes) {
 			elem.accidentals = [{ acc: 'natural', note: 'g' }, { acc: 'sharp', note: 'f' }, { acc: 'sharp', note: 'c' }];

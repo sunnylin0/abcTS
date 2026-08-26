@@ -83,17 +83,18 @@ export class AbcTune {
 		function cleanUpSlursInLine(voiceList: NOTES_Element[]) {
 			let currSlur: number[] = [];
 
-			function addEndSlur(obj: NOTES_Element | Pitch, num: number, chordPos: number) {
+			function addEndSlur(obj: NoteElement | Pitch | GraceNote, num: number | number[], chordPos: number) {
 				obj.endSlur = [];
 				if (currSlur[chordPos] === undefined)
 					currSlur[chordPos] = chordPos * 100;
-				for (let i = 0; i < num; i++) {
+				const count = typeof num === 'number' ? num : num.length;
+				for (let i = 0; i < count; i++) {
 					obj.endSlur.push(currSlur[chordPos]);
 					if (currSlur[chordPos] > 0) --currSlur[chordPos];
 				}
 			}
 
-			function addStartSlur(obj: NOTES_Element | Pitch, num: number, chordPos: number) {
+			function addStartSlur(obj: NOTES_Element | Pitch | GraceNote, num: number | number[], chordPos: number) {
 				obj.startSlur = [];
 				if (currSlur[chordPos] === undefined) {
 					currSlur[chordPos] = chordPos * 100;
@@ -250,11 +251,11 @@ export class AbcTune {
 		function pushNote(hp: ABCElement) {
 			if (hp.pitches !== undefined) {
 				let mid = This.lines[This.lineNum].staff[This.staffNum].clef?.verticalPos ?? 0;
-				hp.pitches.forEach((p: ABCElement) => p.verticalPos = (p.pitch ?? 0) - mid);
+				hp.pitches.forEach((p: Pitch) => p.verticalPos = (p.pitch ?? 0) - mid);
 			}
 			if (hp.gracenotes !== undefined) {
 				let mid2 = This.lines[This.lineNum].staff[This.staffNum].clef?.verticalPos ?? 0;
-				hp.gracenotes.forEach((p: ABCElement) => p.verticalPos = (p.pitch ?? 0) - mid2);
+				hp.gracenotes.forEach((p: GraceNote) => p.verticalPos = (p.pitch ?? 0) - mid2);
 			}
 			This.lines[This.lineNum].staff[This.staffNum].voices[This.voiceNum].push(hp as NOTES_Element);
 		}
@@ -344,7 +345,7 @@ export class AbcTune {
 			}
 		}
 		// We didn't see either that type or a note, so replace the element to the staff.
-		this.lines[this.lineNum].staff[this.staffNum][type] = hashParams2;
+		(this.lines[this.lineNum].staff[this.staffNum] as any)[type] = hashParams2;
 	}
 	/**
 	* 取得行數。
@@ -532,7 +533,7 @@ export class AbcTune {
 	* @param key 元資料鍵。
 	* @param value 元資料值。
 	*/
-	addMetaText(key: string, value: string): void {
+	addMetaText(key: keyof MetaText, value: string): void {
 		if (this.metaText[key] === undefined)
 			this.metaText[key] = value;
 		else

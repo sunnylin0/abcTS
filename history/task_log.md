@@ -614,3 +614,23 @@
 ### 驗收條件 (Acceptance Criteria)
 - `pnpm run build` 打包編譯成功。
 - 執行 `node abcTS/test/compare_ast.js` 通過所有測試，無 DOM 狀態干擾。
+
+---
+## [2026-08-26 09:45:00] 全專案 TypeScript 補齊缺失型別與型別庫對齊
+
+### 目標 (Objectives)
+- 參考 `abcTS_new`，在保持 `abcTS` 既有 JavaScript 執行期邏輯不變的原則下，全面補齊 `src/*.ts`、`src/all.d.ts` 與 `types/jsonschema/index.d.ts` 缺失的型別定義與 JSDoc。
+- 排除簡譜（Jianpu）特有欄位，專注於五線譜標準 AST、解析器、排版、繪圖與 MIDI 輸出模組的型別健全性。
+
+### 需求 (Requirements)
+1. **全域與共通解析結果型別補齊**：在 `all.d.ts` 與 `types/jsonschema/index.d.ts` 中補齊 `TokenScanResult<T>`、`KeyPitchResult`、`ModeResult` 等所有 Tokenizer/Parser 回傳型別宣告，並加入 `[key: string]: any` 索引簽名於 `Formatting`、`MetaText`、`StaffInfo`。
+2. **AST 元素與音符裝飾記號型別對齊**：擴充 `ABCElement`、`Pitch`、`GraceNote`、`TempoInfo`、`TempoElement`，支援 `duration` 與 `durationTempo`，並允許 `startSlur`/`endSlur` 為 `number | number[]`。
+3. **詞法解析與標頭分析模組型別註解**：在 `abc_tokenizer.ts` 與 `abc_parse_header.ts` 中為所有公開與私有方法標註精確的參數與回傳型別，保留 `getBrackettedSubstring` 等 Tuple 回傳簽章。
+4. **樂譜語法解析與樂曲模組型別註解**：在 `abc_parse.ts` 與 `abc_tune.ts` 中補齊 `MultilineVars`、`cleanUpSlursInLine`、`pushNote`、`appendStartingElement`、`addMetaText` 之型別與斷言。
+5. **排版、繪圖與 MIDI 輸出模組型別註解**：在 `abc_layout.ts`、`abc_write.ts`、`abc_midiwriter.ts`、`svg.ts`、`proto.ts` 中補齊屬性與方法簽章。
+6. **編譯與測試驗證**：確保 `npx tsc --noEmit` 0 錯誤、`pnpm run build` 打包成功、`node test.js` 測試全數通過。
+
+### 驗收條件 (Acceptance Criteria)
+- `npx tsc --noEmit` 執行通過，0 錯誤。
+- `pnpm run build` 成功建置 UMD 產物 `dist/abcjs-basic.js`。
+- `node test.js` 執行通過，成功解析並渲染樂譜且無警告。

@@ -407,3 +407,25 @@
 1. 執行 `tsc --noEmit` 通過，無任何型別錯誤。
 2. 執行 `pnpm run build` 成功建置 UMD bundle 且無任何報錯。
 3. 程式碼邏輯在與舊版 JS 對照下已 100% 對齊且完成了 TypeScript 強型別重構。
+
+---
+## [2026-08-26 09:45:00] 全專案 TypeScript 補齊缺失型別與型別庫對齊
+
+### 變更摘要 (Change Summary)
+1. **全域與公用型別庫宣告補齊 (`all.d.ts`, `types/jsonschema/index.d.ts`)**：
+   - 補齊 Tokenizer 模式 A/B/C、Parser 輔助回傳介面、AST 節點結構（`TempoInfo`, `MeterElement`, `Pitch`, `GraceNote`, `StaffInfo` 等）。
+   - 保留五線譜標準欄位並嚴格排除簡譜（Jianpu）特有欄位。
+2. **模組型別標註與斷言完善**：
+   - `abc_tokenizer.ts`：為全數函式標註參數與回傳型別，保持 `getBrackettedSubstring` 等 Tuple 回傳簽章。
+   - `abc_parse_header.ts`：移除區域重複宣告，修正 `pitches`、`formatting`、`staffInfo` 索引型別。
+   - `abc_parse.ts`：完善 `MultilineVars` 屬性宣告與 slur 累加運算型別斷言。
+   - `abc_tune.ts`：完善 `cleanUpSlursInLine` 陣列長度判斷與 `addMetaText` 簽章。
+   - `abc_layout.ts`：宣告 `startlimitelem` 與 `dotshiftx` 屬性，修正 `pseudoabselem` 與 `ABCTieElem` 呼叫引數。
+   - `abc_write.ts`、`proto.ts`、`svg.ts`、`application.ts`、`abc_parser_lint.ts`：修正原型擴充、style 索引與驗證型別斷言。
+3. **專案編譯與排除設定 (`tsconfig.json`)**：
+   - 排除獨立腳本，確保 `src` 核心程式庫型別一致性。
+
+### 驗證與測試日誌 (Verification & Test Logs)
+1. 執行 `npx tsc --noEmit`：通過（0 錯誤，Exit code 0）。
+2. 執行 `pnpm run build`：成功在 1.00s 內打包輸出 `dist/abcjs-basic.js`。
+3. 執行 `node test.js`：Node 沙盒測試通過，成功解析 Cooley's 樂譜並輸出 234 筆 DrawLog 繪圖日誌，無任何警告與錯誤。

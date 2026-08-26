@@ -310,3 +310,12 @@
 - 重構 `writeNote` 以遍歷和弦下的所有 `elem.pitches`，一次性寫入整個和弦的多音高 note；並修正三連音結束判定為 `elem.endTriplet`。
 - 在 `setKeySignature` 中補上風笛 `formatting.bagpipes` 專屬調號適配。
 - 順利通過 UMD 打包與 TypeScript 靜態型別檢查。
+
+---
+## [2026-08-26] 全專案 TypeScript 補齊缺失型別與型別庫對齊 (v1.13.0)
+- 參考 `abcTS_new` 在不變動現有 JavaScript 執行期邏輯的前提下，全面補齊 `abcTS` 缺失的型別定義與 JSDoc：
+  - **公用型別庫擴充 (`all.d.ts`)**：補齊 Tokenizer / Parser 回傳介面與 AST 節點（`TempoInfo`, `MeterElement`, `Pitch`, `GraceNote`, `StaffInfo`），支援 `duration` 與 `durationTempo` 相容性，並排除簡譜欄位。
+  - **詞法與標頭解析模組 (`abc_tokenizer.ts`, `abc_parse_header.ts`)**：標註函式簽章，維持 Tuple 返回值型別，修正 `pitches` 字典索引。
+  - **語法解析與樂曲模組 (`abc_parse.ts`, `abc_tune.ts`)**：補齊 `MultilineVars` 字型屬性與索引簽名，重構 slur 累加與 `addMetaText` 型別宣告。
+  - **排版與繪圖輸出模組 (`abc_layout.ts`, `abc_write.ts`, `proto.ts`, `svg.ts`, `application.ts`)**：補齊 `startlimitelem` 與 `dotshiftx`，修正原型工具函式型別與 SVG 動態樣式指派。
+- 通過 `npx tsc --noEmit` 靜態編譯檢查（0 錯誤）、`pnpm run build` 打包建置與 `node test.js` 沙盒測試。

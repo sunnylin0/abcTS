@@ -18,9 +18,6 @@
 //unexpected elements in it. It also returns a person-readable version of it that is suitable
 //for regression tests.
 
-/*global Class */
-/*global JSONSchema */
-/*extern AbcParserLint */
 
 //declare const Class: any; // Assume Class is from a library like Prototype.js, need a declaration for TypeScript
 declare const jsonSchema: JSONSchema.Schema; // Assume JSONSchema is a validation library, need a declaration for TypeScript
@@ -358,7 +355,7 @@ export class AbcParserLint {
 	}
 
 
-	prependPositioning(properties:any): any {
+	prependPositioning(properties: any): any {
 		const ret: any = {
 			startChar: { type: 'number' },
 			endChar: { type: 'number' }
@@ -367,7 +364,7 @@ export class AbcParserLint {
 	}
 
 	lint(tune: any, warnings?: string[]): string {
-		const ret: JSONSchema.ValidationResult = JSONSchema.validate(tune, this.musicSchema as JSONSchema.Schema);
+		const ret: JSONSchema.ValidationResult = JSONSchema.validate(tune, this.musicSchema as any);
 		let err = "";
 		ret.errors.forEach((e: JSONSchema.ValidationError) => {
 			err += e.property + ": " + e.message + "\n";

@@ -19,12 +19,6 @@
 import { AbcTune } from "./abc_tune";
 import { AbcTokenizer } from "./abc_tokenizer";
 
-interface HeaderToken {
-	type: string;
-	token: string;
-	start: number;
-	end: number;
-}
 
 
 var key1sharp: KeySignature = { acc: 'sharp', note: 'f' };
@@ -44,13 +38,13 @@ var key7flat: KeySignature = { acc: 'flat', note: 'f' };
 
 export class AbcParseHeader {
 	private tokenizer: AbcTokenizer;
-	private warn: (message: string, line: string, start: number) => void;
+	private warnFn: (message: string, line: string, start: number) => void;
 	private multilineVars: MultilineVars
 	private tune: AbcTune;
 
 	constructor(tokenizer: AbcTokenizer, warn: (message: string, line: string, start: number) => void, multilineVars: MultilineVars, tune: AbcTune) {
 		this.tokenizer = tokenizer;
-		this.warn = warn;
+		this.warnFn = warn;
 		this.multilineVars = multilineVars;
 		this.tune = tune;
 
@@ -266,7 +260,7 @@ export class AbcParseHeader {
 	}
 
 	private parseMiddle(str: string): number {
-		let mid = this.pitches[str.charAt(0)];
+		let mid = this.pitches[str.charAt(0) as PitchKey];
 		for (let i = 1; i < str.length; i++) {
 			if (str.charAt(i) === ',') mid -= 7;
 			else if (str.charAt(i) === ',') mid += 7;
@@ -274,7 +268,12 @@ export class AbcParseHeader {
 		return mid - 6;
 	}
 
-	private parseKey(str: string): { foundClef?: boolean, foundKey?: boolean } {
+	/**
+	 * 解析調號（Key）或譜號（Clef）設定字串
+	 * @param str 調號欄位內容（如 "C", "none clef=bass" 等）
+	 * @returns 解析結果，詳見 {@link ParseKeyResult}
+	 */
+	private parseKey(str: string): ParseKeyResult {
 		str = this.tokenizer.stripComment(str);
 		let origStr = str;
 		if (str.length === 0) {
@@ -307,7 +306,7 @@ export class AbcParseHeader {
 			return { foundClef: true };
 		}
 
-		let ret: KeySigElement = { el_type: "key"};
+		let ret: KeySigElement = { el_type: "key" };
 
 		const retPitch = this.tokenizer.getKeyPitch(str);
 		if (retPitch.len > 0) {
@@ -356,7 +355,7 @@ export class AbcParseHeader {
 			} else {
 				str = str.substring(retExtra.len);
 				if (retExtra.warn) {
-					this.warn("error parsing extra accidentals:", origStr, 0);
+					this.warnFn("error parsing extra accidentals:", origStr, 0);
 				} else {
 					if (!ret.accidentals) {
 						ret.accidentals = [];
@@ -369,7 +368,7 @@ export class AbcParseHeader {
 		retClef = this.tokenizer.getClef(str);
 		if (retClef.len > 0) {
 			if (retClef.warn) {
-				this.warn("error parsing clef:" + retClef.warn, origStr, 0);
+				this.warnFn("error parsing clef:" + retClef.warn, origStr, 0);
 			} else {
 				this.multilineVars.clef = { el_type: "clef", type: retClef.token, verticalPos: this.calcMiddle(retClef.token, 0) };
 				str = str.substring(retClef.len);
@@ -378,7 +377,7 @@ export class AbcParseHeader {
 		}
 
 		if (ret.accidentals === undefined && retClef.token === undefined) {
-			this.warn("error parsing key: ", origStr, 0);
+			this.warnFn("error parsing key: ", origStr, 0);
 			return {};
 		}
 
@@ -407,17 +406,18 @@ export class AbcParseHeader {
 	}
 
 	private addDirective(str: string): string | null {
-		const oneParameterMeasurement = (cmd: string, tokens: any): string | null => {
+		const oneParameterMeasurement = (cmd: keyof Formatting, tokens: HeaderToken[]): string | null => {
 			const points = this.tokenizer.getMeasurement(tokens);
 			if (points.used === 0 || tokens.length !== 0) {
 				return "Directive \"" + cmd + "\" requires a measurement as a parameter.";
 			}
-			this.tune.formatting[cmd] = points.value;
+			// 將 formatting 宣告為 Record<string, any> 即可順利指派
+			(this.tune.formatting as Record<string, any>)[cmd] = points.value;
 			return null;
 		};
 
-		const getFontParameter = (tokens: any): { size?: number, font?: string } => {
-			const font: { size?: number, font?: string } = {};
+		const getFontParameter = (tokens: HeaderToken[]): Font => {
+			const font: Font = {};
 			const token = tokens.last();
 			if (token.type === 'number') {
 				font.size = parseInt(token.token);
@@ -436,23 +436,25 @@ export class AbcParseHeader {
 			return font;
 		};
 
-		const getChangingFont = (cmd: string, tokens: any): string | null => {
+		const getChangingFont = (cmd: keyof MultilineVars, tokens: HeaderToken[]): string | null => {
 			if (tokens.length === 0) {
 				return "Directive \"" + cmd + "\" requires a font as a parameter.";
 			}
-			this.multilineVars[cmd] = getFontParameter(tokens);
+			const multilineVars: Record<string, any> = this.multilineVars;
+			multilineVars[cmd] = getFontParameter(tokens);
 			return null;
 		};
 
-		const getGlobalFont = (cmd: string, tokens: any): string | null => {
+		const getGlobalFont = (cmd: keyof Formatting, tokens: HeaderToken[]): string | null => {
 			if (tokens.length === 0) {
 				return "Directive \"" + cmd + "\" requires a font as a parameter.";
 			}
-			this.tune.formatting[cmd] = getFontParameter(tokens);
+			const formatting: Record<string, any> = this.tune.formatting;
+			formatting[cmd] = getFontParameter(tokens);
 			return null;
 		};
 
-		const tokens = this.tokenizer.tokenize(str, 0, str.length) as HeaderToken[];
+		const tokens: HeaderToken[] = this.tokenizer.tokenize(str, 0, str.length);
 		if (tokens.length === 0 || tokens[0].type !== 'alpha') return null;
 		let restOfString = str.substring(str.indexOf(tokens[0].token!) + tokens[0].token!.length);
 		restOfString = this.tokenizer.stripComment(restOfString);
@@ -501,14 +503,14 @@ export class AbcParseHeader {
 				if (tokens.length === 0) {
 					this.tune.addSeparator();
 				} else {
-					if (tokens.length !== 3 || tokens[0].type !== 'number' || tokens[1].type !== 'number' || tokens[2].type !== 'number') {
+					if (tokens.length !== 3 || (tokens[0].type as string) !== 'number' || tokens[1].type !== 'number' || tokens[2].type !== 'number') {
 						return "Directive \"" + cmd + "\" requires 3 numbers: space above, space below, length of line";
 					}
 					this.tune.addSeparator(parseInt(tokens[0].token), parseInt(tokens[1].token), parseInt(tokens[2].token));
 				}
 				break;
 			case "barnumbers":
-				if (tokens.length !== 1 || tokens[0].type !== 'number') {
+				if (tokens.length !== 1 || (tokens[0].type as string) !== 'number') {
 					return "Directive \"" + cmd + "\" requires a number as a parameter.";
 				}
 				this.multilineVars.barNumbers = parseInt(tokens[0].token);
@@ -576,7 +578,7 @@ export class AbcParseHeader {
 					switch (t.token) {
 						case '(':
 							if (openParen) {
-								this.warn("Can't nest parenthesis in %%score", str, t.start);
+								this.warnFn("Can't nest parenthesis in %%score", str, t.start);
 							} else {
 								openParen = true;
 								justOpenParen = true;
@@ -584,22 +586,22 @@ export class AbcParseHeader {
 							break;
 						case ')':
 							if (!openParen || justOpenParen) {
-								this.warn("Unexpected close parenthesis in %%score", str, t.start);
+								this.warnFn("Unexpected close parenthesis in %%score", str, t.start);
 							} else {
 								openParen = false;
 							}
 							break;
 						case '[':
 							if (openBracket) {
-								this.warn("Can't nest brackets in %%score", str, t.start);
+								this.warnFn("Can't nest brackets in %%score", str, t.start);
 							} else {
 								openBracket = true;
 								justOpenBracket = true;
 							}
 							break;
-						case '':
+						case ']':
 							if (!openBracket || justOpenBracket) {
-								this.warn("Unexpected close bracket in %%score", str, t.start);
+								this.warnFn("Unexpected close bracket in %%score", str, t.start);
 							} else {
 								openBracket = false;
 								this.multilineVars.staves[lastVoice.staffNum].bracket = 'end';
@@ -607,7 +609,7 @@ export class AbcParseHeader {
 							break;
 						case '{':
 							if (openBrace) {
-								this.warn("Can't nest braces in %%score", str, t.start);
+								this.warnFn("Can't nest braces in %%score", str, t.start);
 							} else {
 								openBrace = true;
 								justOpenBrace = true;
@@ -615,7 +617,7 @@ export class AbcParseHeader {
 							break;
 						case '}':
 							if (!openBrace || justOpenBrace) {
-								this.warn("Unexpected close brace in %%score", str, t.start);
+								this.warnFn("Unexpected close brace in %%score", str, t.start);
 							} else {
 								openBrace = false;
 								this.multilineVars.staves[lastVoice.staffNum].brace = 'end';
@@ -679,7 +681,7 @@ export class AbcParseHeader {
 		//first space.
 		const id = this.tokenizer.getToken(line, start, end);
 		if (id.length === 0) {
-			this.warn("Expected a voice id", line, start);
+			this.warnFn("Expected a voice id", line, start);
 			return;
 		}
 		let isNew: boolean = false;
@@ -687,21 +689,21 @@ export class AbcParseHeader {
 			this.multilineVars.voices[id] = {};
 			isNew = true;
 			if (this.multilineVars.score_is_present) {
-				this.warn("Can't have an unknown V: id when the %score directive is present", line, i);
+				this.warnFn("Can't have an unknown V: id when the %score directive is present", line, i);
 			}
 		}
 		start += id.length;
 		start += this.tokenizer.eatWhiteSpace(line, start);
 
 		const staffInfo: StaffInfo = { startStaff: isNew };
-		const addNextTokenToStaffInfo = (name: string): void => {
+		const addNextTokenToStaffInfo = (name: keyof StaffInfo): void => {
 			const attr = this.tokenizer.getVoiceToken(line, start, end);
 			if (attr.warn !== undefined) {
-				this.warn("Expected value for " + name + " in voice: " + attr.warn, line, start);
+				this.warnFn("Expected value for " + name + " in voice: " + attr.warn, line, start);
 			} else if (attr.token.length === 0 && line.charAt(start) !== '"') {
-				this.warn("Expected value for " + name + " in voice", line, start);
+				this.warnFn("Expected value for " + name + " in voice", line, start);
 			} else {
-				staffInfo[name] = attr.token;
+				(staffInfo as Record<string, any>)[name] = attr.token;
 			}
 			start += attr.len;
 		};
@@ -711,7 +713,7 @@ export class AbcParseHeader {
 			start += token.len;
 
 			if (token.warn) {
-				this.warn("Error parsing voice: " + token.warn, line, start);
+				this.warnFn("Error parsing voice: " + token.warn, line, start);
 			} else {
 				let attr: any;
 				switch (token.token) {
@@ -793,11 +795,11 @@ export class AbcParseHeader {
 					case 'stems':
 						attr = this.tokenizer.getVoiceToken(line, start, end);
 						if (attr.warn !== undefined) {
-							this.warn("Expected value for stems in voice: " + attr.warn, line, start);
+							this.warnFn("Expected value for stems in voice: " + attr.warn, line, start);
 						} else if (attr.token === 'up' || attr.token === 'down') {
 							this.multilineVars.voices[id].stem = attr.token;
 						} else {
-							this.warn("Expected up or down for voice stem", line, start);
+							this.warnFn("Expected up or down for voice stem", line, start);
 						}
 						start += attr.len;
 						break;
@@ -807,8 +809,8 @@ export class AbcParseHeader {
 						break;
 					case 'middle':
 					case 'm':
-						addNextTokenToStaffInfo('verticalPos');
-						staffInfo.verticalPos = this.parseMiddle(staffInfo.verticalPos);
+						addNextTokenToStaffInfo('verticalToken');
+						staffInfo.verticalPos = this.parseMiddle(staffInfo.verticalToken);
 						break;
 					case 'gchords':
 					case 'gch':
@@ -940,7 +942,7 @@ export class AbcParseHeader {
 
 				if (tokens.length === 0)
 					throw "Expected meter definition in M: line";
-				const meter = { type: 'specified', value: [] };
+				const meter: MeterElement = { el_type: "meter", type: 'specified', value: [] };
 				let totalLength = 0;
 				while (true) {
 					const ret = parseFraction();
@@ -958,7 +960,7 @@ export class AbcParseHeader {
 				}
 				return meter;
 			} catch (e) {
-				this.warn(e, line, 0);
+				this.warnFn((e as Error).message, line, 0);
 			}
 		}
 		return null;
@@ -966,9 +968,9 @@ export class AbcParseHeader {
 
 	calcTempo(relTempo: TempoInfo): TempoInfo {
 		const dur: number = this.multilineVars.default_length ? this.multilineVars.default_length : 1;
-		if (relTempo.duration) {
-			for (let i = 0; i < relTempo.duration.length; i++) {
-				relTempo.duration[i] = dur * relTempo.duration[i];
+		if (relTempo.durationTempo) {
+			for (let i = 0; i < relTempo.durationTempo.length; i++) {
+				relTempo.durationTempo[i] = dur * relTempo.durationTempo[i];
 			}
 		}
 		return relTempo;
@@ -985,7 +987,7 @@ export class AbcParseHeader {
 	addUserDefinition(line: string, start: number, end: number): void {
 		const equals = line.indexOf('=', start);
 		if (equals === -1) {
-			this.warn("Need an = in a macro definition", line, start);
+			this.warnFn("Need an = in a macro definition", line, start);
 			return;
 		}
 
@@ -993,16 +995,16 @@ export class AbcParseHeader {
 		const after = line.substring(equals + 1).strip();
 
 		if (before.length !== 1) {
-			this.warn("Macro definitions can only be one character", line, start);
+			this.warnFn("Macro definitions can only be one character", line, start);
 			return;
 		}
 		const legalChars = "HIJKLMNOPQRSTUVWhijklmnopqrstuvw~";
 		if (legalChars.indexOf(before) === -1) {
-			this.warn("Macro definitions must be H-W, h-w, or tilde", line, start);
+			this.warnFn("Macro definitions must be H-W, h-w, or tilde", line, start);
 			return;
 		}
 		if (after.length === 0) {
-			this.warn("Missing macro definition", line, start);
+			this.warnFn("Missing macro definition", line, start);
 			return;
 		}
 		if (this.multilineVars.macros === undefined) {
@@ -1025,7 +1027,15 @@ export class AbcParseHeader {
 		}
 	};
 
-	setTempo(line: string, start: number, end: number): { type: string; tempo?: TempoElement } {
+	/**
+	 * 解析 ABC 樂譜中的速度欄位 Q:
+	 * 支援絕對速度 (如 Q:1/8=120)、相對速度 (如 Q:120) 以及前置/後置說明字串
+	 * @param line 速度設定的該行原始內容
+	 * @param start 起始的字元索引
+	 * @param end 結束的字元索引
+	 * @returns 解析結果，詳見 {@link SetTempoResult}
+	 */
+	setTempo(line: string, start: number, end: number): SetTempoResult {
 		//Q - tempo; can be used to specify the notes per minute, e.g.   if
 		//the  default  note length is an eighth note then Q:120 or Q:C=120
 		//is 120 eighth notes per minute. Similarly  Q:C3=40  would  be  40
@@ -1041,7 +1051,7 @@ export class AbcParseHeader {
 		// The temporary variables we keep are the duration and the bpm. In the first two forms, the duration is 1.
 		// In addition, a quoted string may both precede and follow. If a quoted string is present, then the duration part is optional.
 		try {
-			const tokens = this.tokenizer.tokenize(line, start, end);
+			const tokens: HeaderToken[] = this.tokenizer.tokenize(line, start, end);
 
 			if (tokens.length === 0) throw "Missing parameter in Q: field";
 
@@ -1065,10 +1075,10 @@ export class AbcParseHeader {
 					token = tokens.shift();
 					if (token.type !== 'number')
 						throw "Expected number after = in Q: field";
-					tempo.duration = [1];
+					tempo.durationTempo = [1];
 					tempo.bpm = parseInt(token.token);
 				} else if (token.type === 'number') {
-					tempo.duration = [parseInt(token.token)];
+					tempo.durationTempo = [parseInt(token.token)];
 					if (tokens.length === 0)
 						throw "Missing = after duration in Q: field";
 					token = tokens.shift();
@@ -1086,7 +1096,7 @@ export class AbcParseHeader {
 			} else if (token.type === 'number') {
 				let num = parseInt(token.token);
 				if (tokens.length === 0 || tokens[0].type === 'quote') {
-					tempo.duration = [1];
+					tempo.durationTempo = [1];
 					tempo.bpm = num;
 				} else {
 					delaySet = false;
@@ -1097,8 +1107,8 @@ export class AbcParseHeader {
 					if (token.type !== 'number')
 						throw "Expected fraction in Q: field";
 					let den = parseInt(token.token);
-					tempo.duration = [num / den];
-					while (tokens.length > 0 && tokens[0].token !== '=' && tokens[0].type !== 'quote') {
+					tempo.durationTempo = [num / den];
+					while (tokens.length > 0 && tokens[0]?.token !== '=' && (tokens[0].type as string) !== 'quote') {
 						token = tokens.shift();
 						if (token.type !== 'number')
 							throw "Expected fraction in Q: field";
@@ -1110,7 +1120,7 @@ export class AbcParseHeader {
 						if (token.type !== 'number')
 							throw "Expected fraction in Q: field";
 						den = parseInt(token.token);
-						tempo.duration.push(num / den);
+						tempo.durationTempo.push(num / den);
 					}
 					token = tokens.shift();
 					if (token.type !== 'punct' && token.token !== '=')
@@ -1134,12 +1144,18 @@ export class AbcParseHeader {
 			}
 			return { type: delaySet ? 'delaySet' : 'immediate', tempo: tempo };
 		} catch (msg) {
-			this.warn(String(msg), line, start);
+			this.warnFn(String(msg), line, start);
 			return { type: 'none' };
 		}
 	};
 
-	letter_to_inline_header(line: string, i: number): [number, string?, string?] {
+	/**
+	 * 解析行內 Inline 標頭欄位 (例如 [M:3/4])
+	 * @param line 當前解析的樂譜文字行
+	 * @param i 當前解析的起始字元索引
+	 * @returns 包含消耗長度、標頭字母與內容的 InlineHeaderResult 物件
+	 */
+	letter_to_inline_header(line: string, i: number): HeaderFieldResult {
 		const ws: number = this.tokenizer.eatWhiteSpace(line, i);
 		i += ws;
 		if (line.length >= i + 5 && line.charAt(i) === '[' && line.charAt(i + 2) === ':') {
@@ -1148,26 +1164,26 @@ export class AbcParseHeader {
 				case "[I:":
 					const err: string = this.addDirective(line.substring(i + 3, e));
 					if (err)
-						this.warn(err, line, i);
-					return [e - i + 1 + ws];
+						this.warnFn(err, line, i);
+					return { len: e - i + 1 + ws };
 				case "[M:":
 					const meter = this.setMeter(line.substring(i + 3, e));
 					if (this.tune.hasBeginMusic() && meter)
 						this.tune.appendStartingElement('meter', -1, -1, meter);
-					return [e - i + 1 + ws];
+					return { len: e - i + 1 + ws };
 				case "[K:":
 					const result = this.parseKey(line.substring(i + 3, e));
 					if (result.foundClef && this.tune.hasBeginMusic())
 						this.tune.appendStartingElement('clef', -1, -1, this.multilineVars.clef);
 					if (result.foundKey && this.tune.hasBeginMusic())
 						this.tune.appendStartingElement('key', -1, -1, this.fixKey(this.multilineVars.clef, this.multilineVars.key));
-					return [e - i + 1 + ws];
+					return { len: e - i + 1 + ws };
 				case "[P:":
 					this.tune.appendElement('part', -1, -1, { title: line.substring(i + 3, e) });
-					return [e - i + 1 + ws];
+					return { len: e - i + 1 + ws };
 				case "[L:":
 					this.setDefaultLength(line, i + 3, e);
-					return [e - i + 1 + ws];
+					return { len: e - i + 1 + ws };
 				case "[Q:":
 					if (e > 0) {
 						let tempo = this.setTempo(line, i + 3, e);
@@ -1175,14 +1191,22 @@ export class AbcParseHeader {
 							this.tune.appendElement('tempo', -1, -1, this.calcTempo(tempo.tempo) as unknown as ABCElement);
 						else if (tempo.type === 'immediate')
 							this.tune.appendElement('tempo', -1, -1, tempo.tempo as unknown as ABCElement);
-						return [e - i + 1 + ws, line.charAt(i + 1), line.substring(i + 3, e)];
+						return {
+							len: e - i + 1 + ws,
+							headerLetter: line.charAt(i + 1),
+							content: line.substring(i + 3, e)
+						};
 					}
 					break;
 				case "[V:":
 					if (e > 0) {
 						this.parseVoice(line, i + 3, e);
 						//startNewLine();
-						return [e - i + 1 + ws, line.charAt(i + 1), line.substring(i + 3, e)];
+						return {
+							len: e - i + 1 + ws,
+							headerLetter: line.charAt(i + 1),
+							content: line.substring(i + 3, e)
+						};
 					}
 					break;
 
@@ -1190,55 +1214,68 @@ export class AbcParseHeader {
 				// TODO: complain about unhandled header
 			}
 		}
-		return [0];
-	};
+		return { len: 0 };
+	}
 
-	letter_to_body_header(line: string, i: number): [number, string?, string?] {
-
+	/**
+	 * 解析樂譜 Body 標頭欄位 (例如 K:C)
+	 * @param line 當前解析的樂譜文字行
+	 * @param i 當前解析的起始字元索引
+	 * @returns 包含消耗長度、標頭字母與內容的 BodyHeaderResult 物件
+	 */
+	letter_to_body_header(line: string, i: number): HeaderFieldResult {
 		if (line.length >= i + 3) {
 			switch (line.substring(i, i + 2)) {
 				case "I:":
 					const err = this.addDirective(line.substring(i + 2));
-					if (err) this.warn(err, line, i);
-					return [line.length];
+					if (err) this.warnFn(err, line, i);
+					return { len: line.length };
 				case "M:":
 					const meter = this.setMeter(line.substring(i + 2));
 					if (this.tune.hasBeginMusic() && meter)
 						this.tune.appendStartingElement('meter', -1, -1, meter);
-					return [line.length];
+					return { len: line.length };
 				case "K:":
 					const result = this.parseKey(line.substring(i + 2));
 					if (result.foundClef && this.tune.hasBeginMusic())
 						this.tune.appendStartingElement('clef', -1, -1, this.multilineVars.clef);
 					if (result.foundKey && this.tune.hasBeginMusic())
 						this.tune.appendStartingElement('key', -1, -1, this.fixKey(this.multilineVars.clef, this.multilineVars.key));
-					return [line.length];
+					return { len: line.length };
 				case "P:":
 					if (this.tune.hasBeginMusic())
 						this.tune.appendElement('part', -1, -1, { title: line.substring(i + 2) });
-					return [line.length];
+					return { len: line.length };
 				case "L:":
 					this.setDefaultLength(line, i + 2, line.length);
-					return [line.length];
+					return { len: line.length };
 				case "Q:":
 					let e = line.indexOf('\x12', i + 2);
 					if (e === -1) e = line.length;
 					const tempo = this.setTempo(line, i + 2, e);
-					if (tempo.type === 'delaySet') this.tune.appendElement('tempo', -1, -1, this.calcTempo(tempo.tempo) as unknown as TempoElement);
-					else if (tempo.type === 'immediate') this.tune.appendElement('tempo', -1, -1, tempo.tempo as unknown as TempoElement);
-					return [e, line.charAt(i), line.substring(i + 2).trim()];
+					if (tempo.type === 'delaySet') this.tune.appendElement('tempo', -1, -1, this.calcTempo(tempo.tempo));
+					else if (tempo.type === 'immediate') this.tune.appendElement('tempo', -1, -1, tempo.tempo);
+					return {
+						len: e,
+						headerLetter: line.charAt(i),
+						content: line.substring(i + 2).trim()
+					};
 				case "V:":
 					this.parseVoice(line, 2, line.length);
 					//						startNewLine();
-					return [line.length, line.charAt(i), line.substring(i + 2).trim()];
+					return {
+						len: line.length,
+						headerLetter: line.charAt(i),
+						content: line.substring(i + 2).trim()
+					};
 				default:
 				// TODO: complain about unhandled header
 			}
 		}
-		return [0];
-	};
+		return { len: 0 };
+	}
 
-	metaTextHeaders = {
+	private metaTextHeaders: Record<string, keyof MetaText> = {
 		A: 'author',
 		B: 'book',
 		C: 'composer',
@@ -1254,10 +1291,16 @@ export class AbcParseHeader {
 		Z: 'transcription'
 	};
 
-	parseHeader(line: string): { recurse?: boolean, str?: string, newline?: boolean, regular?: boolean, words?: boolean } {
+	/**
+	 * 負責解析標頭欄位行（Header lines）
+	 * 支援 %% 命令指示、一般 ABC Meta 資訊、調號設定、小節設定、速度設定、聲部設定等
+	 * @param line 標頭那一行的原始內容
+	 * @returns 行解析結果，詳見 {@link ParseHeaderResult}
+	 */
+	parseHeader(line: string): ParseHeaderResult {
 		if (line.startsWith('%%')) {
 			const err = this.addDirective(line.substring(2));
-			if (err) this.warn(err, line, 2);
+			if (err) this.warnFn(err, line, 2);
 			return {};
 		}
 		line = this.tokenizer.stripComment(line);
@@ -1332,7 +1375,7 @@ export class AbcParseHeader {
 							break;
 						case 'E':
 						case 'm':
-							this.warn("Ignored header", line, 0);
+							this.warnFn("Ignored header", line, 0);
 							break;
 						default:
 							if (nextLine.length) {

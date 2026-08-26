@@ -165,12 +165,18 @@ export class ABCStaffGroupElement {
 		this.height = y - this.y;
 
 		let bartop = 0;
+		// 開始畫聲部 [V:? clef=...] , 第一個聲部使用 y+bartop 作為起始 y
+		// 之後的聲部會自動使用前一個聲部的 barbottom 作為 bartop
+		// 繪製該組內的所有聲部 (Voice)（即音符、休止符、小節線等）。
+		// 它還會計算小節線的垂直頂端與底端，以確保跨聲部小節線能正確對齊連接。
 		for (const voice of this.voices) {
 			voice.draw(printer, bartop);
 			if (voice.barfrom)
 				bartop = voice.barbottom;
 		}
 
+		// 當有多個樂譜行（如鋼琴雙手譜表）時，
+		// 在最左側開頭繪製一條垂直的左端系統連接線，將這幾行樂譜框在一起。
 		if (this.staffs.length > 1) {
 			printer.y = this.staffs[0].y;
 			const top = printer.calcY(10);
@@ -179,6 +185,7 @@ export class ABCStaffGroupElement {
 			printer.printStem(this.startx, 0.6, top, bottom);
 		}
 
+		// 畫出各聲部的五線譜平行線(五條線)，對齊第 1 聲部的起始位置。
 		for (const staff of this.staffs) {
 			if (staff) {
 				printer.y = staff.y;
@@ -309,16 +316,22 @@ export class ABCVoiceElement {
 			let textpitch = 12 - (this.voicenumber + 1) * (12 / (this.voicetotal + 1));
 			printer.paper.text(this.startx / 2, printer.calcY(textpitch), this.header).attr({ "font-size": 12, "font-family": "serif" });
 		}
-
+		// 實際開始畫音符
+		// 繪製聲部內的所有主要核心元素（例如音符符頭、休止符、小節線等絕對定位元素）。
 		for (let i = 0, ii = this.children.length; i < ii; i++) {
 			this.children[i].draw(printer, (this.barto || i === ii - 1) ? bartop : 0);
 		}
 
+		// 繪製符槓/符幹連接線 (Beams)（連結多個八分或十六分音符的粗黑橫線）。必須先繪製符槓，後續的連音線等才能正確計算定位。
 		for (let beam of this.beams) {
-			beam.draw(printer, 0, 0); // beams must be drawn first for proper printing of triplets, slurs and ties.
+			// beams must be drawn first for proper printing of triplets, slurs and ties.
+			// 要正確印刷三連音、連音線和延音線，必須先畫出音符。
+			beam.draw(printer, 0, 0);
 		}
 
-
+		// 繪製其他輔助與裝飾性連接線，包括：
+		// 圓滑線/連音線 (Slurs)、延音線 (Ties)、三連音標記 (Triplets) 
+		// 以及反覆記號的結束段落標記 (Endings)。
 		this.otherchildren.forEach(child => {
 			child.draw(printer, this.startx + 10, width);
 		});
@@ -407,7 +420,7 @@ export class ABCAbsoluteElement {
 		let self: ABCAbsoluteElement = this;
 		for (const el of this.elemset) {
 			if (el)
-				el.mouseup(function (e) {
+				el.mouseup(function (e: any) {
 					printer.notifySelect(self);
 				});
 		}
@@ -472,7 +485,6 @@ export class ABCRelativeElement {
 			case "text":
 				this.graphelem = printer.printText(this.x, this.pitch, this.c);
 				break;
-
 			case "bar":
 				this.graphelem = printer.printStem(this.x, this.linewidth, printer.calcY(this.pitch), (bartop) ? bartop : printer.calcY(this.pitch2));
 				break;

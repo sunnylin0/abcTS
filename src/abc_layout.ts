@@ -55,10 +55,11 @@ export class ABCLayout {
 	abcline: NOTES_Element[];
 	pos: number;
 	partstartelem: ABCEndingElem;
-	startlimitelem;
+	startlimitelem: ABCAbsoluteElement | null;
 	roomtaken: number;
 	roomtakenright: number;
 	accidentalshiftx: number;
+	dotshiftx: number = 0; //更新點號空間限制
 	triplet: ABCTripletElem;
 
 	constructor(glyphs: ABCGlyphs, bagpipes: boolean) {
@@ -170,7 +171,7 @@ export class ABCLayout {
 
 	printABCElement(): ABCAbsoluteElement[] {
 		let elemset: ABCAbsoluteElement[] = [];
-		const elem = this.getElem();
+		const elem: NOTES_Element = this.getElem();
 		let abselem: ABCAbsoluteElement;
 		switch (elem.el_type) {
 			case "note":
@@ -223,7 +224,8 @@ export class ABCLayout {
 			}
 			this.voice.addOther(beamelem);
 		} else {
-			abselemset.push(this.printNote(this.getElem()));
+			let abselem: ABCAbsoluteElement = this.printNote(this.getElem());
+			abselemset.push(abselem);
 		}
 		return abselemset;
 	}
@@ -245,7 +247,7 @@ export class ABCLayout {
 	}
 
 	printNote(elem: ABCElement, nostem?: boolean): ABCAbsoluteElement {
-		let notehead: any = null;
+		let notehead: ABCRelativeElement = null;
 		let grace: any = null;
 		this.roomtaken = 0; // room needed to the left of the note
 		this.roomtakenright = 0;
@@ -323,11 +325,11 @@ export class ABCLayout {
 
 				if (((this.stemdir === "up" || dir === "down") && p === pp - 1) || ((this.stemdir === "down" || dir === "up") && p === 0)) { // place to put slurs if not already on pitches
 					if (elem.startSlur) {
-						elem.pitches[p].startSlur = elem.startSlur;
+						elem.pitches[p].startSlur = elem.startSlur as number[];
 					}
 
 					if (elem.endSlur) {
-						elem.pitches[p].endSlur = elem.endSlur;
+						elem.pitches[p].endSlur = elem.endSlur as number[];
 					}
 				}
 
@@ -375,15 +377,16 @@ export class ABCLayout {
 				let gracepitch = elem.gracenotes[i].verticalPos;
 
 				flag = (gracebeam) ? null : this.chartable["uflags"][(this.isBagpipes) ? 5 : 3];
-				grace = this.printNoteHead(abselem, "noteheads.quarter", elem.gracenotes[i], "up", -graceoffsets[i], -graceoffsets[i], flag, 0, 0, gracescale);
+				grace = this.printNoteHead(abselem, "noteheads.quarter", elem.gracenotes[i] as unknown as Pitch, "up", -graceoffsets[i], -graceoffsets[i], flag, 0, 0, gracescale);
 				abselem.addExtra(grace);
 
 				if (gracebeam) { // give the beam the necessary info
-					let pseudoabselem: ABCBeamElem = {
+					let pseudoabselem: ABCAbsoluteElement = {
 						heads: [grace],
-						abcelem: { averagepitch: gracepitch, minpitch: gracepitch, maxpitch: gracepitch },
-						duration: (this.isBagpipes) ? 1 / 32 : 1 / 16
-					};
+						abcelem: { averagepitch: gracepitch, minpitch: gracepitch, maxpitch: gracepitch } as ABCElement,
+						duration: (this.isBagpipes) ? 1 / 32 : 1 / 16,
+						beam: null as ABCBeamElem
+					} as ABCAbsoluteElement;
 					gracebeam.add(pseudoabselem);
 				} else { // draw the stem
 					p1 = gracepitch + 1 / 3 * gracescale;
@@ -406,7 +409,7 @@ export class ABCLayout {
 		}
 
 		if (elem.barNumber) {
-			abselem.addChild(new ABCRelativeElement(elem.barNumber, -10, 0, 0, { type: "debug" }));
+			abselem.addChild(new ABCRelativeElement(elem.barNumber.toString(), -10, 0, 0, { type: "debug" }));
 		}
 
 		// ledger lines
@@ -442,7 +445,7 @@ export class ABCLayout {
 						break;
 					case "below":
 						cy = -3;
-						// fall through
+					// fall through
 					default:
 						abselem.addChild(new ABCRelativeElement(chordItem.name, cx, 0, cy, { type: "text" }));
 				}
@@ -462,15 +465,16 @@ export class ABCLayout {
 		return abselem;
 	}
 
-	printNoteHead(abselem: ABCAbsoluteElement, c: string, pitchelem: any, dir: string, headx: number, extrax: number, flag: string, dot: number, dotshiftx: number, scale: number): ABCRelativeElement {
+	printNoteHead(abselem: ABCAbsoluteElement, c: string, pitchelem: Pitch, dir: string, headx: number, extrax: number, flag: string, dot: number, dotshiftx: number, scale: number): ABCRelativeElement {
 		// TODO scale the dot as well
 		let pitch = pitchelem.verticalPos;
-		let notehead: any;
+		let notehead: ABCRelativeElement;
 		let i;
 		this.accidentalshiftx = 0;
-		this.dotshiftx = 0;
-		if (c === undefined)
+		this.dotshiftx = 0;	//更新點號空間限制
+		if (c === undefined) {
 			abselem.addChild(new ABCRelativeElement("pitch is undefined", 0, 0, 0, { type: "debug" }));
+		}
 		else if (c === "") {
 			notehead = new ABCRelativeElement(null, 0, 0, pitch);
 		} else {
@@ -538,10 +542,11 @@ export class ABCLayout {
 				let slurid = pitchelem.endSlur[i];
 				let slur;
 				if (this.slurs[slurid]) {
-					slur = this.slurs[slurid].anchor2 = notehead;
+					this.slurs[slurid].anchor2 = notehead;
+					slur = this.slurs[slurid];
 					delete this.slurs[slurid];
 				} else {
-					slur = new ABCTieElem(null, notehead, dir === "down", (this.stemdir === "up" || dir === "down") && this.stemdir !== "down", this.stemdir);
+					slur = new ABCTieElem(null, notehead, dir === "down", (this.stemdir === "up" || dir === "down") && this.stemdir !== "down");
 					this.voice.addOther(slur);
 				}
 				if (this.startlimitelem) {
@@ -757,7 +762,7 @@ export class ABCLayout {
 		return abselem;
 	}
 
-	printTimeSignature(elem: ABCElement): ABCAbsoluteElement {
+	printTimeSignature(elem: MeterElement): ABCAbsoluteElement {
 		const abselem = new ABCAbsoluteElement(elem, 0, 20);
 
 		if (elem.type === "specified") {

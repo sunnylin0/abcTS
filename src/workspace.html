@@ -1,5 +1,6 @@
 ﻿<!DOCTYPE html>
 <html lang="en">
+
 <head>
 
 
@@ -11,7 +12,7 @@
 	<link href="workspace.css" media="screen" rel="stylesheet" type="text/css" />
 
 	<script type="module" src="./index.ts"></script>
-	
+
 	<script>
 		let timer;
 		function load() {
@@ -21,7 +22,7 @@
 		}
 		var abcEditor = {};
 		function render() {
-			abcEditor=new ABCEditor("abc", {
+			abcEditor = new ABCEditor("abc", {
 				canvas_id: "canvas",
 				midi_id: "midi",
 				warnings_id: "warnings",
@@ -37,6 +38,7 @@
 		}
 	</script>
 </head>
+
 <body>
 	<script type="text/javascript">
 		//<![CDATA[
@@ -50,7 +52,7 @@
 		<tbody>
 			<tr>
 				<td>
-					<textarea name="abc" id="abc" cols="80" rows="15"  onchange="load();">X: 1
+					<textarea name="abc" id="abc" cols="80" rows="15" onchange="load();">X: 1
 T: Cooley's
 M: 4/4
 L: 1/8
@@ -64,8 +66,11 @@ eB B2 eBgB|eB B2 defg|afe^c dBAF|DEFD E2:|</textarea>
 				<td>
 					<ul class="NoBulletNoIndent">
 						<li>
-							<select onkeyup="pickTune(this.options[this.selectedIndex].value);" onchange="pickTune(this.options[this.selectedIndex].value);">
-								<option selected="selected" value="X:1`nT:Untitled`nC:Author`nS:Copyright`nM:4/4`nL:1/8`nQ:112`nR:rhythm`nK:C`n">New Tune</option>
+							<select onkeyup="pickTune(this.options[this.selectedIndex].value);"
+								onchange="pickTune(this.options[this.selectedIndex].value);">
+								<option selected="selected"
+									value="X:1`nT:Untitled`nC:Author`nS:Copyright`nM:4/4`nL:1/8`nQ:112`nR:rhythm`nK:C`n">
+									New Tune</option>
 								<option value="X:1
 T:Critter`as Gone to Texas
 M:4/4
@@ -199,14 +204,14 @@ sol de-si-o_. % more lyrics
 [V: 2] ABGA  |G2AA|GF=EF |(GF3/2=E//D//E)|1F2z2:|2F8|]
 w: dim-me-lo ben mi-o, che que-sto sol de-si - - - - o_.
 [V: 3] _dBc>d|e2AF|=EFc_d|c4             |1F2z2:|2F8|]
-w: dim-me-lo ben mi-o, che que-sto sol de-si-o_.'
->
+w: dim-me-lo ben mi-o, che que-sto sol de-si-o_.'>
 									Canzonetta a tre voci
 								</option>
 							</select>
 						</li>
 						<li>
-							Zoom: <select onkeyup="magnify(this.options[this.selectedIndex].value);" onchange="magnify(this.options[this.selectedIndex].value);">
+							Zoom: <select onkeyup="magnify(this.options[this.selectedIndex].value);"
+								onchange="magnify(this.options[this.selectedIndex].value);">
 								<option value=".5">1</option>
 								<option value=".6">2</option>
 								<option value=".7" selected="selected">3</option>
@@ -218,11 +223,18 @@ w: dim-me-lo ben mi-o, che que-sto sol de-si-o_.'
 						<li><a href="#" onclick="createPDF();; return false;">Create PDF</a></li>
 						<li><a href="#" onclick="createMIDI();; return false;">Create MIDI</a></li>
 						<li><a href="#" onclick="save();; return false;">Save</a></li>
-						<li><a href="http://drawthedots.performantsoftware.com/comparison">Go to parser testing page</a></li>
+						<li><a href="http://drawthedots.performantsoftware.com/comparison">Go to parser testing page</a>
+						</li>
 						<li><a href="http://drawthedots.performantsoftware.com/about">About</a></li>
-						<li><input id="playButton" value="Play" onclick="play();" type="button" /> <input id="stopButton" value="Stop" onclick="stopPlay();" disabled="disabled" type="button" /></li>
-						<li><div id="ajax_status"></div></li>
-						<li><div id="players"></div></li>
+						<li><input id="playButton" value="Play" onclick="play();" type="button" /> <input
+								id="stopButton" value="Stop" onclick="stopPlay();" disabled="disabled" type="button" />
+						</li>
+						<li>
+							<div id="ajax_status"></div>
+						</li>
+						<li>
+							<div id="players"></div>
+						</li>
 					</ul>
 				</td>
 			</tr>
@@ -241,4 +253,5 @@ w: dim-me-lo ben mi-o, che que-sto sol de-si-o_.'
 
 	<i style="display: none; color: rgb(0, 0, 0);" class="Raphaël Colour Picker"></i>
 </body>
+
 </html>

@@ -746,3 +746,43 @@
 ### 風險評估 (Risks & Mitigations)
 - **DOM 清理影響未預期之全域變數**：`document.body` 的子節點被清空是否會影響其他掛載在 body 上的全域 API？
   - *對策*：因 `compare_ast.js` 的測試流程皆為同步解析與同步渲染繪製，在繪圖完成並比對 `drawLog` 結束後才執行 `clear()`，不會干擾該案例的比對。
+
+---
+## [2026-08-26 09:45:00] 全專案 TypeScript 補齊缺失型別與型別庫對齊
+
+### 步驟與技術方案 (Step-by-step Technical Plans)
+1. **型別定義庫維護 (`src/all.d.ts`, `types/jsonschema/index.d.ts`)**：
+   - 補齊全域 `Raphael`、`Aaa` namespace 及 JSONSchema 模組宣告。
+   - 擴充 Tokenizer 模式 A/B/C 型別（`KeyPitchResult`, `SharpFlatResult`, `ModeResult`, `GetBarLineResult` 等）與 Parser 回傳型別（`ParseHeaderResult`, `SetTempoResult`, `ChordParseResult` 等）。
+   - 在 `Formatting`, `MetaText`, `StaffInfo` 加入字串索引簽名 `[key: string]: any`；在 `Pitch` 與 `GraceNote` 支援 `number | number[]` 之 `startSlur`/`endSlur`。
+2. **詞法解析與標頭解析 (`src/abc_tokenizer.ts`, `src/abc_parse_header.ts`)**：
+   - 為 `abc_tokenizer.ts` 所有函式補充回傳型別與 JSDoc，保留 Tuple 簽章 `[number, string, boolean]`。
+   - 移除 `abc_parse_header.ts` 中的區域重複 `HeaderToken` 宣告，將 `pitches` 修正為 `Record<string, number>`，補齊 `metaTextHeaders` 與 `parseHeader` 型別。
+3. **語法分析與樂譜核心 (`src/abc_parse.ts`, `src/abc_tune.ts`)**：
+   - 在 `abc_parse.ts` 的 `MultilineVars` 中補充 `gchordfont`, `partsfont`, `vocalfont` 及索引簽名；修正 chord slur 累加與 `addWords` 警告呼叫。
+   - 在 `abc_tune.ts` 中重構 `cleanUpSlursInLine` 的 `addEndSlur` / `addStartSlur` 支援 `number | number[]`，並以 `keyof MetaText` 強化 `addMetaText`。
+4. **排版引擎與繪圖輸出 (`src/abc_layout.ts`, `src/abc_write.ts`, `src/proto.ts`, `src/svg.ts`)**：
+   - 在 `abc_layout.ts` 中補齊 `startlimitelem`, `dotshiftx` 屬性宣告與 `pseudoabselem`、`ABCTieElem` 建構引數型別。
+   - 在 `proto.ts` 中修正 `Object.clone` 的 `this` 語法錯誤與全域 Array 原型擴充方法型別。
+   - 在 `svg.ts` 與 `abc_write.ts` 中修正 SVG 屬性與樣式動態索引型別斷言。
+5. **編譯設定與獨立腳本排除 (`tsconfig.json`, `src/abc_parser_lint.ts`)**：
+   - 在 `tsconfig.json` 中配置 exclude 排除獨立腳本；在 `abc_parser_lint.ts` 內將 `this.musicSchema` 轉型相容驗證函式。
+
+### 影響檔案 (Affected Files)
+- `src/all.d.ts` (修改)
+- `types/jsonschema/index.d.ts` (修改)
+- `src/abc_tokenizer.ts` (修改)
+- `src/abc_parse_header.ts` (修改)
+- `src/abc_parse.ts` (修改)
+- `src/abc_tune.ts` (修改)
+- `src/abc_layout.ts` (修改)
+- `src/abc_write.ts` (修改)
+- `src/abc_parser_lint.ts` (修改)
+- `src/application.ts` (修改)
+- `src/proto.ts` (修改)
+- `src/svg.ts` (修改)
+- `tsconfig.json` (修改)
+
+### 風險評估 (Risks & Mitigations)
+- **執行期行為變更風險**：補型別過程中若改動 JS 執行期結構（如將 Tuple 改為物件）將破壞現有呼叫端。
+  - *對策*：嚴格遵循「程式碼不修改為原則」，維持原有 Tuple 簽章與邏輯，僅補充型別標註與必要的型別斷言。
